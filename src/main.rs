@@ -54,11 +54,9 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
 fn run(code: &str) {
    println!("running...\n");
 
-   let result = lexer::tokenize(code);
-   for token in result {
-      println!("{:?}", token.kind);
-   }
-   println!("\nend.");
+   //let result = lexer::tokenize(code);
+   let tree = parser::parse(code);
+   parser::print(&tree);
 }
 
 #[derive(Clone, Debug, PartialEq)]

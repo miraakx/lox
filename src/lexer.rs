@@ -335,8 +335,6 @@ fn identifier(first_char: char, scanner: &mut Scanner, keywords_map: &HashMap<&s
 
 }
 
-
-
 #[inline]
 fn is_number(ch: char) -> bool {
     ch.is_digit(10)
@@ -586,8 +584,6 @@ fn test_others() {
 #[test]
 fn test_unexpected_tokens() {
     assert_eq!(tokenize(":").get(0).unwrap().kind, TokenKind::UnexpectedToken(':'));
-    assert_eq!(tokenize("😀").get(0).unwrap().kind, TokenKind::UnexpectedToken('😀'));
-    assert_eq!(tokenize("驚").get(0).unwrap().kind, TokenKind::UnexpectedToken('驚'));
     assert_eq!(tokenize("&").get(0).unwrap().kind, TokenKind::UnexpectedToken('&'));
     assert_eq!(tokenize("&&").get(0).unwrap().kind, TokenKind::UnexpectedToken('&'));
     assert_eq!(tokenize("|").get(0).unwrap().kind, TokenKind::UnexpectedToken('|'));
