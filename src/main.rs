@@ -12,11 +12,11 @@ mod lexer;
 mod parser;
 mod common;
 
-fn _main() {
-   run("000.5");
+fn main() {
+   run("5-3-(1-2)*2<0==4");
 }
 
-fn main() {
+fn _main() {
 
    let args: Vec<String> = env::args().collect();
    let result = match args.len() {
@@ -55,13 +55,14 @@ fn run(code: &str) {
    println!("running...\n");
 
    //let result = lexer::tokenize(code);
-   let tree = parser::parse(code);
+   let tree = parser::parse(code).unwrap().unwrap();
    parser::print(&tree);
+   print!("\n");
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum LoxErrorKind {
-   UnexpectedToken(char), ParseFloatError(String), UnterminatedString, InvalidEscapeCharacter
+   UnexpectedToken(char), ParseFloatError(String), UnterminatedString, InvalidEscapeCharacter, UnexpectedToken2(String)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -85,6 +86,7 @@ impl fmt::Display for LoxError {
          LoxErrorKind::ParseFloatError(value) => write!(f, "Cannot parse float '{}', at line: {}, column: {}.", value, self.position.line, self.position.column),
          LoxErrorKind::UnterminatedString => write!(f, "Unterminated string at line: {}, column: {}.", self.position.line, self.position.column),
          LoxErrorKind::InvalidEscapeCharacter => write!(f, "Invalid escape character at line: {}, column: {}.", self.position.line, self.position.column),
+         LoxErrorKind::UnexpectedToken2(ch) => write!(f, "Unexpected token '{}', at line: {}, column: {}.", ch, self.position.line, self.position.column),
       }  
    }
 }

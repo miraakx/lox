@@ -27,8 +27,6 @@ pub enum TokenKind {
     Var,        Nil, 
     Print,      Return, 
 
-    Eof,
-
     UnexpectedToken(char)
 }
 
@@ -164,12 +162,7 @@ impl <'a> Iterator for Lexer<'a> {
             let opt_ch: Option<char> = self.scanner.next();
             
             if opt_ch.is_none() {
-                if self.flg_end == false {
-                    self.flg_end = true;
-                    return Some(Token::new(TokenKind::Eof, self.scanner.position));
-                } else {
-                    return None;
-                }
+                return None;
             }
             
             let ch: char = opt_ch.unwrap();
@@ -578,7 +571,7 @@ fn test_others() {
     assert_eq!(tokenize(".").get(0).unwrap().kind, TokenKind::Dot);
     assert_eq!(tokenize(",").get(0).unwrap().kind, TokenKind::Comma);
     assert_eq!(tokenize(";").get(0).unwrap().kind, TokenKind::Semicolon);
-    assert_eq!(tokenize(" \r \t \r\n \n // ////true or false?").get(0).unwrap().kind, TokenKind::Eof);
+    assert_eq!(tokenize(" \r \t \r\n \n // ////true or false?").get(0), None);
 }
 
 #[test]
@@ -622,6 +615,4 @@ fn test_construct() {
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Semicolon);
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::RightBrace);
-    index = index + 1;
-    assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Eof);
 }

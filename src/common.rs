@@ -11,7 +11,7 @@ impl<T: Clone> CircularBuffer<T> {
     fn new(capacity: usize) -> Self {
         CircularBuffer {
             buffer: vec![None; capacity],
-            capacity: capacity,
+            capacity,
             head: 0,
             tail: 0,
             size: 0
@@ -63,10 +63,7 @@ impl<T: Clone> CircularBuffer<T> {
     }
 
     pub fn tail(&self) -> Option<&T> {
-        /*if self.is_empty() {
-            return None;
-        }*/
-        //If necessario perché self.tail e self.capacity sono usize
+        //If necessario perche' self.tail e self.capacity sono usize
         if self.tail == 0 {
             self.buffer[self.capacity - 1].as_ref()
         } else {
@@ -75,9 +72,6 @@ impl<T: Clone> CircularBuffer<T> {
     }
 
     pub fn head(&self) -> Option<&T> {
-        /*if self.is_empty() {
-            return None;
-        }*/
         self.buffer[self.head].as_ref()
     }
 
@@ -139,6 +133,10 @@ where
             return self.iter.next();
         }
         self.buffer.dequeue()
+    }
+
+    pub fn is_last(&mut self) -> bool {
+        self.peek().is_none()
     }
 }
 
