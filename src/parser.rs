@@ -1,8 +1,7 @@
 use crate::LoxError;
-use crate::LoxErrorKind;
 use crate::lexer::Token;
 use crate::lexer::Lexer;
-use crate::common::NthPeekable;
+use crate::common::Peekable;
 use crate::lexer::TokenKind;
 
 pub enum Expr {
@@ -22,13 +21,11 @@ pub fn print(expr: &Expr) {
     }
 }
 
-type Peekable<'a> = NthPeekable<Lexer<'a>, Token>;
-
-fn expression<'a>(iter: &'a mut Peekable) -> Option<Result<Expr,LoxError>> {
+fn expression<'a>(iter: &mut Peekable<Lexer<'a>, Token>) -> Option<Result<Expr,LoxError>> {
     equality(iter)
 }
 
-fn equality<'a>(iter: &'a mut Peekable) -> Option<Result<Expr,LoxError>> {
+fn equality<'a>(iter: &mut Peekable<Lexer<'a>, Token>) -> Option<Result<Expr,LoxError>> {
     let opt_expr = comparison(iter);
     if opt_expr.is_none() {
         return None;
@@ -63,7 +60,7 @@ fn equality<'a>(iter: &'a mut Peekable) -> Option<Result<Expr,LoxError>> {
     }
 } 
 
-fn comparison<'a>(iter: &'a mut Peekable) -> Option<Result<Expr,LoxError>> {
+fn comparison<'a>(iter: &mut Peekable<Lexer<'a>, Token>) -> Option<Result<Expr,LoxError>> {
     let opt_expr = term(iter);
     if opt_expr.is_none() {
         return None;
@@ -98,7 +95,7 @@ fn comparison<'a>(iter: &'a mut Peekable) -> Option<Result<Expr,LoxError>> {
     }
 }
 
-fn term<'a>(iter: &'a mut Peekable) -> Option<Result<Expr,LoxError>> {
+fn term<'a>(iter: &mut Peekable<Lexer<'a>, Token>) -> Option<Result<Expr,LoxError>> {
     let opt_expr = factor(iter);
     if opt_expr.is_none() {
         return None;
@@ -135,7 +132,7 @@ fn term<'a>(iter: &'a mut Peekable) -> Option<Result<Expr,LoxError>> {
 
 
 
-fn factor<'a>(iter: &'a mut Peekable) -> Option<Result<Expr,LoxError>> {
+fn factor<'a>(iter: &mut Peekable<Lexer<'a>, Token>) -> Option<Result<Expr,LoxError>> {
     let opt_expr = unary(iter);
     if opt_expr.is_none() {
         return None;
@@ -171,7 +168,7 @@ fn factor<'a>(iter: &'a mut Peekable) -> Option<Result<Expr,LoxError>> {
     }
 }
 
-fn unary<'a>(iter: &'a mut Peekable) -> Option<Result<Expr, LoxError>> {
+fn unary<'a>(iter: &mut Peekable<Lexer<'a>, Token>) -> Option<Result<Expr, LoxError>> {
     if iter.is_last() {
         return None;
     }
@@ -195,7 +192,7 @@ fn unary<'a>(iter: &'a mut Peekable) -> Option<Result<Expr, LoxError>> {
     }
 }
 
-fn primary<'a>(iter: &'a mut Peekable) -> Option<Result<Expr, LoxError>> {
+fn primary<'a>(iter: &mut Peekable<Lexer<'a>, Token>) -> Option<Result<Expr, LoxError>> {
     if iter.is_last() {
        return None;
     }
@@ -234,10 +231,8 @@ fn primary<'a>(iter: &'a mut Peekable) -> Option<Result<Expr, LoxError>> {
 
 
 pub fn parse<'a>(code: &'a str) -> Option<Result<Expr,LoxError>> { 
-    let lexer = Lexer::new(code);
-    let mut iter = NthPeekable::new(lexer, 1);
-    let opt_expr = expression(&mut iter);
+    let lexer: Lexer<'a> = Lexer::new(code);
+    let mut iter: Peekable<Lexer<'a>, Token> = Peekable::new(lexer);
+    let opt_expr: Option<Result<Expr, LoxError>> = expression(&mut iter);
     return opt_expr;
 }
-
-

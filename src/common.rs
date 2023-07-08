@@ -101,7 +101,7 @@ where
         }
     }
 
-    pub fn peek<'a>(&'a mut self) -> Option<&'a T> {
+    pub fn peek(&mut self) -> Option<&T> {
         if self.buffer.is_empty(){
             if let Some(item) = self.iter.next() {
                 self.buffer.enqueue(item);
@@ -110,7 +110,7 @@ where
         self.buffer.peek(0)
     }
 
-    pub fn peek_nth<'a>(&mut self, index: usize) -> Option<&T> {
+    pub fn peek_nth(&mut self, index: usize) -> Option<&T> {
         if self.buffer.size() > index {
             return self.buffer.peek(index);
         }
@@ -133,6 +133,45 @@ where
             return self.iter.next();
         }
         self.buffer.dequeue()
+    }
+
+    pub fn is_last(&mut self) -> bool {
+        self.peek().is_none()
+    }
+}
+
+
+pub struct Peekable<I, T: Clone> 
+where
+    I: Iterator<Item = T>
+{
+    iter: I,
+    item: Option<T>
+}
+
+impl<I, T: Clone> Peekable<I, T> 
+where
+    I: Iterator<Item = T>
+{
+    pub fn new(iter: I) -> Self {
+        Peekable {
+            iter,
+            item: None
+        }
+    }
+
+    pub fn peek(&mut self) -> Option<&T> {
+        if self.item.is_none(){
+            self.item = self.iter.next();
+        }
+        self.item.as_ref()
+    }
+
+    pub fn next(&mut self) -> Option<T> {
+        if self.item.is_none() {
+            return self.iter.next();
+        }
+        self.item.take()
     }
 
     pub fn is_last(&mut self) -> bool {
