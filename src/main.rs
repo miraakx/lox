@@ -11,6 +11,7 @@ use lexer::Position;
 mod lexer;
 mod parser;
 mod common;
+mod interpreter;
 
 fn main() {
    run("5-3-(1-2)*2<0==4");

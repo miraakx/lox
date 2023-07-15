@@ -164,7 +164,6 @@ fn factor<'a>(iter: &mut Peekable<Lexer<'a>, Token>) -> Option<Result<Expr,LoxEr
                 return Some(Ok(expr));
             }
         }
-       
     }
 }
 

@@ -138,6 +138,7 @@ where
     pub fn is_last(&mut self) -> bool {
         self.peek().is_none()
     }
+    
 }
 
 
@@ -169,14 +170,16 @@ where
 
     pub fn next(&mut self) -> Option<T> {
         if self.item.is_none() {
-            return self.iter.next();
+            self.iter.next()
+        } else {
+            self.item.take()
         }
-        self.item.take()
     }
 
     pub fn is_last(&mut self) -> bool {
         self.peek().is_none()
     }
+
 }
 
 #[test]

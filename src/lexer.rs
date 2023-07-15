@@ -6,18 +6,14 @@ use crate::{LoxError, LoxErrorKind, common::NthPeekable};
 pub enum TokenKind {
     LeftParen,  RightParen, 
     LeftBrace,  RightBrace,
-    
     Comma,      Dot,     Semicolon,
     Minus,      Plus, 
     Slash,      Star,
-
     Bang,       BangEqual,
     Equal,      EqualEqual,
     Greater,    GreaterEqual,
     Less,       LessEqual,
-
     Identifier(String), String(String),  Number(f64),
-
     True,       False,
     If,         Else,
     For,        While,
@@ -26,7 +22,6 @@ pub enum TokenKind {
     Super,      This,
     Var,        Nil, 
     Print,      Return, 
-
     UnexpectedToken(char)
 }
 
@@ -38,7 +33,6 @@ pub struct Token {
 }
 
 impl Token {
-
     #[inline]
     fn new(kind: TokenKind, position: Position) -> Token{
         Token{ kind, position, errors: vec!() }
@@ -58,7 +52,6 @@ impl Token {
     fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
-
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -76,7 +69,6 @@ struct Scanner<'a> {
 }
 
 impl <'a> Scanner<'a> {
-
     fn next(&mut self) -> Option<char> {
         self.iter.next()
     }
@@ -123,9 +115,7 @@ pub struct Lexer<'a> {
 }
 
 impl <'a> Lexer<'a> {
-    
     pub fn new(code: &'a str) -> Self {
-
         Lexer {
             keywords_map: HashMap::from([
                             (TRUE,      TokenKind::True),
@@ -148,12 +138,10 @@ impl <'a> Lexer<'a> {
             scanner: Scanner::from_str(code),
             flg_end: false
         }
-        
     }
 }
 
 impl <'a> Iterator for Lexer<'a> {
-    
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -278,7 +266,6 @@ impl <'a> Iterator for Lexer<'a> {
                 _ => {
                    return Some(Token::error(TokenKind::UnexpectedToken(ch), self.scanner.position, LoxError::new(LoxErrorKind::UnexpectedToken(ch), self.scanner.position)));
                 }
-
             }
         }
     }
@@ -299,12 +286,9 @@ fn is_identifier(ch: char) -> bool {
 }
 
 fn identifier(first_char: char, scanner: &mut Scanner, keywords_map: &HashMap<&str, TokenKind>) -> Token {
-
     let mut identifier = String::from(first_char);
     let position_clone = scanner.position.clone();
-
     loop {
-
         let opt_next_ch: Option<char> = scanner.peek();
 
         if opt_next_ch.is_none() {
@@ -334,13 +318,10 @@ fn is_number(ch: char) -> bool {
 }
 
 fn number(first_digit: char, scanner: &mut Scanner) -> Token {
-
     let mut flg_decimal = false;
     let mut number_string = String::from(first_digit);
     let position_clone = scanner.position.clone();
-    
     loop {
-
         let opt_next_ch: Option<char> = scanner.peek();
         
         if opt_next_ch.is_none() {
@@ -359,7 +340,6 @@ fn number(first_digit: char, scanner: &mut Scanner) -> Token {
         } else {
             break;
         }
-
     }
     let r_number = number_string.parse::<f64>();
     match r_number {
@@ -370,17 +350,13 @@ fn number(first_digit: char, scanner: &mut Scanner) -> Token {
             Token::error(TokenKind::Number(0.0), position_clone, LoxError::new(LoxErrorKind::ParseFloatError(number_string), position_clone))
         }
     }
-    
 }
 
 fn string(scanner: &mut Scanner) -> Token {
-    
     let mut string = String::new();
     let mut errors: Vec<LoxError> = vec!();
     let position_clone = scanner.position.clone();
-
     loop {
-
         let value: Option<char> = scanner.next();
 
         if value.is_none() {
@@ -437,34 +413,25 @@ fn string(scanner: &mut Scanner) -> Token {
 
 const SPACE:            char = ' ';
 const TAB:              char = '\t';
-
 const CARRIAGE_RETURN:  char = '\r';
 const LINE_FEED:        char = '\n';
-
 const LEFT_PAREN:       char = '(';
 const RIGHT_PAREN:      char = ')';
-
 const LEFT_BRACE:       char = '{';
 const RIGHT_BRACE:      char = '}';
-
 const COMMA:            char = ',';
 const DOT:              char = '.';
 const SEMICOLON:        char = ';';
-
 const MINUS:            char = '-';
 const PLUS:             char = '+';
 const STAR:             char = '*';
-
 const BANG:             char = '!';
 const EQUAL:            char = '=';
 const LESS:             char = '<';
 const GREATER:          char = '>';
-
 const SLASH:            char = '/';
 const BACK_SLASH:       char = '\\';
-
 const QUOTE:            char = '"';
-
 const TRUE:            &str = "true";
 const FALSE:           &str = "false";
 const IF:              &str = "if";
