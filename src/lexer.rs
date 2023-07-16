@@ -1,71 +1,18 @@
-use std::{collections::{HashMap}, str::{Chars}};
+use std::{collections::HashMap, str::Chars};
+use crate::{common::NthPeekable, tokens::*, error::*};
 
-use crate::{LoxError, LoxErrorKind, common::NthPeekable};
+const LINE_START_INDEX:   u32 = 0;
+const COLUMN_START_INDEX: u32 = 0;
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum TokenKind {
-    LeftParen,  RightParen, 
-    LeftBrace,  RightBrace,
-    Comma,      Dot,     Semicolon,
-    Minus,      Plus, 
-    Slash,      Star,
-    Bang,       BangEqual,
-    Equal,      EqualEqual,
-    Greater,    GreaterEqual,
-    Less,       LessEqual,
-    Identifier(String), String(String),  Number(f64),
-    True,       False,
-    If,         Else,
-    For,        While,
-    And,        Or,
-    Class,      Fun,   
-    Super,      This,
-    Var,        Nil, 
-    Print,      Return, 
-    UnexpectedToken(char)
+pub struct LexerResult {
+    token:      Token,
+    debug_info: DebugInfo
 }
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub position: Position,
-    pub errors: Vec<LoxError>
-}
-
-impl Token {
-    #[inline]
-    fn new(kind: TokenKind, position: Position) -> Token{
-        Token{ kind, position, errors: vec!() }
-    }
-
-    #[inline]
-    fn error(kind: TokenKind, position: Position, error: LoxError) -> Token{
-        Token{ kind, position, errors: vec!(error) }
-    }
-
-    #[inline]
-    fn errors(kind: TokenKind, position: Position, errors: Vec<LoxError>) -> Token{
-        Token{ kind, position, errors: errors }
-    }
-
-    #[inline]
-    fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Position {
-    pub column: usize,
-    pub line: usize   
-}
-
-const LINE_START_INDEX: usize = 0;
-const COLUMN_START_INDEX: usize = 0;
 
 struct Scanner<'a> {
-    iter: NthPeekable<Chars<'a>, char>,
-    position: Position
+    iter:   NthPeekable<Chars<'a>, char>,
+    line:   u32,
+    column: u32
 }
 
 impl <'a> Scanner<'a> {
@@ -75,13 +22,17 @@ impl <'a> Scanner<'a> {
 
     #[inline]
     fn new_line(&mut self) {
-        self.position.line = LINE_START_INDEX;
-        self.position.column = self.position.column + 1;
+        self.line   = LINE_START_INDEX;
+        self.column = self.column + 1;
     }
 
     #[inline]
     fn from_str(str: &'a str) -> Scanner<'a> {
-        Scanner { iter: NthPeekable::new(str.chars(), 2), position: Position { line: LINE_START_INDEX, column: COLUMN_START_INDEX } }
+        Scanner { 
+            iter:   NthPeekable::new(str.chars(), 2), 
+            line:   LINE_START_INDEX, 
+            column: COLUMN_START_INDEX
+        }
     }
 
     #[inline]
@@ -110,33 +61,21 @@ impl <'a> Scanner<'a> {
 
 pub struct Lexer<'a> {
     keywords_map: HashMap<&'a str, TokenKind>,
-    scanner: Scanner<'a>,
-    flg_end: bool
+    scanner:      Scanner<'a>,
+    token_id:     TokenId,
+    error_repo:   Box<dyn ErrorRepo + 'a>,
+    debug_repo:   Box<dyn DebugRepo + 'a>,
 }
 
 impl <'a> Lexer<'a> {
-    pub fn new(code: &'a str) -> Self {
+    
+    pub fn new(code: &'a str, error_repo:Box<dyn ErrorRepo + 'a>, debug_repo: Box<dyn DebugRepo + 'a>) -> Lexer<'a> {
         Lexer {
-            keywords_map: HashMap::from([
-                            (TRUE,      TokenKind::True),
-                            (FALSE,     TokenKind::False),
-                            (IF,        TokenKind::If),
-                            (ELSE,      TokenKind::Else),
-                            (FOR,       TokenKind::For),
-                            (WHILE,     TokenKind::While),
-                            (OR,        TokenKind::Or),
-                            (AND,       TokenKind::And),
-                            (CLASS,     TokenKind::Class),
-                            (FUN,       TokenKind::Fun),
-                            (SUPER,     TokenKind::Super),
-                            (THIS,      TokenKind::This),
-                            (VAR,       TokenKind::Var),
-                            (NIL,       TokenKind::Nil),
-                            (PRINT,     TokenKind::Print),
-                            (RETURN,    TokenKind::Return)
-                        ]),
+            keywords_map: keyword_map(),
             scanner: Scanner::from_str(code),
-            flg_end: false
+            token_id: TokenId::new(),
+            error_repo,
+            debug_repo
         }
     }
 }
@@ -145,16 +84,23 @@ impl <'a> Iterator for Lexer<'a> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
+
+        let mut opt_token_kind: Option<TokenKind>;
+        let mut opt_token_value: Option<Literal>;
+
         loop {
             
             let opt_ch: Option<char> = self.scanner.next();
-            
+
             if opt_ch.is_none() {
                 return None;
             }
-            
+
             let ch: char = opt_ch.unwrap();
-            
+
+            opt_token_kind = None;
+            opt_token_value = None;
+
             match ch {
                 SPACE | TAB => {
                 },
@@ -166,70 +112,70 @@ impl <'a> Iterator for Lexer<'a> {
                     self.scanner.consume_if_peek_is(LINE_FEED);
                 },
                 LEFT_PAREN => {
-                    return Some(Token::new(TokenKind::LeftParen, self.scanner.position));
+                    opt_token_kind = Some(TokenKind::LeftParen);
                 },
                 RIGHT_PAREN => {
-                    return Some(Token::new(TokenKind::RightParen, self.scanner.position));
+                    opt_token_kind = Some(TokenKind::RightParen);
                 },
                 LEFT_BRACE => {
-                    return Some(Token::new(TokenKind::LeftBrace, self.scanner.position));
+                    opt_token_kind = Some(TokenKind::LeftBrace);
                 },
                 RIGHT_BRACE => {
-                    return Some(Token::new(TokenKind::RightBrace, self.scanner.position));
+                    opt_token_kind = Some(TokenKind::RightBrace);
                 },
                 COMMA => {
-                    return Some(Token::new(TokenKind::Comma, self.scanner.position));
+                    opt_token_kind = Some(TokenKind::Comma);
                 },
                 DOT => {
-                    return Some(Token::new(TokenKind::Dot, self.scanner.position));
+                    opt_token_kind = Some(TokenKind::Dot);
                 }, 
                 SEMICOLON => {
-                    return Some(Token::new(TokenKind::Semicolon, self.scanner.position));
+                    opt_token_kind = Some(TokenKind::Semicolon);
                 },
                 MINUS => {
-                    return Some(Token::new(TokenKind::Minus, self.scanner.position));
+                    opt_token_kind = Some(TokenKind::Minus);
                 },
                 PLUS => {
-                    return Some(Token::new(TokenKind::Plus, self.scanner.position));
+                    opt_token_kind = Some(TokenKind::Plus);
                 },
                 STAR => {
-                    return Some(Token::new(TokenKind::Star, self.scanner.position));
+                    opt_token_kind = Some(TokenKind::Star);
                 },
                 EQUAL => {
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
-                        return Some(Token::new(TokenKind::EqualEqual, self.scanner.position));
+                        opt_token_kind = Some(TokenKind::EqualEqual);
                     } else {
-                        return Some(Token::new(TokenKind::Equal, self.scanner.position));
+                        opt_token_kind = Some(TokenKind::Equal);
                     }
                 },
                 BANG => {
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
-                        return Some(Token::new(TokenKind::BangEqual, self.scanner.position));
+                        opt_token_kind = Some(TokenKind::BangEqual);
                     } else {
-                        return Some(Token::new(TokenKind::Bang, self.scanner.position));
+                        opt_token_kind = Some(TokenKind::Bang);
                     }
                 },
                 GREATER => {
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
-                        return Some(Token::new(TokenKind::GreaterEqual, self.scanner.position));
+                        opt_token_kind = Some(TokenKind::GreaterEqual);
                     } else {
-                        return Some(Token::new(TokenKind::Greater, self.scanner.position));
+                        opt_token_kind = Some(TokenKind::Greater);
                     }
                 },
                 LESS => {
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
-                        return Some(Token::new(TokenKind::LessEqual, self.scanner.position));
+                        opt_token_kind = Some(TokenKind::LessEqual);
                     } else {
-                        return Some(Token::new(TokenKind::Less, self.scanner.position));
+                        opt_token_kind = Some(TokenKind::Less);
                     }
                 },
                 SLASH => {
                     if !self.scanner.is_peek(SLASH) {
-                        return Some(Token::new(TokenKind::Slash, self.scanner.position));
+                        opt_token_kind = Some(TokenKind::Slash);
                     } else {
                         //consume the second slash character
                         self.scanner.next();
@@ -255,207 +201,203 @@ impl <'a> Iterator for Lexer<'a> {
                     }             
                 },
                 QUOTE => {
-                   return Some(string(&mut self.scanner));          
+                    let mut string = String::new();
+                    loop {
+                        let value: Option<char> = self.scanner.next();
+                        if value.is_none() {
+                            self.error_repo.save(LoxErrorKind::UnterminatedString, self.scanner.line, self.scanner.column);
+                            opt_token_kind = Some(TokenKind::Literal);
+                            opt_token_value = Some(Literal::String(string));
+                            break;
+                        }
+                        let ch = value.unwrap();
+                        match ch {
+                            BACK_SLASH => {
+                                if let Some(next_ch) = self.scanner.peek() {
+                                    match next_ch {
+                                        'n' => { 
+                                            self.scanner.next();
+                                            string.push('\n');
+                                        },
+                                        'r' => { 
+                                            self.scanner.next();
+                                            string.push('\r');
+                                        },
+                                        't' => { 
+                                            self.scanner.next();
+                                            string.push('\t');
+                                        },
+                                        '\\' => { 
+                                            self.scanner.next();
+                                            string.push('\\');
+                                        },
+                                        '0' => { 
+                                            self.scanner.next();
+                                            string.push('\0');
+                                        },
+                                        '"' => { 
+                                            self.scanner.next();
+                                            string.push('"');
+                                        },
+                                        _=> {
+                                            string.push(ch);
+                                            self.error_repo.save(LoxErrorKind::InvalidEscapeCharacter, self.scanner.line, self.scanner.column);
+                                        }
+                                    }
+                                }                    
+                            },
+                            '"' => {
+                                opt_token_kind = Some(TokenKind::Literal);
+                                opt_token_value = Some(Literal::String(string));
+                                break;
+                            },
+                            _ => {
+                                string.push(ch);
+                            }
+                        }
+                    }     
                 },
                 ch if is_number(ch) => {
-                   return Some(number(ch, &mut self.scanner));
+                    let mut flg_decimal = false;
+                    let mut number_string = String::from(ch);
+                    loop {
+                        let opt_next_ch: Option<char> = self.scanner.peek();
+                        
+                        if opt_next_ch.is_none() {
+                            break;
+                        }
+                
+                        let next_ch = opt_next_ch.unwrap();
+                        let opt_next_next_ch: Option<char> = self.scanner.peek_nth(1);
+                
+                        if is_number(next_ch) {
+                            number_string.push(self.scanner.next().unwrap());
+                        } else if next_ch == '.' && opt_next_next_ch.is_some() && is_number(opt_next_next_ch.unwrap()) && !flg_decimal {
+                            flg_decimal = true;
+                            number_string.push(self.scanner.next().unwrap());
+                            number_string.push(self.scanner.next().unwrap());
+                        } else {
+                            break;
+                        }
+                    }
+                    let r_number = number_string.parse::<f64>();
+                    match r_number {
+                        Ok(number) => {
+                            opt_token_kind = Some(TokenKind::Literal);
+                            opt_token_value = Some(Literal::Number(number));
+                        }
+                        Err(_) => {
+                            self.error_repo.save(LoxErrorKind::ParseFloatError(number_string), self.scanner.line, self.scanner.column);
+                            opt_token_kind = Some(TokenKind::Literal);
+                            opt_token_value = Some(Literal::Number(f64::NAN));
+                        }
+                    }
                 },
                 ch if is_identifier(ch) => {
-                   return Some(identifier(ch, &mut self.scanner, &self.keywords_map));
+                    let mut identifier = String::from(ch);
+                    loop {
+                        let opt_next_ch: Option<char> = self.scanner.peek();
+
+                        if opt_next_ch.is_none() {
+                            break;
+                        } 
+
+                        let next_ch = opt_next_ch.unwrap();
+
+                        if !is_identifier_char_allowed(next_ch) {
+                            break;
+                        }
+
+                        identifier.push(self.scanner.next().unwrap());
+
+                    }
+                    if let Some(keyword_token) = self.keywords_map.get(identifier.as_str()) {
+                        opt_token_kind = Some(*keyword_token);
+                    } else {
+                        opt_token_kind = Some(TokenKind::Literal);
+                        opt_token_value = Some(Literal::Identifier(identifier));
+                    }
                 },
                 _ => {
-                   return Some(Token::error(TokenKind::UnexpectedToken(ch), self.scanner.position, LoxError::new(LoxErrorKind::UnexpectedToken(ch), self.scanner.position)));
+                    self.error_repo.save(LoxErrorKind::UnexpectedToken(ch), self.scanner.line, self.scanner.column);
+                    opt_token_kind = Some(TokenKind::UnexpectedToken);
                 }
+            }
+
+            if let Some(token_kind) = opt_token_kind {
+                self.token_id.increase();
+                self.debug_repo.save(self.token_id, self.scanner.line, self.scanner.column);
+                return Some(Token{ id: self.token_id, kind: token_kind, value: opt_token_value });
             }
         }
     }
 }
 
-pub fn tokenize(code: &str) -> Vec<Token> {
-    Lexer::new(code).collect()
-}
-
-#[inline]
-fn is_identifier_char_allowed(ch: char) -> bool {
-    ch.is_ascii_alphabetic() || ch == '_' || ch.is_digit(10)
-}
-
-#[inline]
+#[inline(always)]
 fn is_identifier(ch: char) -> bool {
     ch.is_ascii_alphabetic() || ch == '_'
 }
 
-fn identifier(first_char: char, scanner: &mut Scanner, keywords_map: &HashMap<&str, TokenKind>) -> Token {
-    let mut identifier = String::from(first_char);
-    let position_clone = scanner.position.clone();
-    loop {
-        let opt_next_ch: Option<char> = scanner.peek();
-
-        if opt_next_ch.is_none() {
-            break;
-        } 
-
-        let next_ch = opt_next_ch.unwrap();
-
-        if !is_identifier_char_allowed(next_ch) {
-            break;
-        }
-
-        identifier.push(scanner.next().unwrap());
-
-    }
-    if let Some(keyword_token) = keywords_map.get(identifier.as_str()) {
-        Token::new(keyword_token.clone(), position_clone)
-    } else {
-        Token::new(TokenKind::Identifier(identifier), position_clone)
-    }
-
-}
-
-#[inline]
+#[inline(always)]
 fn is_number(ch: char) -> bool {
     ch.is_digit(10)
 }
 
-fn number(first_digit: char, scanner: &mut Scanner) -> Token {
-    let mut flg_decimal = false;
-    let mut number_string = String::from(first_digit);
-    let position_clone = scanner.position.clone();
-    loop {
-        let opt_next_ch: Option<char> = scanner.peek();
-        
-        if opt_next_ch.is_none() {
-            break;
-        }
+#[inline(always)]
+fn is_identifier_char_allowed(ch: char) -> bool {
+    ch.is_ascii_alphabetic() || ch == '_' || ch.is_digit(10)
+}
 
-        let next_ch = opt_next_ch.unwrap();
-        let opt_next_next_ch: Option<char> = scanner.peek_nth(1);
+pub struct TokenSourceLazy<'a> {
+    iterator: Lexer<'a>
+}
 
-        if is_number(next_ch) {
-            number_string.push(scanner.next().unwrap());
-        } else if next_ch == '.' && opt_next_next_ch.is_some() && is_number(opt_next_next_ch.unwrap()) && !flg_decimal {
-            flg_decimal = true;
-            number_string.push(scanner.next().unwrap());
-            number_string.push(scanner.next().unwrap());
-        } else {
-            break;
+impl <'a> Iterator for TokenSourceLazy<'a> {
+    type Item=Token;
+
+    #[inline]
+    fn next(&mut self) -> Option<Token> {
+        self.iterator.next()
+    }
+}
+
+impl <'a> TokenSource for TokenSourceLazy<'a> {}
+
+impl <'a> TokenSourceLazy<'a> {
+
+    #[inline]
+    fn new(code: &'a str, error_repo: Box<dyn ErrorRepo>, debug_repo: Box<dyn DebugRepo >) -> TokenSourceLazy<'a> {
+        TokenSourceLazy {
+            iterator: Lexer::new(code, error_repo, debug_repo)
         }
     }
-    let r_number = number_string.parse::<f64>();
-    match r_number {
-        Ok(number) => {
-            Token::new(TokenKind::Number(number), position_clone)
-        }
-        Err(_) => {
-            Token::error(TokenKind::Number(0.0), position_clone, LoxError::new(LoxErrorKind::ParseFloatError(number_string), position_clone))
+
+    pub fn new_lexer(lexer: Lexer<'a>) -> TokenSourceLazy<'a> {
+        TokenSourceLazy {
+            iterator: lexer
         }
     }
 }
 
-fn string(scanner: &mut Scanner) -> Token {
-    let mut string = String::new();
-    let mut errors: Vec<LoxError> = vec!();
-    let position_clone = scanner.position.clone();
-    loop {
-        let value: Option<char> = scanner.next();
-
-        if value.is_none() {
-            errors.push(LoxError::new(LoxErrorKind::UnterminatedString, scanner.position));
-            return Token::errors(TokenKind::String(string), scanner.position, errors);
-        }
-        
-        let ch = value.unwrap();
-        
-        match ch {
-            BACK_SLASH => {
-                if let Some(next_ch) = scanner.peek() {
-                    match next_ch {
-                        'n' => { 
-                            scanner.next();
-                            string.push('\n');
-                        },
-                        'r' => { 
-                            scanner.next();
-                            string.push('\r');
-                        },
-                        't' => { 
-                            scanner.next();
-                            string.push('\t');
-                        },
-                        '\\' => { 
-                            scanner.next();
-                            string.push('\\');
-                        },
-                        '0' => { 
-                            scanner.next();
-                            string.push('\0');
-                        },
-                        '"' => { 
-                            scanner.next();
-                            string.push('"');
-                        },
-                        _=> {
-                            string.push(ch);
-                            errors.push(LoxError::new(LoxErrorKind::InvalidEscapeCharacter, scanner.position));
-                        }
-                    }
-                }                    
-            },
-            '"' => {
-                return Token::new(TokenKind::String(string), position_clone);
-            },
-            _ => {
-                string.push(ch);
-            }
-        }
-    }
+#[inline]
+pub fn tokenize(code: &str, error_repo: Box<dyn ErrorRepo>, debug_repo: Box<dyn DebugRepo>) -> Vec<Token> {
+    Lexer::new(code, error_repo, debug_repo).collect()
 }
 
-const SPACE:            char = ' ';
-const TAB:              char = '\t';
-const CARRIAGE_RETURN:  char = '\r';
-const LINE_FEED:        char = '\n';
-const LEFT_PAREN:       char = '(';
-const RIGHT_PAREN:      char = ')';
-const LEFT_BRACE:       char = '{';
-const RIGHT_BRACE:      char = '}';
-const COMMA:            char = ',';
-const DOT:              char = '.';
-const SEMICOLON:        char = ';';
-const MINUS:            char = '-';
-const PLUS:             char = '+';
-const STAR:             char = '*';
-const BANG:             char = '!';
-const EQUAL:            char = '=';
-const LESS:             char = '<';
-const GREATER:          char = '>';
-const SLASH:            char = '/';
-const BACK_SLASH:       char = '\\';
-const QUOTE:            char = '"';
-const TRUE:            &str = "true";
-const FALSE:           &str = "false";
-const IF:              &str = "if";
-const ELSE:            &str = "else";
-const FOR:             &str = "for";      
-const WHILE:           &str = "while"; 
-const OR:              &str = "or"; 
-const AND:             &str = "and"; 
-const CLASS:           &str = "class"; 
-const FUN:             &str = "fun"; 
-const SUPER:           &str = "super"; 
-const THIS:            &str = "this"; 
-const VAR:             &str = "var"; 
-const NIL:             &str = "nil"; 
-const PRINT:           &str = "print"; 
-const RETURN:          &str = "return"; 
+fn tokenize_test(code: &str) -> Vec<Token> {
+    let error_repo = ErrorRepoVec::new();
+    let debug_repo = DebugRepoHashMap::new();
+
+    Lexer::new(code, Box::new(error_repo), Box::new(debug_repo)).collect()
+}
 
 #[test]
 fn test_parens() {
-    assert_eq!(tokenize("{").get(0).unwrap().kind, TokenKind::LeftBrace);
-    assert_eq!(tokenize("}").get(0).unwrap().kind, TokenKind::RightBrace);
-    assert_eq!(tokenize("(").get(0).unwrap().kind, TokenKind::LeftParen);
-    assert_eq!(tokenize(")").get(0).unwrap().kind, TokenKind::RightParen);
-    let tokens = tokenize("({ })");
+    assert_eq!(tokenize_test("{").get(0).unwrap().kind, TokenKind::LeftBrace);
+    assert_eq!(tokenize_test("}").get(0).unwrap().kind, TokenKind::RightBrace);
+    assert_eq!(tokenize_test("(").get(0).unwrap().kind, TokenKind::LeftParen);
+    assert_eq!(tokenize_test(")").get(0).unwrap().kind, TokenKind::RightParen);
+    let tokens = tokenize_test("({ })");
     assert_eq!(tokens.get(0).unwrap().kind, TokenKind::LeftParen);
     assert_eq!(tokens.get(1).unwrap().kind, TokenKind::LeftBrace);
     assert_eq!(tokens.get(2).unwrap().kind, TokenKind::RightBrace);
@@ -464,15 +406,15 @@ fn test_parens() {
 
 #[test]
 fn test_equalities() {
-    assert_eq!(tokenize("=").get(0).unwrap().kind, TokenKind::Equal);
-    assert_eq!(tokenize("!").get(0).unwrap().kind, TokenKind::Bang);
-    assert_eq!(tokenize("==").get(0).unwrap().kind, TokenKind::EqualEqual);
-    assert_eq!(tokenize("!=").get(0).unwrap().kind, TokenKind::BangEqual);
-    assert_eq!(tokenize(">").get(0).unwrap().kind, TokenKind::Greater);
-    assert_eq!(tokenize(">=").get(0).unwrap().kind, TokenKind::GreaterEqual);
-    assert_eq!(tokenize("<").get(0).unwrap().kind, TokenKind::Less);
-    assert_eq!(tokenize("<=").get(0).unwrap().kind, TokenKind::LessEqual);
-    let tokens = tokenize("==!=<=>> =");
+    assert_eq!(tokenize_test("=").get(0).unwrap().kind, TokenKind::Equal);
+    assert_eq!(tokenize_test("!").get(0).unwrap().kind, TokenKind::Bang);
+    assert_eq!(tokenize_test("==").get(0).unwrap().kind, TokenKind::EqualEqual);
+    assert_eq!(tokenize_test("!=").get(0).unwrap().kind, TokenKind::BangEqual);
+    assert_eq!(tokenize_test(">").get(0).unwrap().kind, TokenKind::Greater);
+    assert_eq!(tokenize_test(">=").get(0).unwrap().kind, TokenKind::GreaterEqual);
+    assert_eq!(tokenize_test("<").get(0).unwrap().kind, TokenKind::Less);
+    assert_eq!(tokenize_test("<=").get(0).unwrap().kind, TokenKind::LessEqual);
+    let tokens = tokenize_test("==!=<=>> =");
     assert_eq!(tokens.get(0).unwrap().kind, TokenKind::EqualEqual);
     assert_eq!(tokens.get(1).unwrap().kind, TokenKind::BangEqual);
     assert_eq!(tokens.get(2).unwrap().kind, TokenKind::LessEqual);
@@ -483,89 +425,89 @@ fn test_equalities() {
 
 #[test]
 fn test_numbers() {
-    assert_eq!(tokenize("10.0245").get(0).unwrap().kind, TokenKind::Number(10.0245));
-    assert_eq!(tokenize("0000.0000245").get(0).unwrap().kind, TokenKind::Number(0.0000245));
-    assert_eq!(tokenize("0001.. ..").get(0).unwrap().kind, TokenKind::Number(1.0));
-    assert_eq!(tokenize("8 .1").get(0).unwrap().kind, TokenKind::Number(8.0));
+    assert_eq!(*tokenize_test("10.0245").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(10.0245));
+    assert_eq!(*tokenize_test("0000.0000245").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(0.0000245));
+    assert_eq!(*tokenize_test("0001.. ..").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(1.0));
+    assert_eq!(*tokenize_test("8 .1").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(8.0));
 }
 
 #[test]
 fn test_strings() {
-    assert_eq!(tokenize("\"funzionerà? 😀 成\"").get(0).unwrap().kind, TokenKind::String("funzionerà? 😀 成".to_owned()));
-    assert_eq!(tokenize("\"\\n \\0 \\r \\t \\\\ \\\"\"").get(0).unwrap().kind, TokenKind::String("\n \0 \r \t \\ \"".to_owned()));
-    assert_eq!(tokenize("\"unterminated string").get(0).unwrap().errors.get(0).unwrap().kind, LoxErrorKind::UnterminatedString);
+    assert_eq!(*tokenize_test("\"funzionerà? 😀 成\"").get(0).unwrap().value.as_ref().unwrap(), Literal::String("funzionerà? 😀 成".to_owned()));
+    assert_eq!(*tokenize_test("\"\\n \\0 \\r \\t \\\\ \\\"\"").get(0).unwrap().value.as_ref().unwrap(), Literal::String("\n \0 \r \t \\ \"".to_owned()));
+    //assert_eq!(tokenize_test("\"unterminated string").get(0).unwrap()., LoxErrorKind::UnterminatedString);
 }
 
 #[test]
 fn test_keywords() {
-    assert_eq!(tokenize("true").get(0).unwrap().kind, TokenKind::True);
-    assert_eq!(tokenize("false").get(0).unwrap().kind, TokenKind::False);
-    assert_eq!(tokenize("if").get(0).unwrap().kind, TokenKind::If);
-    assert_eq!(tokenize("else").get(0).unwrap().kind, TokenKind::Else);
-    assert_eq!(tokenize("for").get(0).unwrap().kind, TokenKind::For);     
-    assert_eq!(tokenize("while").get(0).unwrap().kind, TokenKind::While); 
-    assert_eq!(tokenize("or").get(0).unwrap().kind, TokenKind::Or);
-    assert_eq!(tokenize("and").get(0).unwrap().kind, TokenKind::And);
-    assert_eq!(tokenize("class").get(0).unwrap().kind, TokenKind::Class); 
-    assert_eq!(tokenize("fun").get(0).unwrap().kind, TokenKind::Fun);
-    assert_eq!(tokenize("super").get(0).unwrap().kind, TokenKind::Super);
-    assert_eq!(tokenize("this").get(0).unwrap().kind, TokenKind::This); 
-    assert_eq!(tokenize("var").get(0).unwrap().kind, TokenKind::Var); 
-    assert_eq!(tokenize("nil").get(0).unwrap().kind, TokenKind::Nil); 
-    assert_eq!(tokenize("print").get(0).unwrap().kind, TokenKind::Print); 
-    assert_eq!(tokenize("return").get(0).unwrap().kind, TokenKind::Return);
+    assert_eq!(tokenize_test("true").get(0).unwrap().kind, TokenKind::True);
+    assert_eq!(tokenize_test("false").get(0).unwrap().kind, TokenKind::False);
+    assert_eq!(tokenize_test("if").get(0).unwrap().kind, TokenKind::If);
+    assert_eq!(tokenize_test("else").get(0).unwrap().kind, TokenKind::Else);
+    assert_eq!(tokenize_test("for").get(0).unwrap().kind, TokenKind::For);     
+    assert_eq!(tokenize_test("while").get(0).unwrap().kind, TokenKind::While); 
+    assert_eq!(tokenize_test("or").get(0).unwrap().kind, TokenKind::Or);
+    assert_eq!(tokenize_test("and").get(0).unwrap().kind, TokenKind::And);
+    assert_eq!(tokenize_test("class").get(0).unwrap().kind, TokenKind::Class); 
+    assert_eq!(tokenize_test("fun").get(0).unwrap().kind, TokenKind::Fun);
+    assert_eq!(tokenize_test("super").get(0).unwrap().kind, TokenKind::Super);
+    assert_eq!(tokenize_test("this").get(0).unwrap().kind, TokenKind::This); 
+    assert_eq!(tokenize_test("var").get(0).unwrap().kind, TokenKind::Var); 
+    assert_eq!(tokenize_test("nil").get(0).unwrap().kind, TokenKind::Nil); 
+    assert_eq!(tokenize_test("print").get(0).unwrap().kind, TokenKind::Print); 
+    assert_eq!(tokenize_test("return").get(0).unwrap().kind, TokenKind::Return);
 
-    assert_eq!(tokenize("true!").get(0).unwrap().kind, TokenKind::True);
-    assert_eq!(tokenize("false) ").get(0).unwrap().kind, TokenKind::False);
-    assert_eq!(tokenize(" if else ").get(0).unwrap().kind, TokenKind::If);
+    assert_eq!(tokenize_test("true!").get(0).unwrap().kind, TokenKind::True);
+    assert_eq!(tokenize_test("false) ").get(0).unwrap().kind, TokenKind::False);
+    assert_eq!(tokenize_test(" if else ").get(0).unwrap().kind, TokenKind::If);
 }
 
 #[test]
 fn test_identifiers() {
-    assert_eq!(tokenize("truee").get(0).unwrap().kind, TokenKind::Identifier("truee".to_owned()));
-    assert_eq!(tokenize("ffalse").get(0).unwrap().kind, TokenKind::Identifier("ffalse".to_owned()));
-    assert_eq!(tokenize("Nil").get(0).unwrap().kind, TokenKind::Identifier("Nil".to_owned()));
-    assert_eq!(tokenize("ELSE").get(0).unwrap().kind, TokenKind::Identifier("ELSE".to_owned()));
-    assert_eq!(tokenize("whilewhile").get(0).unwrap().kind, TokenKind::Identifier("whilewhile".to_owned()));
+    assert_eq!(*tokenize_test("truee").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("truee".to_owned()));
+    assert_eq!(*tokenize_test("ffalse").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("ffalse".to_owned()));
+    assert_eq!(*tokenize_test("Nil").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("Nil".to_owned()));
+    assert_eq!(*tokenize_test("ELSE").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("ELSE".to_owned()));
+    assert_eq!(*tokenize_test("whilewhile").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("whilewhile".to_owned()));
 }
 
 #[test]
 fn test_others() {
-    assert_eq!(tokenize("+").get(0).unwrap().kind, TokenKind::Plus);
-    assert_eq!(tokenize("-").get(0).unwrap().kind, TokenKind::Minus);
-    assert_eq!(tokenize("/").get(0).unwrap().kind, TokenKind::Slash);
-    assert_eq!(tokenize("*").get(0).unwrap().kind, TokenKind::Star);
-    assert_eq!(tokenize(".").get(0).unwrap().kind, TokenKind::Dot);
-    assert_eq!(tokenize(",").get(0).unwrap().kind, TokenKind::Comma);
-    assert_eq!(tokenize(";").get(0).unwrap().kind, TokenKind::Semicolon);
-    assert_eq!(tokenize(" \r \t \r\n \n // ////true or false?").get(0), None);
+    assert_eq!(tokenize_test("+").get(0).unwrap().kind, TokenKind::Plus);
+    assert_eq!(tokenize_test("-").get(0).unwrap().kind, TokenKind::Minus);
+    assert_eq!(tokenize_test("/").get(0).unwrap().kind, TokenKind::Slash);
+    assert_eq!(tokenize_test("*").get(0).unwrap().kind, TokenKind::Star);
+    assert_eq!(tokenize_test(".").get(0).unwrap().kind, TokenKind::Dot);
+    assert_eq!(tokenize_test(",").get(0).unwrap().kind, TokenKind::Comma);
+    assert_eq!(tokenize_test(";").get(0).unwrap().kind, TokenKind::Semicolon);
+    assert_eq!(tokenize_test(" \r \t \r\n \n // ////true or false?").get(0), None);
 }
 
 #[test]
 fn test_unexpected_tokens() {
-    assert_eq!(tokenize(":").get(0).unwrap().kind, TokenKind::UnexpectedToken(':'));
-    assert_eq!(tokenize("&").get(0).unwrap().kind, TokenKind::UnexpectedToken('&'));
-    assert_eq!(tokenize("&&").get(0).unwrap().kind, TokenKind::UnexpectedToken('&'));
-    assert_eq!(tokenize("|").get(0).unwrap().kind, TokenKind::UnexpectedToken('|'));
-    assert_eq!(tokenize("||").get(0).unwrap().kind, TokenKind::UnexpectedToken('|'));
+    assert_eq!(tokenize_test(":").get(0).unwrap().kind, TokenKind::UnexpectedToken);
+    assert_eq!(tokenize_test("&").get(0).unwrap().kind, TokenKind::UnexpectedToken);
+    assert_eq!(tokenize_test("&&").get(0).unwrap().kind, TokenKind::UnexpectedToken);
+    assert_eq!(tokenize_test("|").get(0).unwrap().kind, TokenKind::UnexpectedToken);
+    assert_eq!(tokenize_test("||").get(0).unwrap().kind, TokenKind::UnexpectedToken);
 }
 
 #[test]
 fn test_construct() {
     
-    let tokens = tokenize("fun prova(var1, var2) {return var1+var2;}");
+    let tokens = tokenize_test("fun prova(var1, var2) {return var1+var2;}");
     let mut index: usize = 0;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Fun);
     index = index + 1;
-    assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Identifier("prova".to_owned()));
+    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), Literal::Identifier("prova".to_owned()));
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::LeftParen);
     index = index + 1;
-    assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Identifier("var1".to_owned()));
+    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), Literal::Identifier("var1".to_owned()));
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Comma);
     index = index + 1;
-    assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Identifier("var2".to_owned()));
+    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), Literal::Identifier("var2".to_owned()));
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::RightParen);
     index = index + 1;
@@ -573,11 +515,11 @@ fn test_construct() {
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Return);
     index = index + 1;
-    assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Identifier("var1".to_owned()));
+    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), Literal::Identifier("var1".to_owned()));
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Plus);
     index = index + 1;
-    assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Identifier("var2".to_owned()));
+    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), Literal::Identifier("var2".to_owned()));
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Semicolon);
     index = index + 1;

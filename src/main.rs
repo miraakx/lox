@@ -2,21 +2,26 @@
 
 use std::env;
 use std::error::Error;
-use std::fmt;
 use std::fs;
 use std::io;
 
-use lexer::Position;
+use crate::error::ErrorRepoVec;
+use crate::lexer::Lexer;
+use crate::lexer::TokenSourceLazy;
+use crate::tokens::DebugRepoHashMap;
+use crate::parser::Parser;
 
 mod lexer;
 mod parser;
+mod tokens;
+mod error;
 mod common;
 mod interpreter;
-
 fn main() {
-   run("5-3-(1-2)*2<0==4");
+   let code = "5-3-(1-2)*2<0==4";
+   run(code);
 }
-
+/*
 fn _main() {
 
    let args: Vec<String> = env::args().collect();
@@ -36,7 +41,7 @@ fn _main() {
    }
 }
 
-fn run_file(filepath: &str) -> Result<(), Box<dyn Error>> {
+fn run_file<'a>(filepath: &'a str) -> Result<(), Box<dyn Error>> {
    let _ = fs::read_to_string(filepath)?;
    println!("Running from file: {} ...", filepath); 
    Ok(())
@@ -48,47 +53,20 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
       let mut line = String::new();
       io::stdin().read_line(&mut line)?;
       println!("\n(output):\n");
-      run(&line);
+      run(line);
    }
 }
-
+*/
 fn run(code: &str) {
-   println!("running...\n");
+   
+   let error_repo_lexer = ErrorRepoVec::new();
+   let debug_repo = DebugRepoHashMap::new();
 
-   //let result = lexer::tokenize(code);
-   let tree = parser::parse(code).unwrap().unwrap();
-   parser::print(&tree);
-   print!("\n");
+   let lexer = Lexer::new(&code, Box::new(error_repo_lexer), Box::new(debug_repo));
+   let token_source = TokenSourceLazy::new_lexer(lexer);
+   let error_repo_parser = ErrorRepoVec::new();
+   let mut parser = Parser::new(Box::new(token_source), Box::new(error_repo_parser));
+   parser.parse();
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum LoxErrorKind {
-   UnexpectedToken(char), ParseFloatError(String), UnterminatedString, InvalidEscapeCharacter, UnexpectedToken2(String)
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct LoxError {
-   kind: LoxErrorKind,
-   position: Position
-}
-
-impl LoxError {
-   pub fn new(kind: LoxErrorKind, position: Position) -> LoxError {
-      LoxError { position, kind }
-   }
-}
-
-impl Error for LoxError{}
-
-impl fmt::Display for LoxError {
-   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-      match &self.kind {
-         LoxErrorKind::UnexpectedToken(ch) => write!(f, "Unexpected token '{}', at line: {}, column: {}.", ch, self.position.line, self.position.column),
-         LoxErrorKind::ParseFloatError(value) => write!(f, "Cannot parse float '{}', at line: {}, column: {}.", value, self.position.line, self.position.column),
-         LoxErrorKind::UnterminatedString => write!(f, "Unterminated string at line: {}, column: {}.", self.position.line, self.position.column),
-         LoxErrorKind::InvalidEscapeCharacter => write!(f, "Invalid escape character at line: {}, column: {}.", self.position.line, self.position.column),
-         LoxErrorKind::UnexpectedToken2(ch) => write!(f, "Unexpected token '{}', at line: {}, column: {}.", ch, self.position.line, self.position.column),
-      }  
-   }
-}
 
