@@ -68,11 +68,6 @@ pub enum Literal {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TokenId {
-    id: u32
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Position {
     pub line: u32,
     pub column: u32
@@ -89,44 +84,6 @@ pub struct Token {
     pub kind:     TokenKind,
     pub value:    Option<Literal>,
     pub position: Position
-}
-
-impl TokenId {
-    pub fn new() -> TokenId {
-        TokenId {id: 0}
-    }
-
-    pub fn increase(&mut self) {
-        self.id += 1;
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct DebugInfo {
-    pub token_id: TokenId,
-    pub line:     u32,
-    pub column:   u32,
-}
-
-pub trait DebugRepo {
-    fn insert(&mut self, token_id: TokenId, line: u32, column: u32);
- }
-
-pub struct DebugRepoHashMap {
-    map: HashMap<TokenId, DebugInfo>
-}
-
-impl DebugRepo for DebugRepoHashMap {
-
-    fn insert(&mut self, token_id: TokenId, line: u32, column: u32) {
-        self.map.insert(token_id, DebugInfo{ token_id, line, column });
-    }
-}
-
-impl DebugRepoHashMap {
-    pub fn new() -> Self {
-        DebugRepoHashMap { map: HashMap::new() }
-    }
 }
 
 pub fn keyword_map<'a>() -> HashMap<&'a str, TokenKind>{

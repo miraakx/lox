@@ -5,8 +5,6 @@ use std::error::Error;
 use std::fs;
 use std::io;
 
-use crate::tokens::DebugRepoHashMap;
-
 mod common;
 mod error;
 mod interpreter;

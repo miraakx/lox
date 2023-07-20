@@ -4,11 +4,6 @@ use crate::{common::NthPeekable, tokens::*, error::*};
 const LINE_START_INDEX:   u32 = 0;
 const COLUMN_START_INDEX: u32 = 0;
 
-pub struct LexerResult {
-    token:      Token,
-    debug_info: DebugInfo
-}
-
 struct Scanner<'a> {
     iter:   NthPeekable<Chars<'a>, char>,
     line:   u32,
