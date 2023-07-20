@@ -3,18 +3,17 @@ struct CircularBuffer<T: Clone> {
     capacity: usize,
     head: usize,
     tail: usize,
-    size: usize
+    size: usize,
 }
 
 impl<T: Clone> CircularBuffer<T> {
-
     fn new(capacity: usize) -> Self {
         CircularBuffer {
             buffer: vec![None; capacity],
             capacity,
             head: 0,
             tail: 0,
-            size: 0
+            size: 0,
         }
     }
 
@@ -67,7 +66,7 @@ impl<T: Clone> CircularBuffer<T> {
         if self.tail == 0 {
             self.buffer[self.capacity - 1].as_ref()
         } else {
-            self.buffer[(self.tail - 1)%self.capacity].as_ref()
+            self.buffer[(self.tail - 1) % self.capacity].as_ref()
         }
     }
 
@@ -79,20 +78,19 @@ impl<T: Clone> CircularBuffer<T> {
     pub fn size(&self) -> usize {
         self.size
     }
-    
 }
 
-pub struct NthPeekable<I, T: Clone> 
+pub struct NthPeekable<I, T: Clone>
 where
-    I: Iterator<Item = T>
+    I: Iterator<Item = T>,
 {
     iter: I,
     buffer: CircularBuffer<T>,
 }
 
-impl<I, T: Clone> NthPeekable<I, T> 
+impl<I, T: Clone> NthPeekable<I, T>
 where
-    I: Iterator<Item = T>
+    I: Iterator<Item = T>,
 {
     pub fn new(iter: I, size: usize) -> Self {
         NthPeekable {
@@ -102,7 +100,7 @@ where
     }
 
     pub fn peek(&mut self) -> Option<&T> {
-        if self.buffer.is_empty(){
+        if self.buffer.is_empty() {
             if let Some(item) = self.iter.next() {
                 self.buffer.enqueue(item);
             }
@@ -138,31 +136,26 @@ where
     pub fn is_last(&mut self) -> bool {
         self.peek().is_none()
     }
-    
 }
 
-
-pub struct Peekable<I, T: Clone> 
+pub struct Peekable<I, T: Clone>
 where
-    I: Iterator<Item = T>
+    I: Iterator<Item = T>,
 {
     iter: I,
-    item: Option<T>
+    item: Option<T>,
 }
 
-impl<I, T: Clone> Peekable<I, T> 
+impl<I, T: Clone> Peekable<I, T>
 where
-    I: Iterator<Item = T>
+    I: Iterator<Item = T>,
 {
     pub fn new(iter: I) -> Self {
-        Peekable {
-            iter,
-            item: None
-        }
+        Peekable { iter, item: None }
     }
 
     pub fn peek(&mut self) -> Option<&T> {
-        if self.item.is_none(){
+        if self.item.is_none() {
             self.item = self.iter.next();
         }
         self.item.as_ref()
@@ -179,7 +172,6 @@ where
     pub fn is_last(&mut self) -> bool {
         self.peek().is_none()
     }
-
 }
 
 #[test]
@@ -222,9 +214,7 @@ fn test_circular_buffer() {
     assert_eq!(buffer.is_empty(), true);
     assert_eq!(buffer.is_full(), false);
     assert_eq!(buffer.dequeue(), None);
-
 }
-
 
 #[test]
 #[should_panic]
@@ -266,7 +256,6 @@ fn test_peekable_iter() {
     assert_eq!(buffer.next(), None);
 }
 
-
 #[test]
 fn test_peekable_nth() {
     let text = "testo di prova";
@@ -298,4 +287,3 @@ fn test_peekable_nth() {
     assert_eq!(buffer.peek_nth(1), None);
     assert_eq!(buffer.next(), None);
 }
-

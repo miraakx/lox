@@ -1,6 +1,6 @@
-use crate::error::{LoxError, ErrorRepo};
+use crate::error::LoxError;
 use crate::common::Peekable;
-use crate::tokens::{Token,TokenKind, TokenSource};
+use crate::tokens::{Token,TokenKind};
 
 pub enum Expr {
     Binary(Box<Expr>, Token, Box<Expr>),
@@ -8,7 +8,6 @@ pub enum Expr {
     Unary(Token, Box<Expr>),
     Primary(Token)    
 }
-
 
 pub fn print(expr: &Expr) {
     match &expr {
@@ -19,239 +18,255 @@ pub fn print(expr: &Expr) {
     }
 }
 
-/*
-pub fn parse(code: &'a str) -> Option<Result<Expr,LoxError>> { 
-    let error_repo = ErrorRepoVec::new();
-    let lexer: Lexer<'a> = Lexer::new(code);
-    let mut iter: Peekable<Lexer<'a>, Token> = Peekable::new(lexer);
-    let opt_expr: Option<Result<Expr, LoxError>> = expression(&mut iter);
-    return opt_expr;
-}
-*/
+type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
 
-pub struct Parser<'a> {
-    error_repo: Box<dyn ErrorRepo + 'a>,
-    token_source: Peekable<Box<dyn TokenSource<Item=Token> + 'a>, Token>,
+pub fn parse(token_iter: &mut dyn Iterator<Item=Token>) -> Option<Expr> {
+    let mut token_source: TokenSource = Peekable::new(token_iter);
+    expression(&mut token_source);
+    todo!();
 }
 
-impl<'a> Parser<'a> {
+fn expression(token_source: &mut TokenSource) -> Option<Result<Expr,LoxError>> {
+    equality(token_source)
+}
 
-    pub fn new(token_source: Box<dyn TokenSource<Item=Token> + 'a>, error_repo: Box<dyn ErrorRepo + 'a>) -> Parser<'a> {
-        Parser {
-            error_repo, 
-            token_source: Peekable::new(token_source)
-        }
-    }
+fn equality(token_source: &mut TokenSource) -> Option<Result<Expr,LoxError>> {
 
-    pub fn parse(&mut self) -> Option<Expr> {
-        self.expression();
-        todo!();
+    let opt_expr = comparison(token_source);
+    if opt_expr.is_none() {
+        return None;
     }
 
-    fn expression(&mut self) -> Option<Result<Expr,LoxError>> {
-        self.equality()
+    let r_expr = opt_expr.unwrap();
+    if r_expr.is_err() {
+        return Some(r_expr);
     }
-    
-    fn equality(&mut self) -> Option<Result<Expr,LoxError>> {
-        let opt_expr = self.comparison();
-        if opt_expr.is_none() {
-            return None;
+
+    let mut expr = r_expr.unwrap();
+
+    loop {
+        if token_source.is_last() {
+            return Some(Ok(expr));
         }
-        let r_expr = opt_expr.unwrap();
-        if r_expr.is_err() {
-            return Some(r_expr);
-        }
-        let mut expr = r_expr.unwrap();
-        loop {
-            if self.token_source.is_last() {
-                return Some(Ok(expr));
-            }
-            let peek_token = self.token_source.peek().unwrap();
-            match &peek_token.kind {
-                TokenKind::BangEqual|TokenKind::EqualEqual => {
-                    let token = self.token_source.next().unwrap();
-                    let opt_right = self.comparison();
-                    if opt_right.is_none() {
-                        todo!("unexpected end of file!");
-                    }
-                    let r_right = opt_right.unwrap();
-                    if r_right.is_err() {
-                        return Some(r_right);
-                    }
-                    expr = Expr::Binary(Box::new(expr), token, Box::new(r_right.unwrap()));
-                },
-                _ => {
-                    return Some(Ok(expr));
-                }
-            }
-        }
-    } 
-    
-    fn comparison(&mut self) -> Option<Result<Expr,LoxError>> {
-        let opt_expr = self.term();
-        if opt_expr.is_none() {
-            return None;
-        }
-        let r_expr = opt_expr.unwrap();
-        if r_expr.is_err() {
-            return Some(r_expr);
-        }
-        let mut expr = r_expr.unwrap();
-        loop {
-            if self.token_source.is_last() {
-                return Some(Ok(expr));
-            }
-            let peek_token = self.token_source.peek().unwrap();
-            match &peek_token.kind {
-                TokenKind::Greater|TokenKind::GreaterEqual|TokenKind::Less|TokenKind::LessEqual => {
-                    let token = self.token_source.next().unwrap();
-                    let opt_right = self.term();
-                    if opt_right.is_none() {
-                        todo!("unexpected end of file!");
-                    }
-                    let r_right = opt_right.unwrap();
-                    if r_right.is_err() {
-                        return Some(r_right);
-                    }
-                    expr = Expr::Binary(Box::new(expr), token, Box::new(r_right.unwrap()));
-                },
-                _ => {
-                    return Some(Ok(expr));
-                }
-            }
-        }
-    }
-    
-    fn term(&mut self) -> Option<Result<Expr,LoxError>> {
-        let opt_expr = self.factor();
-        if opt_expr.is_none() {
-            return None;
-        }
-        let r_expr = opt_expr.unwrap();
-        if r_expr.is_err() {
-            return Some(r_expr);
-        }
-        let mut expr = r_expr.unwrap();
-        loop {
-            if self.token_source.is_last() {
-                return Some(Ok(expr));
-            }
-            let peek_token = self.token_source.peek().unwrap();
-            match &peek_token.kind {
-                TokenKind::Minus|TokenKind::Plus => {
-                    let token = self.token_source.next().unwrap();
-                    let opt_right = self.factor();
-                    if opt_right.is_none() {
-                        todo!("unexpected end of file!");
-                    }
-                    let r_right = opt_right.unwrap();
-                    if r_right.is_err() {
-                        return Some(r_right);
-                    }
-                    expr = Expr::Binary(Box::new(expr), token, Box::new(r_right.unwrap()));
-                },
-                _ => {
-                    return Some(Ok(expr));
-                }
-            }
-        }
-    }
-    
-    
-    
-    fn factor(&mut self) -> Option<Result<Expr,LoxError>> {
-        let opt_expr = self.unary();
-        if opt_expr.is_none() {
-            return None;
-        }
-        let r_expr = opt_expr.unwrap();
-        if r_expr.is_err() {
-            return Some(r_expr);
-        }
-        let mut expr = r_expr.unwrap();
-        loop {
-            if self.token_source.is_last() {
-                return Some(Ok(expr));
-            }
-            let peek_token = self.token_source.peek().unwrap();
-            match &peek_token.kind {
-                TokenKind::Slash | TokenKind::Star => {
-                    let token = self.token_source.next().unwrap();
-                    let opt_right = self.unary();
-                    if opt_right.is_none() {
-                        todo!("unexpected end of file!");
-                    }
-                    let r_right = opt_right.unwrap();
-                    if r_right.is_err() {
-                        return Some(r_right);
-                    }
-                    expr = Expr::Binary(Box::new(expr), token, Box::new(r_right.unwrap()));
-                },
-                _ => {
-                    return Some(Ok(expr));
-                }
-            }
-        }
-    }
-    
-    fn unary(&mut self) -> Option<Result<Expr, LoxError>> {
-        if self.token_source.is_last() {
-            return None;
-        }
-        let peek_token = self.token_source.peek().unwrap();
+
+        let peek_token = token_source.peek().unwrap();
+        
         match &peek_token.kind {
-            TokenKind::Bang | TokenKind::Minus => {
-                let token = self.token_source.next().unwrap();
-                let opt_right = self.unary();
+            TokenKind::BangEqual|TokenKind::EqualEqual => {
+                let token = token_source.next().unwrap();
+                let opt_right = comparison(token_source);
                 if opt_right.is_none() {
                     todo!("unexpected end of file!");
                 }
-                let right = opt_right.unwrap();
-                if right.is_err() {
-                    return Some(right);
+                let r_right = opt_right.unwrap();
+                if r_right.is_err() {
+                    return Some(r_right);
                 }
-                return Some(Ok(Expr::Unary(token, Box::new(right.unwrap()))));
+                expr = Expr::Binary(Box::new(expr), token, Box::new(r_right.unwrap()));
             },
             _ => {
-                return self.primary();
+                return Some(Ok(expr));
             }
         }
     }
-    
-    fn primary(&mut self) -> Option<Result<Expr, LoxError>> {
-        if self.token_source.is_last() {
-           return None;
+} 
+
+fn comparison(token_source: &mut TokenSource) -> Option<Result<Expr,LoxError>> {
+
+    let opt_expr = term(token_source);
+    if opt_expr.is_none() {
+        return None;
+    }
+
+    let r_expr = opt_expr.unwrap();
+    if r_expr.is_err() {
+        return Some(r_expr);
+    }
+
+    let mut expr = r_expr.unwrap();
+
+    loop {
+        if token_source.is_last() {
+            return Some(Ok(expr));
         }
-        let token = self.token_source.peek().unwrap();
-        match &token.kind {
-            TokenKind::False|TokenKind::True|TokenKind::Nil|TokenKind::Literal => {
-                Some(Ok(Expr::Primary(self.token_source.next().unwrap())))
+
+        let peek_token = token_source.peek().unwrap();
+
+        match &peek_token.kind {
+            TokenKind::Greater|TokenKind::GreaterEqual|TokenKind::Less|TokenKind::LessEqual => {
+                let token = token_source.next().unwrap();
+                let opt_right = term(token_source);
+                if opt_right.is_none() {
+                    todo!("unexpected end of file!");
+                }
+                let r_right = opt_right.unwrap();
+                if r_right.is_err() {
+                    return Some(r_right);
+                }
+                expr = Expr::Binary(Box::new(expr), token, Box::new(r_right.unwrap()));
             },
-            TokenKind::LeftParen => {
-                //consume left parenthesis
-                self.token_source.next();
-                let opt_expr = self.expression();
-                if opt_expr.is_none() {
-                    panic!("unexpected end of file 1!");
-                }
-                let r_expr = opt_expr.unwrap();
-                if r_expr.is_err() {
-                    return Some(r_expr);
-                }
-                //consume right parenthesis and check if it's present
-                let opt_right_paren = self.token_source.next();
-                if opt_right_paren.is_none() {
-                    panic!("Unexpected end of file 2!");   
-                }
-                let right_paren = opt_right_paren.unwrap();
-                if right_paren.kind != TokenKind::RightParen {
-                    panic!("Expected \")\", found {:?}", right_paren.kind);   
-                }
-                return Some(Ok(Expr::Grouping(Box::new(r_expr.unwrap()))));
-            },
-            found => {
-                panic!("Expected literal, found {:?}", found);   
+            _ => {
+                return Some(Ok(expr));
             }
+        }
+    }
+}
+
+fn term(token_source: &mut TokenSource) -> Option<Result<Expr,LoxError>> {
+
+    let opt_expr = factor(token_source);
+    if opt_expr.is_none() {
+        return None;
+    }
+
+    let r_expr = opt_expr.unwrap();
+    if r_expr.is_err() {
+        return Some(r_expr);
+    }
+
+    let mut expr = r_expr.unwrap();
+
+    loop {
+        if token_source.is_last() {
+            return Some(Ok(expr));
+        }
+
+        let peek_token = token_source.peek().unwrap();
+
+        match &peek_token.kind {
+            TokenKind::Minus|TokenKind::Plus => {
+                let token = token_source.next().unwrap();
+                let opt_right = factor(token_source);
+                if opt_right.is_none() {
+                    todo!("unexpected end of file!");
+                }
+                let r_right = opt_right.unwrap();
+                if r_right.is_err() {
+                    return Some(r_right);
+                }
+                expr = Expr::Binary(Box::new(expr), token, Box::new(r_right.unwrap()));
+            },
+            _ => {
+                return Some(Ok(expr));
+            }
+        }
+    }
+}
+
+
+
+fn factor(token_source: &mut TokenSource) -> Option<Result<Expr,LoxError>> {
+    
+    let opt_expr = unary(token_source);
+    if opt_expr.is_none() {
+        return None;
+    }
+
+    let r_expr = opt_expr.unwrap();
+    if r_expr.is_err() {
+        return Some(r_expr);
+    }
+
+    let mut expr = r_expr.unwrap();
+
+    loop {
+
+        if token_source.is_last() {
+            return Some(Ok(expr));
+        }
+
+        let peek_token = token_source.peek().unwrap();
+
+        match &peek_token.kind {
+            TokenKind::Slash | TokenKind::Star => {
+                let token = token_source.next().unwrap();
+                let opt_right = unary(token_source);
+                if opt_right.is_none() {
+                    todo!("unexpected end of file!");
+                }
+                let r_right = opt_right.unwrap();
+                if r_right.is_err() {
+                    return Some(r_right);
+                }
+                expr = Expr::Binary(Box::new(expr), token, Box::new(r_right.unwrap()));
+            },
+            _ => {
+                return Some(Ok(expr));
+            }
+        }
+    }
+}
+
+fn unary(token_source: &mut TokenSource) -> Option<Result<Expr, LoxError>> {
+
+    if token_source.is_last() {
+        return None;
+    }
+
+    let peek_token = token_source.peek().unwrap();
+
+    match &peek_token.kind {
+        TokenKind::Bang | TokenKind::Minus => {
+            let token = token_source.next().unwrap();
+            let opt_right = unary(token_source);
+            if opt_right.is_none() {
+                todo!("unexpected end of file!");
+            }
+
+            let right = opt_right.unwrap();
+            if right.is_err() {
+                return Some(right);
+            }
+
+            return Some(Ok(Expr::Unary(token, Box::new(right.unwrap()))));
+        },
+        _ => {
+            return primary(token_source);
+        }
+    }
+}
+
+fn primary(token_source: &mut TokenSource) -> Option<Result<Expr, LoxError>> {
+
+    if token_source.is_last() {
+        return None;
+    }
+
+    let token = token_source.peek().unwrap();
+
+    match &token.kind {
+        TokenKind::False|TokenKind::True|TokenKind::Nil|TokenKind::Number|TokenKind::String|TokenKind::Identifier => {
+            Some(Ok(Expr::Primary(token_source.next().unwrap())))
+        },
+        TokenKind::LeftParen => {
+            //consume left parenthesis
+            token_source.next();
+            
+            let opt_expr = expression(token_source);
+            if opt_expr.is_none() {
+                panic!("unexpected end of file 1!");
+            }
+
+            let r_expr = opt_expr.unwrap();
+            if r_expr.is_err() {
+                return Some(r_expr);
+            }
+
+            //consume right parenthesis and check if it's present
+            let opt_right_paren = token_source.next();
+            if opt_right_paren.is_none() {
+                panic!("Unexpected end of file 2!");   
+            }
+
+            let right_paren = opt_right_paren.unwrap();
+            if right_paren.kind != TokenKind::RightParen {
+                panic!("Expected \")\", found {:?}", right_paren.kind);   
+            }
+
+            return Some(Ok(Expr::Grouping(Box::new(r_expr.unwrap()))));
+        },
+        found => {
+            panic!("Expected literal, found {:?}", found);   
         }
     }
 }

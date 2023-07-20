@@ -1,5 +1,5 @@
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 pub const SPACE:            char = ' ';
 pub const TAB:              char = '\t';
@@ -50,7 +50,6 @@ pub enum TokenKind {
     Equal,      EqualEqual,
     Greater,    GreaterEqual,
     Less,       LessEqual,
-    Literal,
     True,       False,
     If,         Else,
     For,        While,
@@ -59,12 +58,13 @@ pub enum TokenKind {
     Super,      This,
     Var,        Nil, 
     Print,      Return, 
+    String,     Number,  Identifier,
     UnexpectedToken
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
-    Identifier(String), String(String),  Number(f64),
+    Identifier(String), String(String),  Number(f64), Bool(bool), Nil
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -72,11 +72,23 @@ pub struct TokenId {
     id: u32
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Position {
+    pub line: u32,
+    pub column: u32
+}
+
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "line: {}, column: {}.", self.line, self.column)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Token {
-    pub id:     TokenId,
-    pub kind:   TokenKind,
-    pub value:  Option<Literal>
+    pub kind:     TokenKind,
+    pub value:    Option<Literal>,
+    pub position: Position
 }
 
 impl TokenId {
@@ -97,7 +109,7 @@ pub struct DebugInfo {
 }
 
 pub trait DebugRepo {
-    fn save(&mut self, token_id: TokenId, line: u32, column: u32);
+    fn insert(&mut self, token_id: TokenId, line: u32, column: u32);
  }
 
 pub struct DebugRepoHashMap {
@@ -106,7 +118,7 @@ pub struct DebugRepoHashMap {
 
 impl DebugRepo for DebugRepoHashMap {
 
-    fn save(&mut self, token_id: TokenId, line: u32, column: u32) {
+    fn insert(&mut self, token_id: TokenId, line: u32, column: u32) {
         self.map.insert(token_id, DebugInfo{ token_id, line, column });
     }
 }
@@ -139,5 +151,3 @@ pub fn keyword_map<'a>() -> HashMap<&'a str, TokenKind>{
         ]
     )
 }
-
-pub trait TokenSource: Iterator {}
