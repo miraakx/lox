@@ -5,17 +5,20 @@ use std::error::Error;
 use std::fs;
 use std::io;
 
+use lexer::Lexer;
+
 mod common;
 mod error;
 mod interpreter;
 mod lexer;
 mod parser;
 mod tokens;
+
 fn main() {
-    let code = "5-3-(1-2)*2<0==4";
+    let code = "nil * 3";
     run(code);
 }
-/*
+
 fn _main() {
 
    let args: Vec<String> = env::args().collect();
@@ -47,8 +50,16 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
       let mut line = String::new();
       io::stdin().read_line(&mut line)?;
       println!("\n(output):\n");
-      run(line);
+      run(&line);
    }
 }
-*/
-fn run(code: &str) {}
+
+fn run(code: &str) {
+   let mut lexer = Lexer::new(code);
+   let opt_expr = parser::parse(&mut lexer);
+   let expr = opt_expr.unwrap().unwrap();
+   //parser::print(&expr);
+   let value = interpreter::interpret(expr);
+   println!("{:?}", value);
+}
+

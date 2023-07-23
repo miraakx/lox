@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::tokens::Position;
+use crate::tokens::{Position, TokenKind};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum LoxErrorKind {
@@ -11,7 +11,8 @@ pub enum LoxErrorKind {
     InvalidEscapeCharacter,
     UnexpectedToken2(String),
     UnexpectedEndOfFile,
-    MissingClosingParenthesis
+    MissingClosingParenthesis,
+    LiteralExpected(TokenKind)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -38,6 +39,7 @@ impl fmt::Display for LoxError {
             LoxErrorKind::UnexpectedToken2(ch)    => write!(f, "Unexpected token '{}', at {}.",   ch,    self.position),
             LoxErrorKind::UnexpectedEndOfFile              => write!(f, "Unexpected end of file, at {}.",         self.position),
             LoxErrorKind::MissingClosingParenthesis        => write!(f, "Missing closing parenthesis ')', at {}.",self.position),
+            LoxErrorKind::LiteralExpected(kind)=> write!(f, "Expected literal, found {:?} at {}",     kind, self.position),
         }
     }
 }

@@ -54,14 +54,14 @@ impl <'a> Scanner<'a> {
     }    
 }
 
-struct Lexer<'a> {
+pub struct Lexer<'a> {
     scanner:       Scanner<'a>,
     keywords_map:  HashMap<&'static str, TokenKind>,
     error_handler: Box<dyn Fn(LoxError)>
 }
 
 impl<'a> Lexer<'a> {
-    fn new(code: &'a str) -> Self {
+    pub fn new(code: &'a str) -> Self {
         Lexer {
            scanner:       Scanner::from_str(code),
            keywords_map:  keyword_map(),
@@ -342,112 +342,116 @@ fn is_identifier_char_allowed(ch: char) -> bool {
     ch.is_ascii_alphabetic() || ch == '_' || ch.is_ascii_digit()
 }
 
-/*
+#[inline(always)]
+fn tokenize(code: &str) -> Vec<Token> {
+    Lexer::new(code).collect()
+}
+
 #[test]
 fn test_parens() {
-    assert_eq!(tokenize("{").0.get(0).unwrap().kind, TokenKind::LeftBrace);
-    assert_eq!(tokenize("}").0.get(0).unwrap().kind, TokenKind::RightBrace);
-    assert_eq!(tokenize("(").0.get(0).unwrap().kind, TokenKind::LeftParen);
-    assert_eq!(tokenize(")").0.get(0).unwrap().kind, TokenKind::RightParen);
+    assert_eq!(tokenize("{").get(0).unwrap().kind, TokenKind::LeftBrace);
+    assert_eq!(tokenize("}").get(0).unwrap().kind, TokenKind::RightBrace);
+    assert_eq!(tokenize("(").get(0).unwrap().kind, TokenKind::LeftParen);
+    assert_eq!(tokenize(")").get(0).unwrap().kind, TokenKind::RightParen);
     let tokens = tokenize("({ })");
-    assert_eq!(tokens.0.get(0).unwrap().kind, TokenKind::LeftParen);
-    assert_eq!(tokens.0.get(1).unwrap().kind, TokenKind::LeftBrace);
-    assert_eq!(tokens.0.get(2).unwrap().kind, TokenKind::RightBrace);
-    assert_eq!(tokens.0.get(3).unwrap().kind, TokenKind::RightParen);
+    assert_eq!(tokens.get(0).unwrap().kind, TokenKind::LeftParen);
+    assert_eq!(tokens.get(1).unwrap().kind, TokenKind::LeftBrace);
+    assert_eq!(tokens.get(2).unwrap().kind, TokenKind::RightBrace);
+    assert_eq!(tokens.get(3).unwrap().kind, TokenKind::RightParen);
 }
 
 #[test]
 fn test_equalities() {
-    assert_eq!(tokenize("=").0.get(0).unwrap().kind, TokenKind::Equal);
-    assert_eq!(tokenize("!").0.get(0).unwrap().kind, TokenKind::Bang);
-    assert_eq!(tokenize("==").0.get(0).unwrap().kind, TokenKind::EqualEqual);
-    assert_eq!(tokenize("!=").0.get(0).unwrap().kind, TokenKind::BangEqual);
-    assert_eq!(tokenize(">").0.get(0).unwrap().kind, TokenKind::Greater);
-    assert_eq!(tokenize(">=").0.get(0).unwrap().kind, TokenKind::GreaterEqual);
-    assert_eq!(tokenize("<").0.get(0).unwrap().kind, TokenKind::Less);
-    assert_eq!(tokenize("<=").0.get(0).unwrap().kind, TokenKind::LessEqual);
+    assert_eq!(tokenize("=").get(0).unwrap().kind, TokenKind::Equal);
+    assert_eq!(tokenize("!").get(0).unwrap().kind, TokenKind::Bang);
+    assert_eq!(tokenize("==").get(0).unwrap().kind, TokenKind::EqualEqual);
+    assert_eq!(tokenize("!=").get(0).unwrap().kind, TokenKind::BangEqual);
+    assert_eq!(tokenize(">").get(0).unwrap().kind, TokenKind::Greater);
+    assert_eq!(tokenize(">=").get(0).unwrap().kind, TokenKind::GreaterEqual);
+    assert_eq!(tokenize("<").get(0).unwrap().kind, TokenKind::Less);
+    assert_eq!(tokenize("<=").get(0).unwrap().kind, TokenKind::LessEqual);
     let tokens = tokenize("==!=<=>> =");
-    assert_eq!(tokens.0.get(0).unwrap().kind, TokenKind::EqualEqual);
-    assert_eq!(tokens.0.get(1).unwrap().kind, TokenKind::BangEqual);
-    assert_eq!(tokens.0.get(2).unwrap().kind, TokenKind::LessEqual);
-    assert_eq!(tokens.0.get(3).unwrap().kind, TokenKind::Greater);
-    assert_eq!(tokens.0.get(4).unwrap().kind, TokenKind::Greater);
-    assert_eq!(tokens.0.get(5).unwrap().kind, TokenKind::Equal);
+    assert_eq!(tokens.get(0).unwrap().kind, TokenKind::EqualEqual);
+    assert_eq!(tokens.get(1).unwrap().kind, TokenKind::BangEqual);
+    assert_eq!(tokens.get(2).unwrap().kind, TokenKind::LessEqual);
+    assert_eq!(tokens.get(3).unwrap().kind, TokenKind::Greater);
+    assert_eq!(tokens.get(4).unwrap().kind, TokenKind::Greater);
+    assert_eq!(tokens.get(5).unwrap().kind, TokenKind::Equal);
 }
 
 #[test]
 fn test_numbers() {
-    assert_eq!(*tokenize("10.0245").0.get(0).unwrap().value.as_ref().unwrap(), Literal::Number(10.0245));
-    assert_eq!(*tokenize("0000.0000245").0.get(0).unwrap().value.as_ref().unwrap(), Literal::Number(0.0000245));
-    assert_eq!(*tokenize("0001.. ..").0.get(0).unwrap().value.as_ref().unwrap(), Literal::Number(1.0));
-    assert_eq!(*tokenize("8 .1").0.get(0).unwrap().value.as_ref().unwrap(), Literal::Number(8.0));
+    assert_eq!(*tokenize("10.0245").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(10.0245));
+    assert_eq!(*tokenize("0000.0000245").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(0.0000245));
+    assert_eq!(*tokenize("0001.. ..").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(1.0));
+    assert_eq!(*tokenize("8 .1").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(8.0));
 }
 
 #[test]
 fn test_strings() {
-    assert_eq!(*tokenize("\"funzionerà? 😀 成\"").0.get(0).unwrap().value.as_ref().unwrap(), Literal::String("funzionerà? 😀 成".to_owned()));
-    assert_eq!(*tokenize("\"\\n \\0 \\r \\t \\\\ \\\"\"").0.get(0).unwrap().value.as_ref().unwrap(), Literal::String("\n \0 \r \t \\ \"".to_owned()));
-    //assert_eq!(tokenize("\"unterminated string").0.get(0).unwrap()., LoxErrorKind::UnterminatedString);
+    assert_eq!(*tokenize("\"funzionerà? 😀 成\"").get(0).unwrap().value.as_ref().unwrap(), Literal::String("funzionerà? 😀 成".to_owned()));
+    assert_eq!(*tokenize("\"\\n \\0 \\r \\t \\\\ \\\"\"").get(0).unwrap().value.as_ref().unwrap(), Literal::String("\n \0 \r \t \\ \"".to_owned()));
+    //assert_eq!(tokenize("\"unterminated string").get(0).unwrap()., LoxErrorKind::UnterminatedString);
 }
 
 #[test]
 fn test_keywords() {
-    assert_eq!(tokenize("true").0.get(0).unwrap().kind, TokenKind::True);
-    assert_eq!(tokenize("false").0.get(0).unwrap().kind, TokenKind::False);
-    assert_eq!(tokenize("if").0.get(0).unwrap().kind, TokenKind::If);
-    assert_eq!(tokenize("else").0.get(0).unwrap().kind, TokenKind::Else);
-    assert_eq!(tokenize("for").0.get(0).unwrap().kind, TokenKind::For);     
-    assert_eq!(tokenize("while").0.get(0).unwrap().kind, TokenKind::While); 
-    assert_eq!(tokenize("or").0.get(0).unwrap().kind, TokenKind::Or);
-    assert_eq!(tokenize("and").0.get(0).unwrap().kind, TokenKind::And);
-    assert_eq!(tokenize("class").0.get(0).unwrap().kind, TokenKind::Class); 
-    assert_eq!(tokenize("fun").0.get(0).unwrap().kind, TokenKind::Fun);
-    assert_eq!(tokenize("super").0.get(0).unwrap().kind, TokenKind::Super);
-    assert_eq!(tokenize("this").0.get(0).unwrap().kind, TokenKind::This); 
-    assert_eq!(tokenize("var").0.get(0).unwrap().kind, TokenKind::Var); 
-    assert_eq!(tokenize("nil").0.get(0).unwrap().kind, TokenKind::Nil); 
-    assert_eq!(tokenize("print").0.get(0).unwrap().kind, TokenKind::Print); 
-    assert_eq!(tokenize("return").0.get(0).unwrap().kind, TokenKind::Return);
+    assert_eq!(tokenize("true").get(0).unwrap().kind, TokenKind::True);
+    assert_eq!(tokenize("false").get(0).unwrap().kind, TokenKind::False);
+    assert_eq!(tokenize("if").get(0).unwrap().kind, TokenKind::If);
+    assert_eq!(tokenize("else").get(0).unwrap().kind, TokenKind::Else);
+    assert_eq!(tokenize("for").get(0).unwrap().kind, TokenKind::For);     
+    assert_eq!(tokenize("while").get(0).unwrap().kind, TokenKind::While); 
+    assert_eq!(tokenize("or").get(0).unwrap().kind, TokenKind::Or);
+    assert_eq!(tokenize("and").get(0).unwrap().kind, TokenKind::And);
+    assert_eq!(tokenize("class").get(0).unwrap().kind, TokenKind::Class); 
+    assert_eq!(tokenize("fun").get(0).unwrap().kind, TokenKind::Fun);
+    assert_eq!(tokenize("super").get(0).unwrap().kind, TokenKind::Super);
+    assert_eq!(tokenize("this").get(0).unwrap().kind, TokenKind::This); 
+    assert_eq!(tokenize("var").get(0).unwrap().kind, TokenKind::Var); 
+    assert_eq!(tokenize("nil").get(0).unwrap().kind, TokenKind::Nil); 
+    assert_eq!(tokenize("print").get(0).unwrap().kind, TokenKind::Print); 
+    assert_eq!(tokenize("return").get(0).unwrap().kind, TokenKind::Return);
 
-    assert_eq!(tokenize("true!").0.get(0).unwrap().kind, TokenKind::True);
-    assert_eq!(tokenize("false) ").0.get(0).unwrap().kind, TokenKind::False);
-    assert_eq!(tokenize(" if else ").0.get(0).unwrap().kind, TokenKind::If);
+    assert_eq!(tokenize("true!").get(0).unwrap().kind, TokenKind::True);
+    assert_eq!(tokenize("false) ").get(0).unwrap().kind, TokenKind::False);
+    assert_eq!(tokenize(" if else ").get(0).unwrap().kind, TokenKind::If);
 }
 
 #[test]
 fn test_identifiers() {
-    assert_eq!(*tokenize("truee").0.get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("truee".to_owned()));
-    assert_eq!(*tokenize("ffalse").0.get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("ffalse".to_owned()));
-    assert_eq!(*tokenize("Nil").0.get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("Nil".to_owned()));
-    assert_eq!(*tokenize("ELSE").0.get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("ELSE".to_owned()));
-    assert_eq!(*tokenize("whilewhile").0.get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("whilewhile".to_owned()));
+    assert_eq!(*tokenize("truee").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("truee".to_owned()));
+    assert_eq!(*tokenize("ffalse").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("ffalse".to_owned()));
+    assert_eq!(*tokenize("Nil").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("Nil".to_owned()));
+    assert_eq!(*tokenize("ELSE").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("ELSE".to_owned()));
+    assert_eq!(*tokenize("whilewhile").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("whilewhile".to_owned()));
 }
 
 #[test]
 fn test_others() {
-    assert_eq!(tokenize("+").0.get(0).unwrap().kind, TokenKind::Plus);
-    assert_eq!(tokenize("-").0.get(0).unwrap().kind, TokenKind::Minus);
-    assert_eq!(tokenize("/").0.get(0).unwrap().kind, TokenKind::Slash);
-    assert_eq!(tokenize("*").0.get(0).unwrap().kind, TokenKind::Star);
-    assert_eq!(tokenize(".").0.get(0).unwrap().kind, TokenKind::Dot);
-    assert_eq!(tokenize(",").0.get(0).unwrap().kind, TokenKind::Comma);
-    assert_eq!(tokenize(";").0.get(0).unwrap().kind, TokenKind::Semicolon);
-    assert_eq!(tokenize(" \r \t \r\n \n // ////true or false?").0.get(0), None);
+    assert_eq!(tokenize("+").get(0).unwrap().kind, TokenKind::Plus);
+    assert_eq!(tokenize("-").get(0).unwrap().kind, TokenKind::Minus);
+    assert_eq!(tokenize("/").get(0).unwrap().kind, TokenKind::Slash);
+    assert_eq!(tokenize("*").get(0).unwrap().kind, TokenKind::Star);
+    assert_eq!(tokenize(".").get(0).unwrap().kind, TokenKind::Dot);
+    assert_eq!(tokenize(",").get(0).unwrap().kind, TokenKind::Comma);
+    assert_eq!(tokenize(";").get(0).unwrap().kind, TokenKind::Semicolon);
+    assert_eq!(tokenize(" \r \t \r\n \n // ////true or false?").get(0), None);
 }
 
 #[test]
 fn test_unexpected_tokens() {
-    assert_eq!(tokenize(":").0.get(0).unwrap().kind, TokenKind::UnexpectedToken);
-    assert_eq!(tokenize("&").0.get(0).unwrap().kind, TokenKind::UnexpectedToken);
-    assert_eq!(tokenize("&&").0.get(0).unwrap().kind, TokenKind::UnexpectedToken);
-    assert_eq!(tokenize("|").0.get(0).unwrap().kind, TokenKind::UnexpectedToken);
-    assert_eq!(tokenize("||").0.get(0).unwrap().kind, TokenKind::UnexpectedToken);
+    assert_eq!(tokenize(":").get(0).unwrap().kind, TokenKind::UnexpectedToken);
+    assert_eq!(tokenize("&").get(0).unwrap().kind, TokenKind::UnexpectedToken);
+    assert_eq!(tokenize("&&").get(0).unwrap().kind, TokenKind::UnexpectedToken);
+    assert_eq!(tokenize("|").get(0).unwrap().kind, TokenKind::UnexpectedToken);
+    assert_eq!(tokenize("||").get(0).unwrap().kind, TokenKind::UnexpectedToken);
 }
 
 #[test]
 fn test_construct() {
     
-    let tokens = tokenize("fun prova(var1, var2) {return var1+var2;}").0;
+    let tokens = tokenize("fun prova(var1, var2) {return var1+var2;}");
     let mut index: usize = 0;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Fun);
     index = index + 1;
@@ -477,4 +481,4 @@ fn test_construct() {
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::RightBrace);
 }
- */
+
