@@ -9,6 +9,10 @@ pub enum Expr {
     Literal(Token)    
 }
 
+pub enum Stmt {
+    Print(Expr), ExprStmt(Expr)
+}
+
 pub fn print(expr: &Expr) {
     match &expr {
         Expr::Binary(expr_left, operator, expr_right) => { print!("( "); print(expr_left); print!(" {:?} ", operator.kind); print(expr_right); print!(") "); }, 
@@ -20,9 +24,99 @@ pub fn print(expr: &Expr) {
 
 type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
 
-pub fn parse(token_iter: &mut dyn Iterator<Item=Token>) -> Option<Result<Expr,LoxError>> {
-    let mut token_source: TokenSource = Peekable::new(token_iter);
-    expression(&mut token_source)
+pub struct Parser<'a> {
+    token_source: Peekable<&'a mut dyn Iterator<Item=Token>, Token>
+}
+
+impl <'a> Parser<'a> {
+    pub fn new(token_iter: &'a mut dyn Iterator<Item=Token>) -> Self {
+        Parser { token_source: Peekable::new(token_iter) }
+    }
+}
+
+impl <'a> Iterator for Parser<'a> {
+    type Item = Stmt;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let opt_stmt = statement(&mut self.token_source);
+        if opt_stmt.is_none() {
+            return None;
+        }
+
+        let r_stmt = opt_stmt.unwrap();
+        match r_stmt {
+            Ok(stmt) => Some(stmt),
+            Err(_) => todo!(),
+        }
+    }
+}
+
+fn statement(token_source: &mut TokenSource) -> Option<Result<Stmt, LoxError>>{
+    let opt_token = token_source.next();
+    if opt_token.is_none() {
+        return None;
+    }
+
+    let token = opt_token.unwrap();
+    match token.kind {
+        TokenKind::Print => {
+            return print_statement(token_source);
+        },
+        _ => {
+            return expression_statement(token_source);
+        }
+    }
+}
+
+fn print_statement(token_source: &mut TokenSource) -> Option<Result<Stmt, LoxError>> {
+    let opt_expr = expression(token_source);
+    if opt_expr.is_none() {
+        return None;
+    }
+
+    let r_expr = opt_expr.unwrap();
+    if r_expr.is_err() {
+        return Some(Err(r_expr.err().unwrap()));
+    }
+
+    let stmt = Stmt::Print(r_expr.unwrap());
+
+    return consume_semicolon(stmt, token_source);
+}
+
+fn expression_statement(token_source: &mut TokenSource) -> Option<Result<Stmt, LoxError>> {
+    let opt_expr = expression(token_source);
+    if opt_expr.is_none() {
+        return None;
+    }
+
+    let r_expr = opt_expr.unwrap();
+    if r_expr.is_err() {
+        return Some(Err(r_expr.err().unwrap()));
+    }
+
+    let stmt = Stmt::ExprStmt(r_expr.unwrap());
+
+    return consume_semicolon(stmt, token_source);
+    
+}
+
+#[inline]
+fn consume_semicolon(stmt: Stmt, token_source: &mut TokenSource) ->Option<Result<Stmt, LoxError>>{
+    let opt_token = token_source.next();
+    if opt_token.is_none() {
+        panic!("Caso non gestito");
+    }
+
+    let token = opt_token.unwrap();
+    match token.kind {
+        TokenKind::Semicolon => {
+            return Some(Ok(stmt));
+        },
+        _ => {
+            return Some(Err(LoxError::new(LoxErrorKind::MissingSemicolon, token.position)));
+        }
+    }
 }
 
 fn expression(token_source: &mut TokenSource) -> Option<Result<Expr,LoxError>> {
@@ -284,4 +378,9 @@ fn primary(token_source: &mut TokenSource) -> Option<Result<Expr, LoxError>> {
             return Some(Err(LoxError::new(LoxErrorKind::LiteralExpected(*found), position)));
         }
     }
+}
+
+pub fn parse(token_iter: &mut dyn Iterator<Item=Token>) -> Option<Result<Expr,LoxError>> {
+    let mut token_source: TokenSource = Peekable::new(token_iter);
+    expression(&mut token_source)
 }

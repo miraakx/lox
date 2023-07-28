@@ -57,7 +57,8 @@ impl <'a> Scanner<'a> {
 pub struct Lexer<'a> {
     scanner:       Scanner<'a>,
     keywords_map:  HashMap<&'static str, TokenKind>,
-    error_handler: Box<dyn Fn(LoxError)>
+    error_handler: Box<dyn Fn(LoxError)>,
+    end_of_file:   bool
 }
 
 impl<'a> Lexer<'a> {
@@ -65,7 +66,8 @@ impl<'a> Lexer<'a> {
         Lexer {
            scanner:       Scanner::from_str(code),
            keywords_map:  keyword_map(),
-           error_handler: Box::new(println_hadle_error)
+           error_handler: Box::new(println_handle_error),
+           end_of_file:   false
         }
     }
 }
@@ -82,7 +84,12 @@ impl<'a> Iterator for Lexer<'a> {
             let opt_ch: Option<char> = self.scanner.next();
 
             if opt_ch.is_none() {
-                return None;
+                if self.end_of_file {
+                    return None;
+                } else {
+                    self.end_of_file = true;
+                    return Some(Token{ kind: TokenKind::EOF, value: None, position: Position { line: self.scanner.line, column: self.scanner.column} });
+                }
             }
 
             let ch: char = opt_ch.unwrap();

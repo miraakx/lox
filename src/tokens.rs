@@ -59,12 +59,13 @@ pub enum TokenKind {
     Var,        Nil, 
     Print,      Return, 
     String,     Number,  Identifier,
-    UnexpectedToken
+    UnexpectedToken,
+    EOF
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
-    Identifier(String), String(String),  Number(f64), Bool(bool), Nil
+    String(String),  Number(f64), Bool(bool), Nil, Identifier(String), 
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]

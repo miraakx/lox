@@ -1,22 +1,48 @@
-use crate::{parser::Expr, tokens::TokenKind};
+use std::fmt::Display;
+
+use crate::{parser::{Expr, Stmt}, tokens::TokenKind};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     String(String),  Number(f64), Bool(bool), Nil
 }
 
-pub fn interpret(expr: Expr) -> Value {
-    evaluate(expr)
+impl Display for Value {
+    
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::String(str) => { write!(f, "{}", str ) },
+            Value::Number(num)    => { write!(f, "{}", num ) },
+            Value::Bool(bool)    => { write!(f, "{}", bool) },
+            Value::Nil                  => { write!(f, "nil"     ) },
+        }
+    }
 }
 
-fn evaluate(expr: Expr) -> Value {
+pub fn interpret(stmt_iter: &mut dyn Iterator<Item=Stmt>) {
+    for stmt in stmt_iter {
+        evaluate_stmt(stmt);
+    }    
+}
+
+#[inline]
+fn evaluate_stmt(stmt: Stmt) {
+    match stmt {
+        Stmt::Print(expr) => {
+            let value = evaluate_expr(expr);
+            println!("{}", value);
+        },
+        Stmt::ExprStmt(expr) => {
+            let _ = evaluate_expr(expr);            
+        }
+    }
+}
+
+fn evaluate_expr(expr: Expr) -> Value {
     match expr {
         Expr::Literal(token) => {
             if let Some(value) = token.value {
                 match value {
-                    crate::tokens::Literal::Identifier(_) => {
-                        todo!();
-                    },
                     crate::tokens::Literal::String(val) => {
                         return Value::String(val);
                     }
@@ -28,14 +54,17 @@ fn evaluate(expr: Expr) -> Value {
                     },
                     crate::tokens::Literal::Nil => {
                         return Value::Nil;
-                    }
+                    },
+                    crate::tokens::Literal::Identifier(_) => {
+                        todo!();
+                    },
                 }
             } else {
                 panic!("unsupported token!");
             }
         },
         Expr::Unary(token, right) => {
-            let val_right: Value = evaluate(*right);
+            let val_right: Value = evaluate_expr(*right);
             match token.kind {
                 TokenKind::Minus => {
                     match val_right {
@@ -56,11 +85,11 @@ fn evaluate(expr: Expr) -> Value {
             }
         },
         Expr::Grouping(expr) => { 
-            evaluate(*expr) 
+            evaluate_expr(*expr) 
         },
         Expr::Binary(left, token, right) => {
-            let val_left:  Value = evaluate(*left);
-            let val_right: Value = evaluate(*right);
+            let val_left:  Value = evaluate_expr(*left);
+            let val_right: Value = evaluate_expr(*right);
             match token.kind {
                 TokenKind::Minus => {
                     match (val_left, val_right) {

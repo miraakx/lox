@@ -5,7 +5,10 @@ use std::error::Error;
 use std::fs;
 use std::io;
 
+use interpreter::interpret;
 use lexer::Lexer;
+
+use crate::parser::Parser;
 
 mod common;
 mod error;
@@ -14,12 +17,12 @@ mod lexer;
 mod parser;
 mod tokens;
 
-fn main() {
-    let code = "nil * 3";
+fn _main() {
+    let code = "print 3+1;";
     run(code);
 }
 
-fn _main() {
+fn main() {
 
    let args: Vec<String> = env::args().collect();
    let result = match args.len() {
@@ -46,20 +49,17 @@ fn run_file<'a>(filepath: &'a str) -> Result<(), Box<dyn Error>> {
 
 fn run_prompt() -> Result<(), Box<dyn Error>> {
    loop {
-      println!("\n(input):\n");
+      println!("(input): ");
       let mut line = String::new();
       io::stdin().read_line(&mut line)?;
-      println!("\n(output):\n");
+      println!("(output): ");
       run(&line);
    }
 }
 
 fn run(code: &str) {
    let mut lexer = Lexer::new(code);
-   let opt_expr = parser::parse(&mut lexer);
-   let expr = opt_expr.unwrap().unwrap();
-   //parser::print(&expr);
-   let value = interpreter::interpret(expr);
-   println!("{:?}", value);
+   let mut parser = Parser::new(&mut lexer);
+   interpret(&mut parser);
 }
 

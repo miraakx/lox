@@ -12,7 +12,8 @@ pub enum LoxErrorKind {
     UnexpectedToken2(String),
     UnexpectedEndOfFile,
     MissingClosingParenthesis,
-    LiteralExpected(TokenKind)
+    LiteralExpected(TokenKind),
+    MissingSemicolon
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -40,10 +41,11 @@ impl fmt::Display for LoxError {
             LoxErrorKind::UnexpectedEndOfFile              => write!(f, "Unexpected end of file, at {}.",         self.position),
             LoxErrorKind::MissingClosingParenthesis        => write!(f, "Missing closing parenthesis ')', at {}.",self.position),
             LoxErrorKind::LiteralExpected(kind)=> write!(f, "Expected literal, found {:?} at {}",     kind, self.position),
+            LoxErrorKind::MissingSemicolon                 => write!(f, "Missing semicolon ';' at {}.",           self.position),
         }
     }
 }
 
-pub fn println_hadle_error(error: LoxError) {
+pub fn println_handle_error(error: LoxError) {
     println!("{}", error);
 }
