@@ -19,8 +19,8 @@ mod tokens;
 mod environment;
 
 fn main() {
-    let code = "var a = 2*3; print a*2;";
-    run(code);
+   let code = "var a = 5; var b = 6; print a*b+5;";
+   run(code);
 }
 
 fn _main() {
@@ -61,5 +61,8 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
 fn run(code: &str) {
    let mut lexer = Lexer::new(code);
    let mut parser = Parser::new(&mut lexer);
-   let _ = interpret(&mut parser);
+   let result = interpret(&mut parser);
+   if result.is_err() {
+      println!("{}", result.unwrap_err());
+   }
 }

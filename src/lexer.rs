@@ -1,8 +1,8 @@
 use std::{collections::HashMap, str::Chars};
 use crate::{common::NthPeekable, tokens::*, error::*};
 
-const LINE_START_INDEX:   u32 = 0;
-const COLUMN_START_INDEX: u32 = 0;
+const LINE_START_INDEX:   u32 = 1;
+const COLUMN_START_INDEX: u32 = 1;
 
 struct Scanner<'a> {
     iter:   NthPeekable<Chars<'a>, char>,
@@ -12,13 +12,15 @@ struct Scanner<'a> {
 
 impl <'a> Scanner<'a> {
     fn next(&mut self) -> Option<char> {
+        self.column = self.column + 1;
         self.iter.next()
+
     }
 
     #[inline]
     fn new_line(&mut self) {
-        self.line   = LINE_START_INDEX;
-        self.column = self.column + 1;
+        self.column   = LINE_START_INDEX;
+        self.line = self.line + 1;
     }
 
     #[inline]

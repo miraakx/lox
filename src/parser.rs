@@ -62,7 +62,7 @@ fn declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
         },
         TokenKind::Var => {
             //consuma il Var appena trovato
-            token_source.next();
+            consume_token(token_source);
             return var_declaration(token_source);
         },
         _ => {
@@ -100,13 +100,14 @@ fn var_declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
 }
 
 fn statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>{
-    let token = token_source.next().unwrap();
+    let token = token_source.peek().unwrap();
     match token.kind {
         TokenKind::EOF => {
             //Se il file è finito non procedo oltre.
             return Ok(Stmt::Eof);
         },
         TokenKind::Print => {
+            consume_token(token_source);
             return print_statement(token_source);
         },
         _ => {
@@ -140,10 +141,9 @@ fn expression(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
 }
 
 fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
+
     let expr = equality(token_source)?;
-
     let peek_token = token_source.peek().unwrap();
-
     //Copy position to evade borrow checker
     let position = peek_token.position;
 
@@ -152,7 +152,7 @@ fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
             return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, position));
         },
         TokenKind::Equal => {
-
+            consume_token(token_source);
             let value: Expr = assignment(token_source)?;
 
             match expr {
@@ -292,7 +292,7 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError> {
         },
         TokenKind::LeftParen => {
             //consuma la parentesi appena trovata
-            token_source.next();
+            consume_token(token_source);
 
             let expr: Expr = expression(token_source)?;
             match token_source.next().unwrap().kind {
@@ -332,4 +332,9 @@ fn expect_token(token: Token, token_kind: TokenKind) -> Result<(),LoxError> {
             Err(LoxError::new(LoxErrorKind::ExpectedToken(token_kind), token.position))
         }
     }
+}
+
+#[inline(always)]
+fn consume_token(token_iter: &mut TokenSource) {
+    token_iter.next();
 }

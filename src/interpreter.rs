@@ -28,7 +28,7 @@ pub fn interpret(stmt_iter: &mut dyn Iterator<Item=Stmt>) -> Result<(), LoxError
                 println!("{}", value);
             },
             Stmt::ExprStmt(expr) => {
-                let _ = evaluate_expr(expr, &mut env);
+                let _ = evaluate_expr(expr, &mut env)?;
             }
             Stmt::Var(variable, _, opt_expr) => {
                 match opt_expr {
