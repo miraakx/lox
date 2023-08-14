@@ -16,10 +16,11 @@ mod interpreter;
 mod lexer;
 mod parser;
 mod tokens;
+mod environment;
 
 fn _main() {
     let code = "print 3+1;";
-    run(code);
+    //run(code);
 }
 
 fn main() {
@@ -62,4 +63,3 @@ fn run(code: &str) {
    let mut parser = Parser::new(&mut lexer);
    interpret(&mut parser);
 }
-

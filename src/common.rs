@@ -168,10 +168,6 @@ where
             self.item.take()
         }
     }
-
-    pub fn is_last(&mut self) -> bool {
-        self.peek().is_none()
-    }
 }
 
 #[test]

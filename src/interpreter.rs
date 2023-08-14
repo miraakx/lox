@@ -1,14 +1,14 @@
-use std::fmt::Display;
+use std::{fmt::Display, rc::Rc};
 
-use crate::{parser::{Expr, Stmt}, tokens::TokenKind};
+use crate::{parser::{Expr, Stmt}, tokens::{TokenKind, extract_identifier, Position}, environment::Environment, error::LoxError};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
-    String(String),  Number(f64), Bool(bool), Nil
+    String(Rc<String>),  Number(f64), Bool(bool), Nil
 }
 
 impl Display for Value {
-    
+
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::String(str) => { write!(f, "{}", str ) },
@@ -19,44 +19,55 @@ impl Display for Value {
     }
 }
 
-pub fn interpret(stmt_iter: &mut dyn Iterator<Item=Stmt>) {
+pub fn interpret(stmt_iter: &mut dyn Iterator<Item=Stmt>) -> Result<(), LoxError>{
+    let mut env: Environment = Environment::new();
     for stmt in stmt_iter {
-        evaluate_stmt(stmt);
-    }    
-}
-
-#[inline]
-fn evaluate_stmt(stmt: Stmt) {
-    match stmt {
-        Stmt::Print(expr) => {
-            let value = evaluate_expr(expr);
-            println!("{}", value);
-        },
-        Stmt::ExprStmt(expr) => {
-            let _ = evaluate_expr(expr);            
+        match stmt {
+            Stmt::Print(expr) => {
+                let value = evaluate_expr(expr, &mut env)?;
+                println!("{}", value);
+            },
+            Stmt::ExprStmt(expr) => {
+                let _ = evaluate_expr(expr, &mut env);
+            }
+            Stmt::Var(variable, _, opt_expr) => {
+                match opt_expr {
+                    Some(expr) => {
+                        let value = evaluate_expr(expr, &mut env)?;
+                        env.define(variable, value);
+                    },
+                    None => {
+                        env.define(variable, Value::Nil);
+                    },
+                }
+            },
+            Stmt::Eof => {
+                break;
+            },
         }
     }
+    Ok(())
 }
 
-fn evaluate_expr(expr: Expr) -> Value {
+fn evaluate_expr(expr: Expr, environment: &mut Environment) -> Result<Value, LoxError> {
     match expr {
         Expr::Literal(token) => {
             if let Some(value) = token.value {
                 match value {
-                    crate::tokens::Literal::String(val) => {
-                        return Value::String(val);
+                    crate::tokens::LiteralValue::String(val) => {
+                        return Ok(Value::String(Rc::new(val)));
                     }
-                    crate::tokens::Literal::Number(val) => {
-                        return Value::Number(val);
+                    crate::tokens::LiteralValue::Number(val) => {
+                        return Ok(Value::Number(val));
                     },
-                    crate::tokens::Literal::Bool(val) => {
-                        return Value::Bool(val);
+                    crate::tokens::LiteralValue::Bool(val) => {
+                        return Ok(Value::Bool(val));
                     },
-                    crate::tokens::Literal::Nil => {
-                        return Value::Nil;
+                    crate::tokens::LiteralValue::Nil => {
+                        return Ok(Value::Nil);
                     },
-                    crate::tokens::Literal::Identifier(_) => {
-                        todo!();
+                    crate::tokens::LiteralValue::Identifier(_) => {
+                        panic!("unexpected state");
                     },
                 }
             } else {
@@ -64,12 +75,12 @@ fn evaluate_expr(expr: Expr) -> Value {
             }
         },
         Expr::Unary(token, right) => {
-            let val_right: Value = evaluate_expr(*right);
+            let val_right: Value = evaluate_expr(*right, environment)?;
             match token.kind {
                 TokenKind::Minus => {
                     match val_right {
                         Value::Number(num) => {
-                            return Value::Number(-num);
+                            return Ok(Value::Number(-num));
                         },
                         _ => {
                             panic!("unsupported unary expression!");
@@ -77,24 +88,24 @@ fn evaluate_expr(expr: Expr) -> Value {
                     }
                 },
                 TokenKind::Bang => {
-                    Value::Bool(!is_truthy(val_right))
+                    Ok(Value::Bool(!is_truthy(val_right)))
                 },
                 _ => {
                     panic!("invalid token type for unary expression!");
                 }
             }
         },
-        Expr::Grouping(expr) => { 
-            evaluate_expr(*expr) 
+        Expr::Grouping(expr) => {
+            evaluate_expr(*expr, environment)
         },
         Expr::Binary(left, token, right) => {
-            let val_left:  Value = evaluate_expr(*left);
-            let val_right: Value = evaluate_expr(*right);
+            let val_left:  Value = evaluate_expr(*left, environment)?;
+            let val_right: Value = evaluate_expr(*right, environment)?;
             match token.kind {
                 TokenKind::Minus => {
                     match (val_left, val_right) {
                         (Value::Number(num_left), Value::Number(num_right)) => {
-                            return Value::Number(num_left - num_right);
+                            return Ok(Value::Number(num_left - num_right));
                         },
                         _ => {
                             panic!("both expressions side are not of the same type!");
@@ -104,12 +115,12 @@ fn evaluate_expr(expr: Expr) -> Value {
                 TokenKind::Plus => {
                     match (val_left, val_right) {
                         (Value::Number(num_left), Value::Number(num_right)) => {
-                            return Value::Number(num_left + num_right);
+                            return Ok(Value::Number(num_left + num_right));
                         },
                         (Value::String(str_left), Value::String(str_right)) => {
-                            let mut result: String = str_left.clone();
+                            let mut result = (*str_left).clone();
                             result.push_str(&str_right);
-                            return Value::String(result);
+                            return Ok(Value::String(Rc::new(result)));
                         },
                         _ => {
                             panic!("both expressions side are not of the same type!");
@@ -119,7 +130,7 @@ fn evaluate_expr(expr: Expr) -> Value {
                 TokenKind::Slash => {
                     match (val_left, val_right) {
                         (Value::Number(num_left), Value::Number(num_right)) => {
-                            return Value::Number(num_left / num_right);
+                            return Ok(Value::Number(num_left / num_right));
                         },
                         _ => {
                             panic!("both expressions side are not of the same type!");
@@ -129,7 +140,7 @@ fn evaluate_expr(expr: Expr) -> Value {
                 TokenKind::Star => {
                     match (val_left, val_right) {
                         (Value::Number(num_left), Value::Number(num_right)) => {
-                            return Value::Number(num_left * num_right);
+                            return Ok(Value::Number(num_left * num_right));
                         },
                         _ => {
                             panic!("both expressions side are not of the same type!");
@@ -139,7 +150,7 @@ fn evaluate_expr(expr: Expr) -> Value {
                 TokenKind::Greater => {
                     match (val_left, val_right) {
                         (Value::Number(num_left), Value::Number(num_right)) => {
-                            return Value::Bool(num_left > num_right);
+                            return Ok(Value::Bool(num_left > num_right));
                         },
                         _ => {
                             panic!("both expressions side are not of the same type!");
@@ -149,7 +160,7 @@ fn evaluate_expr(expr: Expr) -> Value {
                 TokenKind::GreaterEqual => {
                     match (val_left, val_right) {
                         (Value::Number(num_left), Value::Number(num_right)) => {
-                            return Value::Bool(num_left >= num_right);
+                            return Ok(Value::Bool(num_left >= num_right));
                         },
                         _ => {
                             panic!("both expressions side are not of the same type!");
@@ -159,7 +170,7 @@ fn evaluate_expr(expr: Expr) -> Value {
                 TokenKind::Less => {
                     match (val_left, val_right) {
                         (Value::Number(num_left), Value::Number(num_right)) => {
-                            return Value::Bool(num_left < num_right);
+                            return Ok(Value::Bool(num_left < num_right));
                         },
                         _ => {
                             panic!("both expressions side are not of the same type!");
@@ -169,7 +180,7 @@ fn evaluate_expr(expr: Expr) -> Value {
                 TokenKind::LessEqual => {
                     match (val_left, val_right) {
                         (Value::Number(num_left), Value::Number(num_right)) => {
-                            return Value::Bool(num_left <= num_right);
+                            return Ok(Value::Bool(num_left <= num_right));
                         },
                         _ => {
                             panic!("both expressions side are not of the same type!");
@@ -177,16 +188,25 @@ fn evaluate_expr(expr: Expr) -> Value {
                     }
                 },
                 TokenKind::EqualEqual => {
-                    return Value::Bool(is_equal(val_left, val_right));
+                    return Ok(Value::Bool(is_equal(val_left, val_right)));
                 },
                 TokenKind::BangEqual => {
-                    return Value::Bool(!is_equal(val_left, val_right));
+                    return Ok(Value::Bool(!is_equal(val_left, val_right)));
                 },
                 _ => {
                     panic!("invalid token type for binary expression between numbers!");
                 }
             }
-        }  
+        }
+        Expr::Variable(variable, position) => {
+            environment.get(&variable, position)
+        },
+        Expr::Assign(token, expr) => {
+            let value: Value = evaluate_expr(*expr, environment)?;
+            let tup_identifier: (String, Position) = extract_identifier(token);
+            let result: Value = environment.assign(tup_identifier.0, value, tup_identifier.1)?;
+            return Ok(result);
+        },
     }
 }
 
@@ -195,7 +215,7 @@ fn is_equal(val_left: Value, val_right: Value) -> bool {
     match (val_left, val_right) {
         (Value::Bool(left),     Value::Bool(right))       => left == right,
         (Value::Number(left),    Value::Number(right))      => left == right,
-        (Value::String(left), Value::String(right))   => left == right,
+        (Value::String(left), Value::String(right)) => left == right,
         (Value::Nil,                  Value::Nil)                     => true,
         _                                                             => false
     }

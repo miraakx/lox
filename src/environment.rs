@@ -29,4 +29,13 @@ impl Environment {
             Err(LoxError::new(crate::error::LoxErrorKind::UdefinedVariable(variable.to_owned()), position))
         }
     }
+
+    pub fn assign(&mut self, variable: String, var_value: Value, position: Position) -> Result<Value, LoxError> {
+        if self.env.contains_key(&variable) {
+            self.env.insert(variable, var_value.clone());
+            return Ok(var_value);
+        } else {
+            return Err(LoxError::new(crate::error::LoxErrorKind::UdefinedVariable(variable.to_owned()), position));
+        }
+    }
 }

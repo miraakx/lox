@@ -26,25 +26,25 @@ const TRUE:            &str = "true";
 const FALSE:           &str = "false";
 const IF:              &str = "if";
 const ELSE:            &str = "else";
-const FOR:             &str = "for";      
-const WHILE:           &str = "while"; 
-const OR:              &str = "or"; 
-const AND:             &str = "and"; 
-const CLASS:           &str = "class"; 
-const FUN:             &str = "fun"; 
-const SUPER:           &str = "super"; 
-const THIS:            &str = "this"; 
-const VAR:             &str = "var"; 
-const NIL:             &str = "nil"; 
-const PRINT:           &str = "print"; 
-const RETURN:          &str = "return"; 
+const FOR:             &str = "for";
+const WHILE:           &str = "while";
+const OR:              &str = "or";
+const AND:             &str = "and";
+const CLASS:           &str = "class";
+const FUN:             &str = "fun";
+const SUPER:           &str = "super";
+const THIS:            &str = "this";
+const VAR:             &str = "var";
+const NIL:             &str = "nil";
+const PRINT:           &str = "print";
+const RETURN:          &str = "return";
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TokenKind {
-    LeftParen,  RightParen, 
+    LeftParen,  RightParen,
     LeftBrace,  RightBrace,
     Comma,      Dot,     Semicolon,
-    Minus,      Plus, 
+    Minus,      Plus,
     Slash,      Star,
     Bang,       BangEqual,
     Equal,      EqualEqual,
@@ -54,18 +54,18 @@ pub enum TokenKind {
     If,         Else,
     For,        While,
     And,        Or,
-    Class,      Fun,   
+    Class,      Fun,
     Super,      This,
-    Var,        Nil, 
-    Print,      Return, 
+    Var,        Nil,
+    Print,      Return,
     String,     Number,  Identifier,
     UnexpectedToken,
     EOF
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Literal {
-    String(String),  Number(f64), Bool(bool), Nil, Identifier(String), 
+pub enum LiteralValue {
+    String(String),  Number(f64), Bool(bool), Nil, Identifier(String),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -83,7 +83,7 @@ impl fmt::Display for Position {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub kind:     TokenKind,
-    pub value:    Option<Literal>,
+    pub value:    Option<LiteralValue>,
     pub position: Position
 }
 
@@ -108,4 +108,21 @@ pub fn keyword_map<'a>() -> HashMap<&'a str, TokenKind>{
             (RETURN,    TokenKind::Return)
         ]
     )
+}
+
+#[inline]
+pub fn extract_identifier(token: Token) -> (String, Position) {
+    if let Some(value) = token.value {
+        match value {
+            crate::tokens::LiteralValue::Identifier(identifier) => {
+                return (identifier, token.position);
+            },
+            _ => {
+                panic!();
+            }
+        }
+
+    } else {
+        panic!();
+    }
 }

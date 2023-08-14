@@ -23,15 +23,15 @@ impl <'a> Scanner<'a> {
 
     #[inline]
     fn from_str(str: &'a str) -> Scanner<'a> {
-        Scanner { 
-            iter:   NthPeekable::new(str.chars(), 2), 
-            line:   LINE_START_INDEX, 
+        Scanner {
+            iter:   NthPeekable::new(str.chars(), 2),
+            line:   LINE_START_INDEX,
             column: COLUMN_START_INDEX
         }
     }
 
     #[inline]
-    fn peek(&mut self) -> Option<char>{ 
+    fn peek(&mut self) -> Option<char>{
         self.iter.peek().cloned()
     }
 
@@ -41,7 +41,7 @@ impl <'a> Scanner<'a> {
 
     #[inline]
     fn is_peek(&mut self, ch: char) -> bool {
-        self.peek().map_or(false, |v| v==ch)        
+        self.peek().map_or(false, |v| v==ch)
     }
 
     #[inline]
@@ -51,7 +51,7 @@ impl <'a> Scanner<'a> {
                 self.next();
             }
         }
-    }    
+    }
 }
 
 pub struct Lexer<'a> {
@@ -74,13 +74,13 @@ impl<'a> Lexer<'a> {
 
 impl<'a> Iterator for Lexer<'a> {
     type Item = Token;
-    
+
     fn next(&mut self) -> Option<Token> {
         let mut opt_token_kind:  Option<TokenKind>;
-        let mut opt_token_value: Option<Literal>;
+        let mut opt_token_value: Option<LiteralValue>;
 
         loop {
-            
+
             let opt_ch: Option<char> = self.scanner.next();
 
             if opt_ch.is_none() {
@@ -124,7 +124,7 @@ impl<'a> Iterator for Lexer<'a> {
                 },
                 DOT => {
                     opt_token_kind = Some(TokenKind::Dot);
-                }, 
+                },
                 SEMICOLON => {
                     opt_token_kind = Some(TokenKind::Semicolon);
                 },
@@ -178,7 +178,7 @@ impl<'a> Iterator for Lexer<'a> {
 
                         loop {
                             let opt_next_ch = self.scanner.peek();
-                            
+
                             if opt_next_ch.is_none() {
                                 break;
                             }
@@ -193,8 +193,8 @@ impl<'a> Iterator for Lexer<'a> {
                                     self.scanner.next();
                                 }
                             }
-                        }  
-                    }             
+                        }
+                    }
                 },
                 QUOTE => {
                     let mut string = String::new();
@@ -203,7 +203,7 @@ impl<'a> Iterator for Lexer<'a> {
                         if value.is_none() {
                             (self.error_handler)(LoxError { kind: LoxErrorKind::UnterminatedString, position: Position { line: self.scanner.line, column: self.scanner.column }});
                             opt_token_kind = Some(TokenKind::String);
-                            opt_token_value = Some(Literal::String(string));
+                            opt_token_value = Some(LiteralValue::String(string));
                             break;
                         }
                         let ch = value.unwrap();
@@ -211,27 +211,27 @@ impl<'a> Iterator for Lexer<'a> {
                             BACK_SLASH => {
                                 if let Some(next_ch) = self.scanner.peek() {
                                     match next_ch {
-                                        'n' => { 
+                                        'n' => {
                                             self.scanner.next();
                                             string.push('\n');
                                         },
-                                        'r' => { 
+                                        'r' => {
                                             self.scanner.next();
                                             string.push('\r');
                                         },
-                                        't' => { 
+                                        't' => {
                                             self.scanner.next();
                                             string.push('\t');
                                         },
-                                        '\\' => { 
+                                        '\\' => {
                                             self.scanner.next();
                                             string.push('\\');
                                         },
-                                        '0' => { 
+                                        '0' => {
                                             self.scanner.next();
                                             string.push('\0');
                                         },
-                                        '"' => { 
+                                        '"' => {
                                             self.scanner.next();
                                             string.push('"');
                                         },
@@ -240,32 +240,32 @@ impl<'a> Iterator for Lexer<'a> {
                                             (self.error_handler)(LoxError { kind: LoxErrorKind::InvalidEscapeCharacter, position: Position { line: self.scanner.line, column: self.scanner.column }});
                                         }
                                     }
-                                }                    
+                                }
                             },
                             '"' => {
                                 opt_token_kind = Some(TokenKind::String);
-                                opt_token_value = Some(Literal::String(string));
+                                opt_token_value = Some(LiteralValue::String(string));
                                 break;
                             },
                             _ => {
                                 string.push(ch);
                             }
                         }
-                    }     
+                    }
                 },
                 ch if is_number(ch) => {
                     let mut flg_decimal = false;
                     let mut number_string = String::from(ch);
                     loop {
                         let opt_next_ch: Option<char> = self.scanner.peek();
-                        
+
                         if opt_next_ch.is_none() {
                             break;
                         }
-                
+
                         let next_ch = opt_next_ch.unwrap();
                         let opt_next_next_ch: Option<char> = self.scanner.peek_nth(1);
-                
+
                         if is_number(next_ch) {
                             number_string.push(self.scanner.next().unwrap());
                         } else if next_ch == '.' && opt_next_next_ch.is_some() && is_number(opt_next_next_ch.unwrap()) && !flg_decimal {
@@ -280,12 +280,12 @@ impl<'a> Iterator for Lexer<'a> {
                     match r_number {
                         Ok(number) => {
                             opt_token_kind = Some(TokenKind::Number);
-                            opt_token_value = Some(Literal::Number(number));
+                            opt_token_value = Some(LiteralValue::Number(number));
                         }
                         Err(_) => {
                             (self.error_handler)(LoxError { kind: LoxErrorKind::ParseFloatError(number_string), position: Position { line: self.scanner.line, column: self.scanner.column } });
                             opt_token_kind = Some(TokenKind::Number);
-                            opt_token_value = Some(Literal::Number(f64::NAN));
+                            opt_token_value = Some(LiteralValue::Number(f64::NAN));
                         }
                     }
                 },
@@ -296,7 +296,7 @@ impl<'a> Iterator for Lexer<'a> {
 
                         if opt_next_ch.is_none() {
                             break;
-                        } 
+                        }
 
                         let next_ch = opt_next_ch.unwrap();
 
@@ -309,16 +309,16 @@ impl<'a> Iterator for Lexer<'a> {
                     }
                     if let Some(keyword_token) = self.keywords_map.get(identifier.as_str()) {
                         opt_token_value = match keyword_token {
-                            TokenKind::True  => Some(Literal::Bool(true)),
-                            TokenKind::False => Some(Literal::Bool(false)),
-                            TokenKind::Nil   => Some(Literal::Nil),
+                            TokenKind::True  => Some(LiteralValue::Bool(true)),
+                            TokenKind::False => Some(LiteralValue::Bool(false)),
+                            TokenKind::Nil   => Some(LiteralValue::Nil),
                             _ => None
                         };
                         opt_token_kind = Some(*keyword_token);
-                        
+
                     } else {
                         opt_token_kind  = Some(TokenKind::Identifier);
-                        opt_token_value = Some(Literal::Identifier(identifier));
+                        opt_token_value = Some(LiteralValue::Identifier(identifier));
                     }
                 },
                 _ => {
@@ -388,16 +388,16 @@ fn test_equalities() {
 
 #[test]
 fn test_numbers() {
-    assert_eq!(*tokenize("10.0245").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(10.0245));
-    assert_eq!(*tokenize("0000.0000245").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(0.0000245));
-    assert_eq!(*tokenize("0001.. ..").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(1.0));
-    assert_eq!(*tokenize("8 .1").get(0).unwrap().value.as_ref().unwrap(), Literal::Number(8.0));
+    assert_eq!(*tokenize("10.0245").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Number(10.0245));
+    assert_eq!(*tokenize("0000.0000245").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Number(0.0000245));
+    assert_eq!(*tokenize("0001.. ..").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Number(1.0));
+    assert_eq!(*tokenize("8 .1").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Number(8.0));
 }
 
 #[test]
 fn test_strings() {
-    assert_eq!(*tokenize("\"funzionerà? 😀 成\"").get(0).unwrap().value.as_ref().unwrap(), Literal::String("funzionerà? 😀 成".to_owned()));
-    assert_eq!(*tokenize("\"\\n \\0 \\r \\t \\\\ \\\"\"").get(0).unwrap().value.as_ref().unwrap(), Literal::String("\n \0 \r \t \\ \"".to_owned()));
+    assert_eq!(*tokenize("\"funzionerà? 😀 成\"").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::String("funzionerà? 😀 成".to_owned()));
+    assert_eq!(*tokenize("\"\\n \\0 \\r \\t \\\\ \\\"\"").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::String("\n \0 \r \t \\ \"".to_owned()));
     //assert_eq!(tokenize("\"unterminated string").get(0).unwrap()., LoxErrorKind::UnterminatedString);
 }
 
@@ -407,17 +407,17 @@ fn test_keywords() {
     assert_eq!(tokenize("false").get(0).unwrap().kind, TokenKind::False);
     assert_eq!(tokenize("if").get(0).unwrap().kind, TokenKind::If);
     assert_eq!(tokenize("else").get(0).unwrap().kind, TokenKind::Else);
-    assert_eq!(tokenize("for").get(0).unwrap().kind, TokenKind::For);     
-    assert_eq!(tokenize("while").get(0).unwrap().kind, TokenKind::While); 
+    assert_eq!(tokenize("for").get(0).unwrap().kind, TokenKind::For);
+    assert_eq!(tokenize("while").get(0).unwrap().kind, TokenKind::While);
     assert_eq!(tokenize("or").get(0).unwrap().kind, TokenKind::Or);
     assert_eq!(tokenize("and").get(0).unwrap().kind, TokenKind::And);
-    assert_eq!(tokenize("class").get(0).unwrap().kind, TokenKind::Class); 
+    assert_eq!(tokenize("class").get(0).unwrap().kind, TokenKind::Class);
     assert_eq!(tokenize("fun").get(0).unwrap().kind, TokenKind::Fun);
     assert_eq!(tokenize("super").get(0).unwrap().kind, TokenKind::Super);
-    assert_eq!(tokenize("this").get(0).unwrap().kind, TokenKind::This); 
-    assert_eq!(tokenize("var").get(0).unwrap().kind, TokenKind::Var); 
-    assert_eq!(tokenize("nil").get(0).unwrap().kind, TokenKind::Nil); 
-    assert_eq!(tokenize("print").get(0).unwrap().kind, TokenKind::Print); 
+    assert_eq!(tokenize("this").get(0).unwrap().kind, TokenKind::This);
+    assert_eq!(tokenize("var").get(0).unwrap().kind, TokenKind::Var);
+    assert_eq!(tokenize("nil").get(0).unwrap().kind, TokenKind::Nil);
+    assert_eq!(tokenize("print").get(0).unwrap().kind, TokenKind::Print);
     assert_eq!(tokenize("return").get(0).unwrap().kind, TokenKind::Return);
 
     assert_eq!(tokenize("true!").get(0).unwrap().kind, TokenKind::True);
@@ -427,11 +427,11 @@ fn test_keywords() {
 
 #[test]
 fn test_identifiers() {
-    assert_eq!(*tokenize("truee").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("truee".to_owned()));
-    assert_eq!(*tokenize("ffalse").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("ffalse".to_owned()));
-    assert_eq!(*tokenize("Nil").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("Nil".to_owned()));
-    assert_eq!(*tokenize("ELSE").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("ELSE".to_owned()));
-    assert_eq!(*tokenize("whilewhile").get(0).unwrap().value.as_ref().unwrap(), Literal::Identifier("whilewhile".to_owned()));
+    assert_eq!(*tokenize("truee").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("truee".to_owned()));
+    assert_eq!(*tokenize("ffalse").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("ffalse".to_owned()));
+    assert_eq!(*tokenize("Nil").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("Nil".to_owned()));
+    assert_eq!(*tokenize("ELSE").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("ELSE".to_owned()));
+    assert_eq!(*tokenize("whilewhile").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("whilewhile".to_owned()));
 }
 
 #[test]
@@ -457,20 +457,20 @@ fn test_unexpected_tokens() {
 
 #[test]
 fn test_construct() {
-    
+
     let tokens = tokenize("fun prova(var1, var2) {return var1+var2;}");
     let mut index: usize = 0;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Fun);
     index = index + 1;
-    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), Literal::Identifier("prova".to_owned()));
+    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("prova".to_owned()));
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::LeftParen);
     index = index + 1;
-    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), Literal::Identifier("var1".to_owned()));
+    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("var1".to_owned()));
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Comma);
     index = index + 1;
-    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), Literal::Identifier("var2".to_owned()));
+    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("var2".to_owned()));
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::RightParen);
     index = index + 1;
@@ -478,14 +478,13 @@ fn test_construct() {
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Return);
     index = index + 1;
-    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), Literal::Identifier("var1".to_owned()));
+    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("var1".to_owned()));
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Plus);
     index = index + 1;
-    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), Literal::Identifier("var2".to_owned()));
+    assert_eq!(*tokens.get(index).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("var2".to_owned()));
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Semicolon);
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::RightBrace);
 }
-
