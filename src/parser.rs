@@ -15,8 +15,7 @@ pub enum Expr {
 pub enum Stmt {
     Print(Expr),
     ExprStmt(Expr),
-    Var(String, Position, Option<Expr>),
-    Block
+    Var(String, Position, Option<Expr>)
 }
 
 struct EOF;
@@ -31,6 +30,7 @@ impl<'a> TokenSource<'a> {
 }
 
 pub fn execute_ast(token_iter: &mut dyn Iterator<Item=Token>) -> Result<(), LoxError> {
+
     let mut token_source: TokenSource = Peekable::new(token_iter);
     let mut interpreter = Interpreter::new();
     loop {
@@ -59,6 +59,7 @@ pub fn execute_ast(token_iter: &mut dyn Iterator<Item=Token>) -> Result<(), LoxE
 }
 
 fn declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter)  -> Result<Option<EOF>, LoxError> {
+
     let token = token_source.peek().unwrap();
     match token.kind {
         TokenKind::EOF => {
@@ -92,6 +93,7 @@ fn declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter)  -
 }
 
 fn var_declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter)  -> Result<(), LoxError> {
+
     let token = token_source.next().unwrap();
     match token.kind {
         TokenKind::EOF => {
@@ -119,6 +121,7 @@ fn var_declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter
 }
 
 fn statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError>{
+
     let token = token_source.peek().unwrap();
     match token.kind {
         TokenKind::EOF => {
@@ -139,6 +142,7 @@ fn statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> R
 }
 
 fn block_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError> {
+
     interpreter.new_scope();
     loop {
         let token = token_source.peek().unwrap();
@@ -159,6 +163,7 @@ fn block_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter
 }
 
 fn print_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError> {
+
     let r_expr = expression(token_source);
     if r_expr.is_err() {
         return Err(r_expr.err().unwrap());
@@ -169,6 +174,7 @@ fn print_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter
 }
 
 fn expression_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError> {
+
     let r_expr = expression(token_source);
     if r_expr.is_err() {
         return Err(r_expr.err().unwrap());

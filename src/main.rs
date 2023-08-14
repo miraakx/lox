@@ -17,7 +17,7 @@ mod tokens;
 mod environment;
 
 fn main() {
-   let code = "var a = 20+5; { var a=4; var b = 5; } print b;";
+   let code = "var a = 20+5; { var a=a; var b = 5; print b+a; { var a = 7; print a;} } print a;";
    run(code);
 }
 

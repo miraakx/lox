@@ -58,10 +58,7 @@ impl Interpreter {
                         self.env.define(variable, Value::Nil);
                     },
                 }
-            },
-            Stmt::Block => {
-                //do nothing
-            },
+            }
         }
         Ok(())
     }
