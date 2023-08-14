@@ -1,5 +1,6 @@
 use crate::error::{LoxError, LoxErrorKind};
 use crate::common::Peekable;
+use crate::interpreter::Interpreter;
 use crate::tokens::{Token,TokenKind, Position, LiteralValue, extract_identifier};
 
 pub enum Expr {
@@ -14,69 +15,87 @@ pub enum Expr {
 pub enum Stmt {
     Print(Expr),
     ExprStmt(Expr),
-    Eof,
-    Var(String, Position, Option<Expr>)
+    Var(String, Position, Option<Expr>),
+    Block
 }
+
+struct EOF;
 
 type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
 
-pub struct Parser<'a> {
-    token_source: Peekable<&'a mut dyn Iterator<Item=Token>, Token>
-}
-
-impl <'a> Parser<'a> {
-    pub fn new(token_iter: &'a mut dyn Iterator<Item=Token>) -> Self {
-        Parser { token_source: Peekable::new(token_iter) }
+impl<'a> TokenSource<'a> {
+    #[inline(always)]
+    fn consume(&mut self) {
+        self.next();
     }
 }
 
-impl <'a> Iterator for Parser<'a> {
-    type Item = Stmt;
-
-    fn next(&mut self) -> Option<Self::Item> {
-
-        //Evita di entrare nel parser DOPO la fine del file. Se il file è già finito alla precedente chiamata a 'next' ritorna direttamente None.
-        if self.token_source.peek().is_none() {
-            return None;
-        }
-
-        let r_stmt = declaration(&mut self.token_source);
-
-        match r_stmt {
-            Ok(stmt) => Some(stmt),
-            Err(err) => {
-                println!("Parser error: {:?}", err);
-                None
+pub fn execute_ast(token_iter: &mut dyn Iterator<Item=Token>) -> Result<(), LoxError> {
+    let mut token_source: TokenSource = Peekable::new(token_iter);
+    let mut interpreter = Interpreter::new();
+    loop {
+        let token = token_source.peek().unwrap();
+        match token.kind {
+            TokenKind::EOF => {
+                //Se il file è finito non procedo oltre.
+                return Ok(());
             },
+            _ => {
+                let r_stmt = declaration(&mut token_source, &mut interpreter);
+                match r_stmt {
+                    Ok(eof) => {
+                        if eof.is_some() {
+                            return Ok(());
+                        }
+                    },
+                    Err(err) => {
+                        return Err(err);
+                    },
+                }
+            }
         }
+
     }
 }
 
-fn declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
-    //'unwrap' è sicuro di trovare dei dati perché il controllo sul 'None' è già stato fatto dal metodo 'next'.
+fn declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter)  -> Result<Option<EOF>, LoxError> {
     let token = token_source.peek().unwrap();
     match token.kind {
         TokenKind::EOF => {
-            //Se il file è finito non procedo oltre.
-            return Ok(Stmt::Eof);
+            panic!("EOF inatteso!");
         },
         TokenKind::Var => {
             //consuma il Var appena trovato
-            consume_token(token_source);
-            return var_declaration(token_source);
+            token_source.consume();
+            let result = var_declaration(token_source, interpreter);
+            match result {
+                Ok(_) => {
+                    return Ok(None);
+                },
+                Err(err) => {
+                    return Err(err);
+                },
+            }
         },
         _ => {
-            return statement(token_source);
+            let result = statement(token_source, interpreter);
+            match result {
+                Ok(_) => {
+                    return Ok(None);
+                },
+                Err(err) => {
+                    return Err(err);
+                },
+            }
         }
     }
 }
 
-fn var_declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
+fn var_declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter)  -> Result<(), LoxError> {
     let token = token_source.next().unwrap();
     match token.kind {
         TokenKind::EOF => {
-            //Se il file è finito non procedo oltre.
-            return Ok(Stmt::Eof);
+            return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position));
         },
         TokenKind::Identifier => {
             if token.value.is_none() {
@@ -86,11 +105,11 @@ fn var_declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
                 let expr: Expr = expression(token_source)?;
                 expect_token(token_source.next().unwrap(), TokenKind::Semicolon)?;
                 let val = extract_identifier(token);
-                Ok(Stmt::Var(val.0, val.1, Some(expr)))
+                return interpreter.interpret(Stmt::Var(val.0, val.1, Some(expr)));
             } else {
                 expect_token(token_source.next().unwrap(), TokenKind::Semicolon)?;
                 let val = extract_identifier(token);
-                Ok(Stmt::Var(val.0, val.1, None))
+                return interpreter.interpret(Stmt::Var(val.0, val.1, None));
             }
         },
         _ => {
@@ -99,40 +118,64 @@ fn var_declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
     }
 }
 
-fn statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>{
+fn statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError>{
     let token = token_source.peek().unwrap();
     match token.kind {
         TokenKind::EOF => {
-            //Se il file è finito non procedo oltre.
-            return Ok(Stmt::Eof);
+            return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position));
         },
         TokenKind::Print => {
-            consume_token(token_source);
-            return print_statement(token_source);
+            token_source.consume();
+            return print_statement(token_source, interpreter);
+        },
+        TokenKind::LeftBrace => {
+            token_source.consume();
+            return block_statement(token_source, interpreter);
         },
         _ => {
-            return expression_statement(token_source);
+            return expression_statement(token_source, interpreter);
         }
     }
 }
 
-fn print_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
-    let r_expr = expression(token_source);
-    if r_expr.is_err() {
-        return Err(r_expr.err().unwrap());
+fn block_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError> {
+    interpreter.new_scope();
+    loop {
+        let token = token_source.peek().unwrap();
+        match token.kind {
+            TokenKind::EOF => {
+                return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position));
+            },
+            TokenKind::RightBrace => {
+                token_source.consume();
+                interpreter.remove_scope();
+                return Ok(());
+            },
+            _ => {
+                declaration(token_source, interpreter)?;
+            }
+        }
     }
-    expect_token(token_source.next().unwrap(), TokenKind::Semicolon)?;
-    return Ok(Stmt::Print(r_expr.unwrap()));
 }
 
-fn expression_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
+fn print_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError> {
     let r_expr = expression(token_source);
     if r_expr.is_err() {
         return Err(r_expr.err().unwrap());
     }
     expect_token(token_source.next().unwrap(), TokenKind::Semicolon)?;
-    return Ok(Stmt::ExprStmt(r_expr.unwrap()));
+    interpreter.interpret(Stmt::Print(r_expr.unwrap()))?;
+    return Ok(());
+}
 
+fn expression_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError> {
+    let r_expr = expression(token_source);
+    if r_expr.is_err() {
+        return Err(r_expr.err().unwrap());
+    }
+    expect_token(token_source.next().unwrap(), TokenKind::Semicolon)?;
+    interpreter.interpret(Stmt::ExprStmt(r_expr.unwrap()))?;
+    return Ok(());
 }
 
 #[inline(always)]
@@ -152,7 +195,7 @@ fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
             return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, position));
         },
         TokenKind::Equal => {
-            consume_token(token_source);
+            token_source.consume();
             let value: Expr = assignment(token_source)?;
 
             match expr {
@@ -224,7 +267,6 @@ fn term(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
             },
             TokenKind::Minus|TokenKind::Plus => {
                 let operator = token_source.next().unwrap();
-
                 let right: Expr = factor(token_source)?;
                 expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
             },
@@ -292,8 +334,7 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError> {
         },
         TokenKind::LeftParen => {
             //consuma la parentesi appena trovata
-            consume_token(token_source);
-
+            token_source.consume();
             let expr: Expr = expression(token_source)?;
             match token_source.next().unwrap().kind {
                 TokenKind::EOF => {
@@ -314,11 +355,6 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError> {
     }
 }
 
-pub fn parse(token_iter: &mut dyn Iterator<Item=Token>) -> Result<Expr,LoxError> {
-    let mut token_source: TokenSource = Peekable::new(token_iter);
-    expression(&mut token_source)
-}
-
 #[inline]
 fn expect_token(token: Token, token_kind: TokenKind) -> Result<(),LoxError> {
     if token_kind == token.kind {
@@ -332,9 +368,4 @@ fn expect_token(token: Token, token_kind: TokenKind) -> Result<(),LoxError> {
             Err(LoxError::new(LoxErrorKind::ExpectedToken(token_kind), token.position))
         }
     }
-}
-
-#[inline(always)]
-fn consume_token(token_iter: &mut TokenSource) {
-    token_iter.next();
 }

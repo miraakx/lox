@@ -19,34 +19,53 @@ impl Display for Value {
     }
 }
 
-pub fn interpret(stmt_iter: &mut dyn Iterator<Item=Stmt>) -> Result<(), LoxError>{
-    let mut env: Environment = Environment::new();
-    for stmt in stmt_iter {
+pub struct Interpreter {
+    env: Environment
+}
+
+impl Interpreter {
+
+    pub fn new() -> Self {
+        Interpreter{
+            env: Environment::new()
+        }
+    }
+
+    pub fn new_scope(&mut self) {
+        self.env.new_scope();
+    }
+
+    pub fn remove_scope(&mut self) {
+        self.env.remove_scope();
+    }
+
+    pub fn interpret(&mut self, stmt: Stmt) -> Result<(), LoxError>{
         match stmt {
             Stmt::Print(expr) => {
-                let value = evaluate_expr(expr, &mut env)?;
+                let value = evaluate_expr(expr, &mut self.env)?;
                 println!("{}", value);
             },
             Stmt::ExprStmt(expr) => {
-                let _ = evaluate_expr(expr, &mut env)?;
+                let _ = evaluate_expr(expr, &mut self.env)?;
             }
             Stmt::Var(variable, _, opt_expr) => {
                 match opt_expr {
                     Some(expr) => {
-                        let value = evaluate_expr(expr, &mut env)?;
-                        env.define(variable, value);
+                        let value = evaluate_expr(expr, &mut self.env)?;
+                        self.env.define(variable, value);
                     },
                     None => {
-                        env.define(variable, Value::Nil);
+                        self.env.define(variable, Value::Nil);
                     },
                 }
             },
-            Stmt::Eof => {
-                break;
+            Stmt::Block => {
+                //do nothing
             },
         }
+        Ok(())
     }
-    Ok(())
+
 }
 
 fn evaluate_expr(expr: Expr, environment: &mut Environment) -> Result<Value, LoxError> {
