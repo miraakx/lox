@@ -1,6 +1,6 @@
 use crate::error::{LoxError, LoxErrorKind};
 use crate::common::Peekable;
-use crate::tokens::{Token,TokenKind, Position, LiteralValue};
+use crate::tokens::{Token,TokenKind, Position, LiteralValue, extract_identifier};
 
 pub enum Expr {
     Binary(Box<Expr>, Token, Box<Expr>),
@@ -44,16 +44,25 @@ impl <'a> Iterator for Parser<'a> {
 
         match r_stmt {
             Ok(stmt) => Some(stmt),
-            Err(_) => todo!(),
+            Err(err) => {
+                println!("Parser error: {:?}", err);
+                None
+            },
         }
     }
 }
 
 fn declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
     //'unwrap' è sicuro di trovare dei dati perché il controllo sul 'None' è già stato fatto dal metodo 'next'.
-    let token: Token = token_source.next().unwrap();
+    let token = token_source.peek().unwrap();
     match token.kind {
+        TokenKind::EOF => {
+            //Se il file è finito non procedo oltre.
+            return Ok(Stmt::Eof);
+        },
         TokenKind::Var => {
+            //consuma il Var appena trovato
+            token_source.next();
             return var_declaration(token_source);
         },
         _ => {
@@ -62,26 +71,13 @@ fn declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
     }
 }
 
-#[inline]
-fn extract_identifier(token: Token) -> (String, Position) {
-    if let Some(value) = token.value {
-        match value {
-            crate::tokens::LiteralValue::Identifier(identifier) => {
-                return (identifier, token.position);
-            },
-            _ => {
-                panic!();
-            }
-        }
-
-    } else {
-        panic!();
-    }
-}
-
 fn var_declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
     let token = token_source.next().unwrap();
     match token.kind {
+        TokenKind::EOF => {
+            //Se il file è finito non procedo oltre.
+            return Ok(Stmt::Eof);
+        },
         TokenKind::Identifier => {
             if token.value.is_none() {
                 panic!("Errore inatteso. Literal value atteso nel token ma non trovato.");

@@ -18,12 +18,12 @@ mod parser;
 mod tokens;
 mod environment;
 
-fn _main() {
-    let code = "print 3+1;";
-    //run(code);
+fn main() {
+    let code = "var a = 2*3; print a*2;";
+    run(code);
 }
 
-fn main() {
+fn _main() {
 
    let args: Vec<String> = env::args().collect();
    let result = match args.len() {
@@ -61,5 +61,5 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
 fn run(code: &str) {
    let mut lexer = Lexer::new(code);
    let mut parser = Parser::new(&mut lexer);
-   interpret(&mut parser);
+   let _ = interpret(&mut parser);
 }

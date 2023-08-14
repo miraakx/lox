@@ -213,11 +213,11 @@ fn evaluate_expr(expr: Expr, environment: &mut Environment) -> Result<Value, Lox
 #[inline]
 fn is_equal(val_left: Value, val_right: Value) -> bool {
     match (val_left, val_right) {
-        (Value::Bool(left),     Value::Bool(right))       => left == right,
-        (Value::Number(left),    Value::Number(right))      => left == right,
+        (Value::Bool(left),     Value::Bool(right))             => left == right,
+        (Value::Number(left),    Value::Number(right))            => left == right,
         (Value::String(left), Value::String(right)) => left == right,
-        (Value::Nil,                  Value::Nil)                     => true,
-        _                                                             => false
+        (Value::Nil,                  Value::Nil)                           => true,
+        _                                                                   => false
     }
 }
 
