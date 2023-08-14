@@ -1,6 +1,5 @@
 use crate::error::{LoxError, LoxErrorKind};
 use crate::common::Peekable;
-use crate::interpreter::Interpreter;
 use crate::tokens::{Token,TokenKind, Position, LiteralValue, extract_identifier};
 
 pub enum Expr {
@@ -15,7 +14,10 @@ pub enum Expr {
 pub enum Stmt {
     Print(Expr),
     ExprStmt(Expr),
-    Var(String, Position, Option<Expr>)
+    Var(String, Position, Option<Expr>),
+    Block(Vec<Stmt>),
+    If(Expr, Box<Stmt>),
+    IfElse(Expr, Box<Stmt>, Box<Stmt>)
 }
 
 struct EOF;
@@ -29,36 +31,26 @@ impl<'a> TokenSource<'a> {
     }
 }
 
-pub fn execute_ast(token_iter: &mut dyn Iterator<Item=Token>) -> Result<(), LoxError> {
-
+pub fn parse(token_iter: &mut dyn Iterator<Item=Token>) -> Result<Stmt, LoxError> {
     let mut token_source: TokenSource = Peekable::new(token_iter);
-    let mut interpreter = Interpreter::new();
+    let mut statements: Vec<Stmt> = vec!();
     loop {
         let token = token_source.peek().unwrap();
         match token.kind {
             TokenKind::EOF => {
                 //Se il file è finito non procedo oltre.
-                return Ok(());
+                return Ok(Stmt::Block(statements));
             },
             _ => {
-                let r_stmt = declaration(&mut token_source, &mut interpreter);
-                match r_stmt {
-                    Ok(eof) => {
-                        if eof.is_some() {
-                            return Ok(());
-                        }
-                    },
-                    Err(err) => {
-                        return Err(err);
-                    },
-                }
+                let stmt = declaration(&mut token_source)?;
+                statements.push(stmt);
             }
         }
 
     }
 }
 
-fn declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter)  -> Result<Option<EOF>, LoxError> {
+fn declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
 
     let token = token_source.peek().unwrap();
     match token.kind {
@@ -68,31 +60,15 @@ fn declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter)  -
         TokenKind::Var => {
             //consuma il Var appena trovato
             token_source.consume();
-            let result = var_declaration(token_source, interpreter);
-            match result {
-                Ok(_) => {
-                    return Ok(None);
-                },
-                Err(err) => {
-                    return Err(err);
-                },
-            }
+            return var_declaration(token_source);
         },
         _ => {
-            let result = statement(token_source, interpreter);
-            match result {
-                Ok(_) => {
-                    return Ok(None);
-                },
-                Err(err) => {
-                    return Err(err);
-                },
-            }
+            return statement(token_source);
         }
     }
 }
 
-fn var_declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter)  -> Result<(), LoxError> {
+fn var_declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
 
     let token = token_source.next().unwrap();
     match token.kind {
@@ -107,11 +83,11 @@ fn var_declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter
                 let expr: Expr = expression(token_source)?;
                 expect_token(token_source.next().unwrap(), TokenKind::Semicolon)?;
                 let val = extract_identifier(token);
-                return interpreter.interpret(Stmt::Var(val.0, val.1, Some(expr)));
+                return Ok(Stmt::Var(val.0, val.1, Some(expr)));
             } else {
                 expect_token(token_source.next().unwrap(), TokenKind::Semicolon)?;
                 let val = extract_identifier(token);
-                return interpreter.interpret(Stmt::Var(val.0, val.1, None));
+                return Ok(Stmt::Var(val.0, val.1, None));
             }
         },
         _ => {
@@ -120,7 +96,7 @@ fn var_declaration(token_source: &mut TokenSource, interpreter: &mut Interpreter
     }
 }
 
-fn statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError>{
+fn statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>{
 
     let token = token_source.peek().unwrap();
     match token.kind {
@@ -129,21 +105,45 @@ fn statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> R
         },
         TokenKind::Print => {
             token_source.consume();
-            return print_statement(token_source, interpreter);
+            return print_statement(token_source);
         },
         TokenKind::LeftBrace => {
             token_source.consume();
-            return block_statement(token_source, interpreter);
+            return block_statement(token_source);
+        },
+        TokenKind::If => {
+            token_source.consume();
+            return if_statement(token_source);
         },
         _ => {
-            return expression_statement(token_source, interpreter);
+            return expression_statement(token_source);
         }
     }
 }
 
-fn block_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError> {
+fn if_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
+    expect_token(token_source.next().unwrap(), TokenKind::LeftParen)?;
+    let condition = expression(token_source)?;
+    expect_token(token_source.next().unwrap(), TokenKind::RightParen)?;
+    let then_stmt = statement(token_source)?;
+    let token = token_source.peek().unwrap();
+    match token.kind {
+        TokenKind::EOF => {
+            return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position));
+        },
+        TokenKind::Else => {
+            token_source.consume();
+            let else_stmt = statement(token_source)?;
+            return Ok(Stmt::IfElse(condition, Box::new(then_stmt), Box::new(else_stmt)));
+        },
+        _ => {
+            return Ok(Stmt::If(condition, Box::new(then_stmt)));
+        }
+    }
+}
 
-    interpreter.new_scope();
+fn block_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
+    let mut statements: Vec<Stmt> = vec!();
     loop {
         let token = token_source.peek().unwrap();
         match token.kind {
@@ -152,36 +152,33 @@ fn block_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter
             },
             TokenKind::RightBrace => {
                 token_source.consume();
-                interpreter.remove_scope();
-                return Ok(());
+                return Ok(Stmt::Block(statements));
             },
             _ => {
-                declaration(token_source, interpreter)?;
+                statements.push(declaration(token_source)?);
             }
         }
     }
 }
 
-fn print_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError> {
+fn print_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
 
     let r_expr = expression(token_source);
     if r_expr.is_err() {
         return Err(r_expr.err().unwrap());
     }
     expect_token(token_source.next().unwrap(), TokenKind::Semicolon)?;
-    interpreter.interpret(Stmt::Print(r_expr.unwrap()))?;
-    return Ok(());
+    return Ok(Stmt::Print(r_expr.unwrap()));
 }
 
-fn expression_statement(token_source: &mut TokenSource, interpreter: &mut Interpreter) -> Result<(), LoxError> {
+fn expression_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
 
     let r_expr = expression(token_source);
     if r_expr.is_err() {
         return Err(r_expr.err().unwrap());
     }
     expect_token(token_source.next().unwrap(), TokenKind::Semicolon)?;
-    interpreter.interpret(Stmt::ExprStmt(r_expr.unwrap()))?;
-    return Ok(());
+    return Ok(Stmt::ExprStmt(r_expr.unwrap()));
 }
 
 #[inline(always)]

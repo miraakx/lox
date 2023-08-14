@@ -5,8 +5,9 @@ use std::error::Error;
 use std::fs;
 use std::io;
 
+use interpreter::Interpreter;
 use lexer::Lexer;
-use parser::execute_ast;
+use parser::parse;
 
 mod common;
 mod error;
@@ -17,7 +18,7 @@ mod tokens;
 mod environment;
 
 fn main() {
-   let code = "var a = 20+5; { var a=a; var b = 5; print b+a; { var a = 7; print a;} } print a;";
+   let code = "var a = 88+5; { var a=a; var b = 5; print b+a; { var a = 7; print a;} } if(false) {print a;}";
    run(code);
 }
 
@@ -58,8 +59,9 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
 
 fn run(code: &str) {
    let mut lexer = Lexer::new(code);
-   let result: Result<(), error::LoxError> = execute_ast(&mut lexer);
-   if result.is_err() {
-      println!("{}", result.unwrap_err());
+   let r_parse  = parse(&mut lexer);
+   if r_parse.is_ok() {
+      let mut interpreter = Interpreter::new();
+      let r_inter = interpreter.interpret(r_parse.unwrap());
    }
 }
