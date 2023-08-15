@@ -1,3 +1,5 @@
+use std::str::Chars;
+
 struct CircularBuffer<T: Clone>
 {
     buffer:   Vec<Option<T>>,
@@ -184,6 +186,92 @@ impl<I, T: Clone> Peekable<I, T> where I: Iterator<Item = T>,
         } else {
             self.item.take()
         }
+    }
+}
+
+const LINE_START:   u32 = 1;
+const COLUMN_START: u32 = 1;
+const INDEX_START:  u32 = 1;
+
+pub struct Scanner<'a>
+{
+    iter:   NthPeekable<Chars<'a>, char>,
+    index:  u32,
+    line:   u32,
+    column: u32,
+}
+
+impl <'a> Scanner<'a>
+{
+    #[inline]
+    pub fn from_str(str: &'a str, peek_dept: usize) -> Self
+    {
+        Scanner
+        {
+            iter:   NthPeekable::new(str.chars(), peek_dept),
+            line:   LINE_START,
+            column: COLUMN_START,
+            index:  INDEX_START
+        }
+    }
+
+    pub fn next(&mut self) -> Option<char>
+    {
+        self.column = self.column + 1;
+        self.index  = self.index  + 1;
+        self.iter.next()
+    }
+
+    #[inline]
+    pub fn new_line(&mut self)
+    {
+        self.column   = LINE_START;
+        self.line = self.line + 1;
+    }
+
+    #[inline]
+    pub fn peek(&mut self) -> Option<char>
+    {
+        self.iter.peek().cloned()
+    }
+
+    pub fn peek_nth(&mut self, index: usize) -> Option<char>
+    {
+        self.iter.peek_nth(index).cloned()
+    }
+
+    #[inline]
+    pub fn is_peek(&mut self, ch: char) -> bool
+    {
+        self.peek().map_or(false, |v| v==ch)
+    }
+
+    #[inline]
+    pub fn consume_if_peek_is(&mut self, ch: char)
+    {
+        if let Some(next_ch) = self.peek() {
+            if next_ch == ch {
+                self.next();
+            }
+        }
+    }
+
+    #[inline]
+    pub fn line(&self) -> u32
+    {
+        self.line
+    }
+
+    #[inline]
+    pub fn column(&self) -> u32
+    {
+        self.column
+    }
+
+    #[inline]
+    pub fn index(&self) -> u32
+    {
+        self.index
     }
 }
 

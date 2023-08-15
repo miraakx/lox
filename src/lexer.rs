@@ -1,74 +1,9 @@
-use std::{collections::HashMap, str::Chars, rc::Rc};
-use crate::{common::NthPeekable, tokens::*, error::*};
-
-const LINE_START_INDEX:   u32 = 1;
-const COLUMN_START_INDEX: u32 = 1;
-
-struct Scanner<'a>
-{
-    iter:   NthPeekable<Chars<'a>, char>,
-    line:   u32,
-    column: u32
-}
-
-impl <'a> Scanner<'a>
-{
-    fn next(&mut self) -> Option<char>
-    {
-        self.column = self.column + 1;
-        self.iter.next()
-    }
-
-    #[inline]
-    fn new_line(&mut self)
-    {
-        self.column   = LINE_START_INDEX;
-        self.line = self.line + 1;
-    }
-
-    #[inline]
-    fn from_str(str: &'a str) -> Scanner<'a>
-    {
-        Scanner
-        {
-            iter:   NthPeekable::new(str.chars(), 2),
-            line:   LINE_START_INDEX,
-            column: COLUMN_START_INDEX
-        }
-    }
-
-    #[inline]
-    fn peek(&mut self) -> Option<char>
-    {
-        self.iter.peek().cloned()
-    }
-
-    fn peek_nth(&mut self, index: usize) -> Option<char>
-    {
-        self.iter.peek_nth(index).cloned()
-    }
-
-    #[inline]
-    fn is_peek(&mut self, ch: char) -> bool
-    {
-        self.peek().map_or(false, |v| v==ch)
-    }
-
-    #[inline]
-    fn consume_if_peek_is(&mut self, ch: char)
-    {
-        if let Some(next_ch) = self.peek() {
-            if next_ch == ch {
-                self.next();
-            }
-        }
-    }
-}
+use std::rc::Rc;
+use crate::{common::Scanner, tokens::*, error::*};
 
 pub struct Lexer<'a>
 {
     scanner:       Scanner<'a>,
-    keywords_map:  HashMap<&'static str, TokenKind>,
     error_handler: Box<dyn Fn(LoxError)>,
     end_of_file:   bool
 }
@@ -79,8 +14,7 @@ impl<'a> Lexer<'a>
     {
         Lexer
         {
-           scanner:       Scanner::from_str(code),
-           keywords_map:  keyword_map(),
+           scanner:       Scanner::from_str(code, 2),
            error_handler: Box::new(println_handle_error),
            end_of_file:   false
         }
@@ -95,6 +29,9 @@ impl<'a> Iterator for Lexer<'a>
     {
         let mut opt_token_kind:  Option<TokenKind>;
         let mut opt_token_value: Option<LiteralValue>;
+        let column_start: u32 = self.scanner.column();
+        let line_start: u32 = self.scanner.line();
+        let index_start: u32 = self.scanner.index();
 
         loop {
 
@@ -104,7 +41,7 @@ impl<'a> Iterator for Lexer<'a>
                     return None;
                 } else {
                     self.end_of_file = true;
-                    return Some(Token{ kind: TokenKind::EOF, value: None, position: Position { line: self.scanner.line, column: self.scanner.column} });
+                    return Some(Token{ kind: TokenKind::EOF, value: None, position: Position { line: self.scanner.line(), column: self.scanner.column()}, length: 0 });
                 }
             }
 
@@ -241,8 +178,8 @@ impl<'a> Iterator for Lexer<'a>
                                     kind: LoxErrorKind::UnterminatedString,
                                     position: Position
                                     {
-                                        line: self.scanner.line,
-                                        column: self.scanner.column
+                                        line: self.scanner.line(),
+                                        column: self.scanner.column()
                                     }
                                 }
                             );
@@ -281,7 +218,7 @@ impl<'a> Iterator for Lexer<'a>
                                         },
                                         _=> {
                                             string.push(ch);
-                                            (self.error_handler)(LoxError { kind: LoxErrorKind::InvalidEscapeCharacter, position: Position { line: self.scanner.line, column: self.scanner.column }});
+                                            (self.error_handler)(LoxError { kind: LoxErrorKind::InvalidEscapeCharacter, position: Position { line: self.scanner.line(), column: self.scanner.column() }});
                                         }
                                     }
                                 }
@@ -328,7 +265,7 @@ impl<'a> Iterator for Lexer<'a>
                             opt_token_value = Some(LiteralValue::Number(number));
                         }
                         Err(_) => {
-                            (self.error_handler)(LoxError { kind: LoxErrorKind::ParseFloatError(number_string), position: Position { line: self.scanner.line, column: self.scanner.column } });
+                            (self.error_handler)(LoxError { kind: LoxErrorKind::ParseFloatError(number_string), position: Position { line: self.scanner.line(), column: self.scanner.column() } });
                             opt_token_kind = Some(TokenKind::Number);
                             opt_token_value = Some(LiteralValue::Number(f64::NAN));
                         }
@@ -350,14 +287,14 @@ impl<'a> Iterator for Lexer<'a>
                         identifier.push(self.scanner.next().unwrap());
 
                     }
-                    if let Some(keyword_token) = self.keywords_map.get(identifier.as_str()) {
+                    if let Some(keyword_token) = find_keyword(identifier.as_str()) {
                         opt_token_value = match keyword_token {
                             TokenKind::True  => Some(LiteralValue::Bool(true)),
                             TokenKind::False => Some(LiteralValue::Bool(false)),
                             TokenKind::Nil   => Some(LiteralValue::Nil),
                             _ => None
                         };
-                        opt_token_kind = Some(*keyword_token);
+                        opt_token_kind = Some(keyword_token);
 
                     } else {
                         opt_token_kind  = Some(TokenKind::Identifier);
@@ -366,12 +303,12 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 _ =>
                 {
-                    (self.error_handler)(LoxError { kind: LoxErrorKind::UnexpectedToken(ch), position: Position { line: self.scanner.line, column: self.scanner.column }});
+                    (self.error_handler)(LoxError { kind: LoxErrorKind::UnexpectedToken(ch), position: Position { line: self.scanner.line(), column: self.scanner.column() }});
                     opt_token_kind = Some(TokenKind::UnexpectedToken);
                 }
             }
             if let Some(token_kind) = opt_token_kind {
-                return Some(Token{ kind: token_kind, value: opt_token_value, position: Position { line: self.scanner.line, column: self.scanner.column} });
+                return Some(Token{ kind: token_kind, value: opt_token_value, position: Position { line: line_start, column: column_start }, length: self.scanner.index() - index_start });
             }
         }
     }

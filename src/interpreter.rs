@@ -63,10 +63,10 @@ impl Interpreter
                     },
                 }
             }
-            Stmt::Block(block_vec) =>
+            Stmt::Block(statements) =>
             {
                 self.env.new_scope();
-                for stmt in block_vec
+                for stmt in statements
                 {
                     self.execute(stmt)?;
                 }
@@ -88,9 +88,11 @@ impl Interpreter
                     self.execute(else_stmt)?;
                 }
             },
-            Stmt::While(expr, stmt) => {
-                while is_truthy(&self.evaluate(expr)?) {
-                    self.execute(stmt.as_ref())?;
+            Stmt::While(condition, body) =>
+            {
+                while is_truthy(&self.evaluate(condition)?)
+                {
+                    self.execute(body.as_ref())?;
                 }
             },
         }

@@ -12,7 +12,7 @@ pub enum Stmt
     Block(Vec<Stmt>),
     If(Expr, Box<Stmt>),
     IfElse(Expr, Box<Stmt>, Box<Stmt>),
-    While(Expr, Box<Stmt>)
+    While(Expr, Box<Stmt>),
 }
 
 pub fn parse(token_iter: &mut dyn Iterator<Item=Token>) -> Result<Stmt, LoxError>
