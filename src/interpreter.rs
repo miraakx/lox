@@ -1,6 +1,6 @@
 use std::{fmt::Display, rc::Rc};
 
-use crate::{parser::{Expr, Stmt}, tokens::{TokenKind, extract_identifier, Position}, environment::Environment, error::LoxError};
+use crate::{parser_stmt::Stmt, tokens::TokenKind, environment::Environment, error::LoxError, parser_expr::Expr};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -13,10 +13,10 @@ impl Display for Value
     {
         match self
         {
-            Value::String(str)  => { write!(f, "{}", str ) },
-            Value::Number(num)  => { write!(f, "{}", num ) },
-            Value::Bool(bool)   => { write!(f, "{}", bool) },
-            Value::Nil          => { write!(f, "nil"     ) },
+            Value::String(str) => { write!(f, "{}", str ) },
+            Value::Number(num) => { write!(f, "{}", num ) },
+            Value::Bool(bool) => { write!(f, "{}", bool) },
+            Value::Nil => { write!(f, "nil") },
         }
     }
 }
@@ -35,18 +35,18 @@ impl Interpreter
         }
     }
 
-    pub fn interpret(&mut self, stmt: Stmt) -> Result<(), LoxError>
+    pub fn execute(&mut self, stmt: &Stmt) -> Result<(), LoxError>
     {
         match stmt
         {
             Stmt::Print(expr) =>
             {
-                let value = self.evaluate_expr(expr)?;
+                let value = self.evaluate(expr)?;
                 println!("{}", value);
             },
             Stmt::ExprStmt(expr) =>
             {
-                let _ = self.evaluate_expr(expr)?;
+                let _ = self.evaluate(expr)?;
             }
             Stmt::Var(variable, _, opt_expr) =>
             {
@@ -54,12 +54,12 @@ impl Interpreter
                 {
                     Some(expr) =>
                     {
-                        let value = self.evaluate_expr(expr)?;
-                        self.env.define(variable, value);
+                        let value = self.evaluate(expr)?;
+                        self.env.define(variable.to_owned(), value);
                     },
                     None =>
                     {
-                        self.env.define(variable, Value::Nil);
+                        self.env.define(variable.to_owned(), Value::Nil);
                     },
                 }
             }
@@ -68,48 +68,53 @@ impl Interpreter
                 self.env.new_scope();
                 for stmt in block_vec
                 {
-                    self.interpret(stmt)?;
+                    self.execute(stmt)?;
                 }
                 self.env.remove_scope();
             },
             Stmt::If(condition, then_stmt) =>
             {
-                let condition_value = self.evaluate_expr(condition)?;
-                if is_truthy(condition_value) {
-                    self.interpret(*then_stmt)?;
+                let condition_value = self.evaluate(condition)?;
+                if is_truthy(&condition_value) {
+                    self.execute(then_stmt)?;
                 }
             },
             Stmt::IfElse(condition, then_stmt, else_stmt) =>
             {
-                let condition_value = self.evaluate_expr(condition)?;
-                if is_truthy(condition_value) {
-                    self.interpret(*then_stmt)?;
+                let condition_value = self.evaluate(condition)?;
+                if is_truthy(&condition_value) {
+                    self.execute(then_stmt)?;
                 } else {
-                    self.interpret(*else_stmt)?;
+                    self.execute(else_stmt)?;
+                }
+            },
+            Stmt::While(expr, stmt) => {
+                while is_truthy(&self.evaluate(expr)?) {
+                    self.execute(stmt.as_ref())?;
                 }
             },
         }
         Ok(())
     }
 
-    fn evaluate_expr(&mut self, expr: Expr) -> Result<Value, LoxError>
+    fn evaluate(&mut self, expr: &Expr) -> Result<Value, LoxError>
     {
         match expr {
             Expr::Literal(token) =>
             {
-                if let Some(value) = token.value {
+                if let Some(value) = &token.value {
                     match value {
                         crate::tokens::LiteralValue::String(val) =>
                         {
-                            return Ok(Value::String(Rc::new(val)));
+                            return Ok(Value::String(val.clone()));
                         }
                         crate::tokens::LiteralValue::Number(val) =>
                         {
-                            return Ok(Value::Number(val));
+                            return Ok(Value::Number(*val));
                         },
                         crate::tokens::LiteralValue::Bool(val) =>
                         {
-                            return Ok(Value::Bool(val));
+                            return Ok(Value::Bool(*val));
                         },
                         crate::tokens::LiteralValue::Nil =>
                         {
@@ -126,7 +131,7 @@ impl Interpreter
             },
             Expr::Unary(token, right) =>
             {
-                let val_right: Value = self.evaluate_expr(*right)?;
+                let val_right: Value = self.evaluate(right.as_ref())?;
                 match token.kind
                 {
                     TokenKind::Minus =>
@@ -144,7 +149,7 @@ impl Interpreter
                     },
                     TokenKind::Bang =>
                     {
-                        Ok(Value::Bool(!is_truthy(val_right)))
+                        Ok(Value::Bool(!is_truthy(&val_right)))
                     },
                     _ => {
                         panic!("invalid token type for unary expression!");
@@ -153,12 +158,12 @@ impl Interpreter
             },
             Expr::Grouping(expr) =>
             {
-                self.evaluate_expr(*expr)
+                self.evaluate(expr.as_ref())
             },
             Expr::Binary(left, token, right) =>
             {
-                let val_left:  Value = self.evaluate_expr(*left)?;
-                let val_right: Value = self.evaluate_expr(*right)?;
+                let val_left:  Value = self.evaluate(left.as_ref())?;
+                let val_right: Value = self.evaluate(right.as_ref())?;
                 match token.kind {
                     TokenKind::Minus =>
                     {
@@ -268,14 +273,35 @@ impl Interpreter
             }
             Expr::Variable(variable, position) =>
             {
-                self.env.get(&variable, position)
+                self.env.get(&variable, *position)
             },
-            Expr::Assign(token, expr) =>
+            Expr::Assign(name, expr, pos) =>
             {
-                let value: Value = self.evaluate_expr(*expr)?;
-                let tup_identifier: (String, Position) = extract_identifier(token);
-                let result: Value = self.env.assign(tup_identifier.0, value, tup_identifier.1)?;
+                let value: Value = self.evaluate(expr.as_ref())?;
+                let result: Value = self.env.assign(name.to_owned(), value, *pos)?;
                 return Ok(result);
+            },
+            Expr::Logical(left, token, right) => {
+                let val_left:  Value = self.evaluate(left.as_ref())?;
+                match token.kind {
+                    TokenKind::Or => {
+                        if is_truthy(&val_left) {
+                            return Ok(val_left);
+                        } else {
+                            return self.evaluate(right.as_ref());
+                        }
+                    },
+                    TokenKind::And => {
+                        if !is_truthy(&val_left) {
+                            return Ok(val_left);
+                        } else {
+                            return self.evaluate(right.as_ref());
+                        }
+                    },
+                    _ => {
+                        panic!("invalid operator type for logical expression!");
+                    }
+                }
             },
         }
     }
@@ -296,13 +322,13 @@ fn is_equal(val_left: Value, val_right: Value) -> bool
 }
 
 #[inline]
-fn is_truthy(value: Value) -> bool
+fn is_truthy(value: &Value) -> bool
 {
     match value
     {
         Value::String(_)           => true,
         Value::Number(_)           => true,
-        Value::Bool(boolean) => boolean,
+        Value::Bool(boolean) => *boolean,
         Value::Nil                 => false,
     }
 }

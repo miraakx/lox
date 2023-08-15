@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::Chars};
+use std::{collections::HashMap, str::Chars, rc::Rc};
 use crate::{common::NthPeekable, tokens::*, error::*};
 
 const LINE_START_INDEX:   u32 = 1;
@@ -247,7 +247,7 @@ impl<'a> Iterator for Lexer<'a>
                                 }
                             );
                             opt_token_kind = Some(TokenKind::String);
-                            opt_token_value = Some(LiteralValue::String(string));
+                            opt_token_value = Some(LiteralValue::String(Rc::new(string)));
                             break;
                         }
                         let ch = value.unwrap();
@@ -288,7 +288,7 @@ impl<'a> Iterator for Lexer<'a>
                             },
                             '"' => {
                                 opt_token_kind = Some(TokenKind::String);
-                                opt_token_value = Some(LiteralValue::String(string));
+                                opt_token_value = Some(LiteralValue::String(Rc::new(string)));
                                 break;
                             },
                             _ => {
@@ -447,8 +447,8 @@ fn test_numbers()
 #[test]
 fn test_strings()
 {
-    assert_eq!(*tokenize("\"funzionerà? 😀 成\"").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::String("funzionerà? 😀 成".to_owned()));
-    assert_eq!(*tokenize("\"\\n \\0 \\r \\t \\\\ \\\"\"").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::String("\n \0 \r \t \\ \"".to_owned()));
+    assert_eq!(*tokenize("\"funzionerà? 😀 成\"").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::String(Rc::new("funzionerà? 😀 成".to_owned())));
+    assert_eq!(*tokenize("\"\\n \\0 \\r \\t \\\\ \\\"\"").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::String(Rc::new("\n \0 \r \t \\ \"".to_owned())));
     //assert_eq!(tokenize("\"unterminated string").get(0).unwrap()., LoxErrorKind::UnterminatedString);
 }
 

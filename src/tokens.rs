@@ -1,5 +1,7 @@
 
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, rc::Rc};
+
+use crate::common::Peekable;
 
 pub const SPACE:            char = ' ';
 pub const TAB:              char = '\t';
@@ -67,7 +69,7 @@ pub enum TokenKind
 #[derive(Clone, Debug, PartialEq)]
 pub enum LiteralValue
 {
-    String(String),
+    String(Rc<String>),
     Number(f64),
     Bool(bool),
     Nil,
@@ -95,6 +97,16 @@ pub struct Token
     pub kind:     TokenKind,
     pub value:    Option<LiteralValue>,
     pub position: Position
+}
+
+pub type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
+
+impl<'a> TokenSource<'a>
+{
+    #[inline(always)]
+    pub fn consume(&mut self) {
+        self.next();
+    }
 }
 
 pub fn keyword_map<'a>() -> HashMap<&'a str, TokenKind>

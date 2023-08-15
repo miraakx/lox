@@ -7,19 +7,20 @@ use std::io;
 
 use interpreter::Interpreter;
 use lexer::Lexer;
-use parser::parse;
+use parser_stmt::parse;
 
 mod common;
 mod error;
 mod interpreter;
 mod lexer;
-mod parser;
+mod parser_stmt;
+mod parser_expr;
 mod tokens;
 mod environment;
 
 fn main()
 {
-   let code = "{ var a=true; if(a==true) {{print !a;}} }";
+   let code = "var i = 0; while(i < 5) {print i; i=i+1;}";
    run(code);
 }
 
@@ -63,13 +64,13 @@ fn run_prompt() -> Result<(), Box<dyn Error>>
 fn run(code: &str)
 {
    let mut lexer = Lexer::new(code);
-   let r_parse  = parse(&mut lexer);
-   match r_parse
+   let r_stmt  = parse(&mut lexer);
+   match r_stmt
    {
-      Ok(_) => {
+      Ok(stmt) => {
          let mut interpreter = Interpreter::new();
-         let r_inter = interpreter.interpret(r_parse.unwrap());
-         match r_inter
+         let result = interpreter.execute(&stmt);
+         match result
          {
             Ok(_) => {
                //do nothing
