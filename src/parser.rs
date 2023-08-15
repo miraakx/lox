@@ -1,8 +1,9 @@
 use crate::error::{LoxError, LoxErrorKind};
 use crate::common::Peekable;
-use crate::tokens::{Token,TokenKind, Position, LiteralValue, extract_identifier};
+use crate::tokens::{Token, TokenKind, Position, LiteralValue, extract_identifier};
 
-pub enum Expr {
+pub enum Expr
+{
     Binary(Box<Expr>, Token, Box<Expr>),
     Grouping(Box<Expr>),
     Unary(Token, Box<Expr>),
@@ -11,7 +12,8 @@ pub enum Expr {
     Assign(Token, Box<Expr>)
 }
 
-pub enum Stmt {
+pub enum Stmt
+{
     Print(Expr),
     ExprStmt(Expr),
     Var(String, Position, Option<Expr>),
@@ -24,14 +26,16 @@ struct EOF;
 
 type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
 
-impl<'a> TokenSource<'a> {
+impl<'a> TokenSource<'a>
+{
     #[inline(always)]
     fn consume(&mut self) {
         self.next();
     }
 }
 
-pub fn parse(token_iter: &mut dyn Iterator<Item=Token>) -> Result<Stmt, LoxError> {
+pub fn parse(token_iter: &mut dyn Iterator<Item=Token>) -> Result<Stmt, LoxError>
+{
     let mut token_source: TokenSource = Peekable::new(token_iter);
     let mut statements: Vec<Stmt> = vec!();
     loop {
@@ -46,12 +50,11 @@ pub fn parse(token_iter: &mut dyn Iterator<Item=Token>) -> Result<Stmt, LoxError
                 statements.push(stmt);
             }
         }
-
     }
 }
 
-fn declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
-
+fn declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
+{
     let token = token_source.peek().unwrap();
     match token.kind {
         TokenKind::EOF => {
@@ -68,8 +71,8 @@ fn declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
     }
 }
 
-fn var_declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
-
+fn var_declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
+{
     let token = token_source.next().unwrap();
     match token.kind {
         TokenKind::EOF => {
@@ -96,8 +99,8 @@ fn var_declaration(token_source: &mut TokenSource)  -> Result<Stmt, LoxError> {
     }
 }
 
-fn statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>{
-
+fn statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>
+{
     let token = token_source.peek().unwrap();
     match token.kind {
         TokenKind::EOF => {
@@ -121,7 +124,8 @@ fn statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>{
     }
 }
 
-fn if_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
+fn if_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>
+{
     expect_token(token_source.next().unwrap(), TokenKind::LeftParen)?;
     let condition = expression(token_source)?;
     expect_token(token_source.next().unwrap(), TokenKind::RightParen)?;
@@ -129,7 +133,7 @@ fn if_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
     let token = token_source.peek().unwrap();
     match token.kind {
         TokenKind::EOF => {
-            return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position));
+            return Ok(Stmt::If(condition, Box::new(then_stmt)));
         },
         TokenKind::Else => {
             token_source.consume();
@@ -142,7 +146,8 @@ fn if_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
     }
 }
 
-fn block_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
+fn block_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>
+{
     let mut statements: Vec<Stmt> = vec!();
     loop {
         let token = token_source.peek().unwrap();
@@ -161,8 +166,8 @@ fn block_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
     }
 }
 
-fn print_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
-
+fn print_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>
+{
     let r_expr = expression(token_source);
     if r_expr.is_err() {
         return Err(r_expr.err().unwrap());
@@ -171,8 +176,8 @@ fn print_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
     return Ok(Stmt::Print(r_expr.unwrap()));
 }
 
-fn expression_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
-
+fn expression_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>
+{
     let r_expr = expression(token_source);
     if r_expr.is_err() {
         return Err(r_expr.err().unwrap());
@@ -182,12 +187,13 @@ fn expression_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError
 }
 
 #[inline(always)]
-fn expression(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
+fn expression(token_source: &mut TokenSource) -> Result<Expr,LoxError>
+{
     assignment(token_source)
 }
 
-fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
-
+fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError>
+{
     let expr = equality(token_source)?;
     let peek_token = token_source.peek().unwrap();
     //Copy position to evade borrow checker
@@ -217,8 +223,8 @@ fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
 
 }
 
-fn equality(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
-
+fn equality(token_source: &mut TokenSource) -> Result<Expr,LoxError>
+{
     let mut expr = comparison(token_source)?;
     loop {
         let peek_token = token_source.peek().unwrap();
@@ -238,8 +244,8 @@ fn equality(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
     }
 }
 
-fn comparison(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
-
+fn comparison(token_source: &mut TokenSource) -> Result<Expr,LoxError>
+{
     let mut expr = term(token_source)?;
     loop {
         let peek_token = token_source.peek().unwrap();
@@ -259,8 +265,8 @@ fn comparison(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
     }
 }
 
-fn term(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
-
+fn term(token_source: &mut TokenSource) -> Result<Expr,LoxError>
+{
     let mut expr: Expr = factor(token_source)?;
     loop {
         let peek_token = token_source.peek().unwrap();
@@ -280,8 +286,8 @@ fn term(token_source: &mut TokenSource) -> Result<Expr,LoxError> {
     }
 }
 
-fn factor(token_source: &mut TokenSource) -> Result<Expr, LoxError> {
-
+fn factor(token_source: &mut TokenSource) -> Result<Expr, LoxError>
+{
     let mut expr = unary(token_source)?;
     loop {
         let peek_token: &Token = token_source.peek().unwrap();
@@ -301,8 +307,8 @@ fn factor(token_source: &mut TokenSource) -> Result<Expr, LoxError> {
     }
 }
 
-fn unary(token_source: &mut TokenSource) -> Result<Expr, LoxError> {
-
+fn unary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
+{
     let peek_token = token_source.peek().unwrap();
     match &peek_token.kind {
         TokenKind::EOF => {
@@ -319,8 +325,8 @@ fn unary(token_source: &mut TokenSource) -> Result<Expr, LoxError> {
     }
 }
 
-fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError> {
-
+fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
+{
     let token = token_source.peek().unwrap();
     let position = token.position;
 
@@ -359,7 +365,8 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError> {
 }
 
 #[inline]
-fn expect_token(token: Token, token_kind: TokenKind) -> Result<(),LoxError> {
+fn expect_token(token: Token, token_kind: TokenKind) -> Result<(),LoxError>
+{
     if token_kind == token.kind {
         return Ok(());
     }

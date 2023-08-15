@@ -4,7 +4,8 @@ use std::fmt;
 use crate::tokens::{Position, TokenKind};
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum LoxErrorKind {
+pub enum LoxErrorKind
+{
     UnexpectedToken(char),
     ParseFloatError(String),
     UnterminatedString,
@@ -20,21 +21,26 @@ pub enum LoxErrorKind {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct LoxError {
+pub struct LoxError
+{
     pub kind: LoxErrorKind,
     pub position: Position
 }
 
-impl LoxError {
-    pub fn new(kind: LoxErrorKind, position: Position) -> LoxError {
+impl LoxError
+{
+    pub fn new(kind: LoxErrorKind, position: Position) -> LoxError
+    {
         LoxError { kind, position }
     }
 }
 
 impl Error for LoxError {}
 
-impl fmt::Display for LoxError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl fmt::Display for LoxError
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
         match &self.kind {
             LoxErrorKind::UnexpectedToken(ch)       => write!(f, "Unexpected token '{}', at {}",             ch,    self.position),
             LoxErrorKind::ParseFloatError(value)  => write!(f, "Cannot parse float '{}', at {}",           value, self.position),

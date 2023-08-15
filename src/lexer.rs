@@ -4,28 +4,33 @@ use crate::{common::NthPeekable, tokens::*, error::*};
 const LINE_START_INDEX:   u32 = 1;
 const COLUMN_START_INDEX: u32 = 1;
 
-struct Scanner<'a> {
+struct Scanner<'a>
+{
     iter:   NthPeekable<Chars<'a>, char>,
     line:   u32,
     column: u32
 }
 
-impl <'a> Scanner<'a> {
-    fn next(&mut self) -> Option<char> {
+impl <'a> Scanner<'a>
+{
+    fn next(&mut self) -> Option<char>
+    {
         self.column = self.column + 1;
         self.iter.next()
-
     }
 
     #[inline]
-    fn new_line(&mut self) {
+    fn new_line(&mut self)
+    {
         self.column   = LINE_START_INDEX;
         self.line = self.line + 1;
     }
 
     #[inline]
-    fn from_str(str: &'a str) -> Scanner<'a> {
-        Scanner {
+    fn from_str(str: &'a str) -> Scanner<'a>
+    {
+        Scanner
+        {
             iter:   NthPeekable::new(str.chars(), 2),
             line:   LINE_START_INDEX,
             column: COLUMN_START_INDEX
@@ -33,21 +38,25 @@ impl <'a> Scanner<'a> {
     }
 
     #[inline]
-    fn peek(&mut self) -> Option<char>{
+    fn peek(&mut self) -> Option<char>
+    {
         self.iter.peek().cloned()
     }
 
-    fn peek_nth(&mut self, index: usize) -> Option<char> {
+    fn peek_nth(&mut self, index: usize) -> Option<char>
+    {
         self.iter.peek_nth(index).cloned()
     }
 
     #[inline]
-    fn is_peek(&mut self, ch: char) -> bool {
+    fn is_peek(&mut self, ch: char) -> bool
+    {
         self.peek().map_or(false, |v| v==ch)
     }
 
     #[inline]
-    fn consume_if_peek_is(&mut self, ch: char) {
+    fn consume_if_peek_is(&mut self, ch: char)
+    {
         if let Some(next_ch) = self.peek() {
             if next_ch == ch {
                 self.next();
@@ -56,16 +65,20 @@ impl <'a> Scanner<'a> {
     }
 }
 
-pub struct Lexer<'a> {
+pub struct Lexer<'a>
+{
     scanner:       Scanner<'a>,
     keywords_map:  HashMap<&'static str, TokenKind>,
     error_handler: Box<dyn Fn(LoxError)>,
     end_of_file:   bool
 }
 
-impl<'a> Lexer<'a> {
-    pub fn new(code: &'a str) -> Self {
-        Lexer {
+impl<'a> Lexer<'a>
+{
+    pub fn new(code: &'a str) -> Self
+    {
+        Lexer
+        {
            scanner:       Scanner::from_str(code),
            keywords_map:  keyword_map(),
            error_handler: Box::new(println_handle_error),
@@ -74,17 +87,18 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> Iterator for Lexer<'a> {
+impl<'a> Iterator for Lexer<'a>
+{
     type Item = Token;
 
-    fn next(&mut self) -> Option<Token> {
+    fn next(&mut self) -> Option<Token>
+    {
         let mut opt_token_kind:  Option<TokenKind>;
         let mut opt_token_value: Option<LiteralValue>;
 
         loop {
 
             let opt_ch: Option<char> = self.scanner.next();
-
             if opt_ch.is_none() {
                 if self.end_of_file {
                     return None;
@@ -100,46 +114,58 @@ impl<'a> Iterator for Lexer<'a> {
             opt_token_value = None;
 
             match ch {
-                SPACE | TAB => {
-                },
-                LINE_FEED => {
+                SPACE | TAB => {},
+                LINE_FEED =>
+                {
                     self.scanner.new_line();
                 },
-                CARRIAGE_RETURN => {
+                CARRIAGE_RETURN =>
+                {
                     self.scanner.new_line();
                     self.scanner.consume_if_peek_is(LINE_FEED);
                 },
-                LEFT_PAREN => {
+                LEFT_PAREN =>
+                {
                     opt_token_kind = Some(TokenKind::LeftParen);
                 },
-                RIGHT_PAREN => {
+                RIGHT_PAREN =>
+                {
                     opt_token_kind = Some(TokenKind::RightParen);
                 },
-                LEFT_BRACE => {
+                LEFT_BRACE =>
+                {
                     opt_token_kind = Some(TokenKind::LeftBrace);
                 },
-                RIGHT_BRACE => {
+                RIGHT_BRACE =>
+                {
                     opt_token_kind = Some(TokenKind::RightBrace);
                 },
-                COMMA => {
+                COMMA =>
+                {
                     opt_token_kind = Some(TokenKind::Comma);
                 },
-                DOT => {
+                DOT =>
+                {
                     opt_token_kind = Some(TokenKind::Dot);
                 },
-                SEMICOLON => {
+                SEMICOLON =>
+                {
                     opt_token_kind = Some(TokenKind::Semicolon);
                 },
-                MINUS => {
+                MINUS =>
+                {
                     opt_token_kind = Some(TokenKind::Minus);
                 },
-                PLUS => {
+                PLUS =>
+                {
                     opt_token_kind = Some(TokenKind::Plus);
                 },
-                STAR => {
+                STAR =>
+                {
                     opt_token_kind = Some(TokenKind::Star);
                 },
-                EQUAL => {
+                EQUAL =>
+                {
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
                         opt_token_kind = Some(TokenKind::EqualEqual);
@@ -147,7 +173,8 @@ impl<'a> Iterator for Lexer<'a> {
                         opt_token_kind = Some(TokenKind::Equal);
                     }
                 },
-                BANG => {
+                BANG =>
+                {
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
                         opt_token_kind = Some(TokenKind::BangEqual);
@@ -155,7 +182,8 @@ impl<'a> Iterator for Lexer<'a> {
                         opt_token_kind = Some(TokenKind::Bang);
                     }
                 },
-                GREATER => {
+                GREATER =>
+                {
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
                         opt_token_kind = Some(TokenKind::GreaterEqual);
@@ -163,7 +191,8 @@ impl<'a> Iterator for Lexer<'a> {
                         opt_token_kind = Some(TokenKind::Greater);
                     }
                 },
-                LESS => {
+                LESS =>
+                {
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
                         opt_token_kind = Some(TokenKind::LessEqual);
@@ -171,7 +200,8 @@ impl<'a> Iterator for Lexer<'a> {
                         opt_token_kind = Some(TokenKind::Less);
                     }
                 },
-                SLASH => {
+                SLASH =>
+                {
                     if !self.scanner.is_peek(SLASH) {
                         opt_token_kind = Some(TokenKind::Slash);
                     } else {
@@ -198,12 +228,24 @@ impl<'a> Iterator for Lexer<'a> {
                         }
                     }
                 },
-                QUOTE => {
+                QUOTE =>
+                {
                     let mut string = String::new();
                     loop {
                         let value: Option<char> = self.scanner.next();
                         if value.is_none() {
-                            (self.error_handler)(LoxError { kind: LoxErrorKind::UnterminatedString, position: Position { line: self.scanner.line, column: self.scanner.column }});
+                            (self.error_handler)
+                            (
+                                LoxError
+                                {
+                                    kind: LoxErrorKind::UnterminatedString,
+                                    position: Position
+                                    {
+                                        line: self.scanner.line,
+                                        column: self.scanner.column
+                                    }
+                                }
+                            );
                             opt_token_kind = Some(TokenKind::String);
                             opt_token_value = Some(LiteralValue::String(string));
                             break;
@@ -255,7 +297,8 @@ impl<'a> Iterator for Lexer<'a> {
                         }
                     }
                 },
-                ch if is_number(ch) => {
+                ch if is_number(ch) =>
+                {
                     let mut flg_decimal = false;
                     let mut number_string = String::from(ch);
                     loop {
@@ -291,21 +334,19 @@ impl<'a> Iterator for Lexer<'a> {
                         }
                     }
                 },
-                ch if is_identifier(ch) => {
+                ch if is_identifier(ch) =>
+                {
                     let mut identifier = String::from(ch);
                     loop {
                         let opt_next_ch: Option<char> = self.scanner.peek();
-
                         if opt_next_ch.is_none() {
                             break;
                         }
 
                         let next_ch = opt_next_ch.unwrap();
-
                         if !is_identifier_char_allowed(next_ch) {
                             break;
                         }
-
                         identifier.push(self.scanner.next().unwrap());
 
                     }
@@ -323,12 +364,12 @@ impl<'a> Iterator for Lexer<'a> {
                         opt_token_value = Some(LiteralValue::Identifier(identifier));
                     }
                 },
-                _ => {
+                _ =>
+                {
                     (self.error_handler)(LoxError { kind: LoxErrorKind::UnexpectedToken(ch), position: Position { line: self.scanner.line, column: self.scanner.column }});
                     opt_token_kind = Some(TokenKind::UnexpectedToken);
                 }
             }
-
             if let Some(token_kind) = opt_token_kind {
                 return Some(Token{ kind: token_kind, value: opt_token_value, position: Position { line: self.scanner.line, column: self.scanner.column} });
             }
@@ -337,27 +378,32 @@ impl<'a> Iterator for Lexer<'a> {
 }
 
 #[inline(always)]
-fn is_identifier(ch: char) -> bool {
+fn is_identifier(ch: char) -> bool
+{
     ch.is_ascii_alphabetic() || ch == '_'
 }
 
 #[inline(always)]
-fn is_number(ch: char) -> bool {
+fn is_number(ch: char) -> bool
+{
     ch.is_ascii_digit()
 }
 
 #[inline(always)]
-fn is_identifier_char_allowed(ch: char) -> bool {
+fn is_identifier_char_allowed(ch: char) -> bool
+{
     ch.is_ascii_alphabetic() || ch == '_' || ch.is_ascii_digit()
 }
 
 #[inline(always)]
-fn tokenize(code: &str) -> Vec<Token> {
+fn tokenize(code: &str) -> Vec<Token>
+{
     Lexer::new(code).collect()
 }
 
 #[test]
-fn test_parens() {
+fn test_parens()
+{
     assert_eq!(tokenize("{").get(0).unwrap().kind, TokenKind::LeftBrace);
     assert_eq!(tokenize("}").get(0).unwrap().kind, TokenKind::RightBrace);
     assert_eq!(tokenize("(").get(0).unwrap().kind, TokenKind::LeftParen);
@@ -370,7 +416,8 @@ fn test_parens() {
 }
 
 #[test]
-fn test_equalities() {
+fn test_equalities()
+{
     assert_eq!(tokenize("=").get(0).unwrap().kind, TokenKind::Equal);
     assert_eq!(tokenize("!").get(0).unwrap().kind, TokenKind::Bang);
     assert_eq!(tokenize("==").get(0).unwrap().kind, TokenKind::EqualEqual);
@@ -389,7 +436,8 @@ fn test_equalities() {
 }
 
 #[test]
-fn test_numbers() {
+fn test_numbers()
+{
     assert_eq!(*tokenize("10.0245").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Number(10.0245));
     assert_eq!(*tokenize("0000.0000245").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Number(0.0000245));
     assert_eq!(*tokenize("0001.. ..").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Number(1.0));
@@ -397,14 +445,16 @@ fn test_numbers() {
 }
 
 #[test]
-fn test_strings() {
+fn test_strings()
+{
     assert_eq!(*tokenize("\"funzionerà? 😀 成\"").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::String("funzionerà? 😀 成".to_owned()));
     assert_eq!(*tokenize("\"\\n \\0 \\r \\t \\\\ \\\"\"").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::String("\n \0 \r \t \\ \"".to_owned()));
     //assert_eq!(tokenize("\"unterminated string").get(0).unwrap()., LoxErrorKind::UnterminatedString);
 }
 
 #[test]
-fn test_keywords() {
+fn test_keywords()
+{
     assert_eq!(tokenize("true").get(0).unwrap().kind, TokenKind::True);
     assert_eq!(tokenize("false").get(0).unwrap().kind, TokenKind::False);
     assert_eq!(tokenize("if").get(0).unwrap().kind, TokenKind::If);
@@ -428,7 +478,8 @@ fn test_keywords() {
 }
 
 #[test]
-fn test_identifiers() {
+fn test_identifiers()
+{
     assert_eq!(*tokenize("truee").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("truee".to_owned()));
     assert_eq!(*tokenize("ffalse").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("ffalse".to_owned()));
     assert_eq!(*tokenize("Nil").get(0).unwrap().value.as_ref().unwrap(), LiteralValue::Identifier("Nil".to_owned()));
@@ -437,7 +488,8 @@ fn test_identifiers() {
 }
 
 #[test]
-fn test_others() {
+fn test_others()
+{
     assert_eq!(tokenize("+").get(0).unwrap().kind, TokenKind::Plus);
     assert_eq!(tokenize("-").get(0).unwrap().kind, TokenKind::Minus);
     assert_eq!(tokenize("/").get(0).unwrap().kind, TokenKind::Slash);
@@ -449,7 +501,8 @@ fn test_others() {
 }
 
 #[test]
-fn test_unexpected_tokens() {
+fn test_unexpected_tokens()
+{
     assert_eq!(tokenize(":").get(0).unwrap().kind, TokenKind::UnexpectedToken);
     assert_eq!(tokenize("&").get(0).unwrap().kind, TokenKind::UnexpectedToken);
     assert_eq!(tokenize("&&").get(0).unwrap().kind, TokenKind::UnexpectedToken);
@@ -458,8 +511,8 @@ fn test_unexpected_tokens() {
 }
 
 #[test]
-fn test_construct() {
-
+fn test_construct()
+{
     let tokens = tokenize("fun prova(var1, var2) {return var1+var2;}");
     let mut index: usize = 0;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::Fun);

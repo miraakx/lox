@@ -17,13 +17,14 @@ mod parser;
 mod tokens;
 mod environment;
 
-fn main() {
-   let code = "var a = 88+5; { var a=a; var b = 5; print b+a; { var a = 7; print a;} } if(false) {print a;}";
+fn main()
+{
+   let code = "{ var a=true; if(a==true) {{print !a;}} }";
    run(code);
 }
 
-fn _main() {
-
+fn _main()
+{
    let args: Vec<String> = env::args().collect();
    let result = match args.len() {
       1 => run_prompt(),
@@ -41,13 +42,15 @@ fn _main() {
    }
 }
 
-fn run_file<'a>(filepath: &'a str) -> Result<(), Box<dyn Error>> {
+fn run_file<'a>(filepath: &'a str) -> Result<(), Box<dyn Error>>
+{
    let _ = fs::read_to_string(filepath)?;
    println!("Running from file: {} ...", filepath);
    Ok(())
 }
 
-fn run_prompt() -> Result<(), Box<dyn Error>> {
+fn run_prompt() -> Result<(), Box<dyn Error>>
+{
    loop {
       println!("(input): ");
       let mut line = String::new();
@@ -57,11 +60,27 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
    }
 }
 
-fn run(code: &str) {
+fn run(code: &str)
+{
    let mut lexer = Lexer::new(code);
    let r_parse  = parse(&mut lexer);
-   if r_parse.is_ok() {
-      let mut interpreter = Interpreter::new();
-      let r_inter = interpreter.interpret(r_parse.unwrap());
+   match r_parse
+   {
+      Ok(_) => {
+         let mut interpreter = Interpreter::new();
+         let r_inter = interpreter.interpret(r_parse.unwrap());
+         match r_inter
+         {
+            Ok(_) => {
+               //do nothing
+            },
+            Err(err) => {
+               println!("{}", err);
+            }
+         }
+      },
+      Err(err) => {
+         println!("{}", err);
+      }
    }
 }

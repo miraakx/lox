@@ -40,7 +40,8 @@ const PRINT:           &str = "print";
 const RETURN:          &str = "return";
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum TokenKind {
+pub enum TokenKind
+{
     LeftParen,  RightParen,
     LeftBrace,  RightBrace,
     Comma,      Dot,     Semicolon,
@@ -64,31 +65,42 @@ pub enum TokenKind {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum LiteralValue {
-    String(String),  Number(f64), Bool(bool), Nil, Identifier(String),
+pub enum LiteralValue
+{
+    String(String),
+    Number(f64),
+    Bool(bool),
+    Nil,
+    Identifier(String)
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Position {
+pub struct Position
+{
     pub line: u32,
     pub column: u32
 }
 
-impl fmt::Display for Position {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl fmt::Display for Position
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
         write!(f, "line: {}, column: {}.", self.line, self.column)
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Token {
+pub struct Token
+{
     pub kind:     TokenKind,
     pub value:    Option<LiteralValue>,
     pub position: Position
 }
 
-pub fn keyword_map<'a>() -> HashMap<&'a str, TokenKind>{
-    HashMap::from(
+pub fn keyword_map<'a>() -> HashMap<&'a str, TokenKind>
+{
+    HashMap::from
+    (
         [
             (TRUE,      TokenKind::True),
             (FALSE,     TokenKind::False),
@@ -111,9 +123,11 @@ pub fn keyword_map<'a>() -> HashMap<&'a str, TokenKind>{
 }
 
 #[inline]
-pub fn extract_identifier(token: Token) -> (String, Position) {
+pub fn extract_identifier(token: Token) -> (String, Position)
+{
     if let Some(value) = token.value {
-        match value {
+        match value
+        {
             crate::tokens::LiteralValue::Identifier(identifier) => {
                 return (identifier, token.position);
             },
