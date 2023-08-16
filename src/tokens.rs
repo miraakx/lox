@@ -120,34 +120,34 @@ pub fn find_keyword(str: &str) -> Option<TokenKind>
         {
             match chars.next()?
             {
-                'a' => { return compare(str, FALSE, TokenKind::False); },
-                'o' => { return compare(str, FOR,   TokenKind::For  ); },
-                'u' => { return compare(str, FUN,   TokenKind::Fun  ); },
-                _ =>   { return None; }
-            };
+                'a' => { compare(str, FALSE, TokenKind::False) },
+                'o' => { compare(str, FOR,   TokenKind::For  ) },
+                'u' => { compare(str, FUN,   TokenKind::Fun  ) },
+                _ =>   { None }
+            }
         },
         't' =>
         {
             match chars.next()?
             {
-                'h' => { return compare(str, THIS, TokenKind::This); },
-                'r' => { return compare(str, TRUE, TokenKind::True); },
-                _ =>   { return None; }
-            };
+                'h' => { compare(str, THIS, TokenKind::This) },
+                'r' => { compare(str, TRUE, TokenKind::True) },
+                _ =>   { None }
+            }
         },
-        'v' => { return compare(str, VAR,    TokenKind::Var   ); },
-        'a' => { return compare(str, AND,    TokenKind::And   ); },
-        'c' => { return compare(str, CLASS,  TokenKind::Class ); },
-        'e' => { return compare(str, ELSE,   TokenKind::Else  ); },
-        'i' => { return compare(str, IF,     TokenKind::If    ); },
-        'n' => { return compare(str, NIL,    TokenKind::Nil   ); },
-        'o' => { return compare(str, OR,     TokenKind::Or    ); },
-        'p' => { return compare(str, PRINT,  TokenKind::Print ); },
-        'r' => { return compare(str, RETURN, TokenKind::Return); },
-        's' => { return compare(str, SUPER,  TokenKind::Super ); },
-        'w' => { return compare(str, WHILE,  TokenKind::While ); },
-        _ => { return None; }
-    };
+        'v' => { compare(str, VAR,    TokenKind::Var   ) },
+        'a' => { compare(str, AND,    TokenKind::And   ) },
+        'c' => { compare(str, CLASS,  TokenKind::Class ) },
+        'e' => { compare(str, ELSE,   TokenKind::Else  ) },
+        'i' => { compare(str, IF,     TokenKind::If    ) },
+        'n' => { compare(str, NIL,    TokenKind::Nil   ) },
+        'o' => { compare(str, OR,     TokenKind::Or    ) },
+        'p' => { compare(str, PRINT,  TokenKind::Print ) },
+        'r' => { compare(str, RETURN, TokenKind::Return) },
+        's' => { compare(str, SUPER,  TokenKind::Super ) },
+        'w' => { compare(str, WHILE,  TokenKind::While ) },
+        _ => { None }
+    }
 }
 
 #[inline(always)]
