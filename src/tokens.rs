@@ -113,49 +113,61 @@ const RETURN: &str = "return";
 
 pub fn find_keyword(str: &str) -> Option<TokenKind>
 {
-    let ch = str.chars().nth(0).unwrap();
-    return match ch
+    let mut chars = str.chars();
+    let opt_ch = chars.next();
+    if opt_ch.is_none() {
+        return None;
+    };
+    let ch = opt_ch.unwrap();
+    match ch
     {
-        'a' => { if str.eq(AND  ) { Some(TokenKind::And   ) } else { None } },
-        'c' => { if str.eq(CLASS) { Some(TokenKind::Class ) } else { None } },
-        'e' => { if str.eq(ELSE ) { Some(TokenKind::Else  ) } else { None } },
         'f' =>
         {
-            let ch = str.chars().nth(1).unwrap();
-            return match ch
+            let opt_ch = chars.next();
+            if opt_ch.is_none() {
+                return None;
+            };
+            let ch = opt_ch.unwrap();
+            match ch
             {
-                'a' => { if str.eq(FALSE) { Some(TokenKind::False) } else { None } },
-                'o' => { if str.eq(FOR  ) { Some(TokenKind::For  ) } else { None } },
-                'u' => { if str.eq(FUN  ) { Some(TokenKind::Fun  ) } else { None } },
-                _ =>   { None }
-            }
+                'a' => { return compare(str, FALSE, TokenKind::False); },
+                'o' => { return compare(str, FOR,   TokenKind::For  ); },
+                'u' => { return compare(str, FUN,   TokenKind::Fun  ); },
+                _ =>   { return None; }
+            };
         },
-        'i' => { if str.eq(IF    ) { Some(TokenKind::If    ) } else { None } },
-        'n' => { if str.eq(NIL   ) { Some(TokenKind::Nil   ) } else { None } },
-        'o' => { if str.eq(OR    ) { Some(TokenKind::Or    ) } else { None } },
-        'p' => { if str.eq(PRINT ) { Some(TokenKind::Print ) } else { None } },
-        'r' => { if str.eq(RETURN) { Some(TokenKind::Return) } else { None } },
-        's' => { if str.eq(SUPER ) { Some(TokenKind::Super ) } else { None } },
         't' =>
         {
-            let ch = str.chars().nth(1).unwrap();
-            return match ch
+            let opt_ch = chars.next();
+            if opt_ch.is_none() {
+                return None;
+            };
+            let ch = opt_ch.unwrap();
+            match ch
             {
-                'h' => { if str.eq(THIS) { Some(TokenKind::This) } else { None } },
-                'r' => { if str.eq(TRUE) { Some(TokenKind::True) } else { None } },
-                _ =>   { None }
-            }
+                'h' => { return compare(str, THIS, TokenKind::This); },
+                'r' => { return compare(str, TRUE, TokenKind::True); },
+                _ =>   { return None; }
+            };
         },
-        'v' => { if str.eq(VAR  ) { Some(TokenKind::Var   ) } else { None } },
-        'w' => { if str.eq(WHILE) { Some(TokenKind::While ) } else { None } },
-        _ => { None }
+        'v' => { return compare(str, VAR,    TokenKind::Var   ); },
+        'a' => { return compare(str, AND,    TokenKind::And   ); },
+        'c' => { return compare(str, CLASS,  TokenKind::Class ); },
+        'e' => { return compare(str, ELSE,   TokenKind::Else  ); },
+        'i' => { return compare(str, IF,     TokenKind::If    ); },
+        'n' => { return compare(str, NIL,    TokenKind::Nil   ); },
+        'o' => { return compare(str, OR,     TokenKind::Or    ); },
+        'p' => { return compare(str, PRINT,  TokenKind::Print ); },
+        'r' => { return compare(str, RETURN, TokenKind::Return); },
+        's' => { return compare(str, SUPER,  TokenKind::Super ); },
+        'w' => { return compare(str, WHILE,  TokenKind::While ); },
+        _ => { return None; }
     };
 }
 
 #[inline(always)]
-fn check_keyword(str: &str, keyword: &str) -> bool
-{
-    return keyword.eq(str);
+fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind> {
+    if str.len() == keyword.len() && str.eq(keyword) { Some(token_kind) } else { None }
 }
 
 #[inline]
