@@ -21,6 +21,11 @@ impl Display for Value
     }
 }
 
+pub enum State {
+    Normal,
+    Break
+}
+
 pub struct Interpreter
 {
     env: Environment
@@ -35,7 +40,7 @@ impl Interpreter
         }
     }
 
-    pub fn execute(&mut self, stmt: &Stmt) -> Result<(), LoxError>
+    pub fn execute(&mut self, stmt: &Stmt) -> Result<State, LoxError>
     {
         match stmt
         {
@@ -68,7 +73,14 @@ impl Interpreter
                 self.env.new_scope();
                 for stmt in statements
                 {
-                    self.execute(stmt)?;
+                    match self.execute(stmt)? {
+                        State::Normal => {
+                            continue;
+                        },
+                        State::Break => {
+                            return Ok(State::Break);
+                        },
+                    };
                 }
                 self.env.remove_scope();
             },
@@ -92,17 +104,34 @@ impl Interpreter
             {
                 while is_truthy(&self.evaluate(condition)?)
                 {
-                    self.execute(body.as_ref())?;
+                    match self.execute(body.as_ref())? {
+                        State::Normal => {
+                            continue;
+                        },
+                        State::Break => {
+                            return Ok(State::Normal);
+                        },
+                    }
                 }
             },
             Stmt::Loop(body) => {
                 loop
                 {
-                    self.execute(body.as_ref())?;
+                    match self.execute(body.as_ref())? {
+                        State::Normal => {
+                            continue;
+                        },
+                        State::Break => {
+                            return Ok(State::Normal);
+                        },
+                    }
                 }
             },
+            Stmt::Break => {
+                return Ok(State::Break);
+            },
         }
-        Ok(())
+        Ok(State::Normal)
     }
 
     fn evaluate(&mut self, expr: &Expr) -> Result<Value, LoxError>

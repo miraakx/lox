@@ -17,7 +17,8 @@ pub enum LoxErrorKind
     MissingSemicolon,
     VariableNameExpected,
     ExpectedToken(TokenKind),
-    UdefinedVariable(String)
+    UdefinedVariable(String),
+    BreakOutsideLoop,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -54,6 +55,7 @@ impl fmt::Display for LoxError
             LoxErrorKind::VariableNameExpected             => write!(f, "Expected variable name after 'var' at {}",        self.position),
             LoxErrorKind::ExpectedToken(kind)  => write!(f, "Expected token '{:?}' at {}",              kind,  self.position),
             LoxErrorKind::UdefinedVariable(name)  => write!(f, "Undefined variable '{}' at {}",            name,  self.position),
+            LoxErrorKind::BreakOutsideLoop                 => write!(f, "Found 'break' keyword outside a loop at {}",      self.position),
         }
     }
 }

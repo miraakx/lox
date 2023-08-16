@@ -46,6 +46,7 @@ pub enum TokenKind
     Var,        Nil,
     Print,      Return,
     String,     Number,  Identifier,
+    Break,
     UnexpectedToken,
     EOF
 }
@@ -110,6 +111,7 @@ const VAR:    &str = "var";
 const NIL:    &str = "nil";
 const PRINT:  &str = "print";
 const RETURN: &str = "return";
+const BREAK:  &str = "break";
 
 pub fn find_keyword(str: &str) -> Option<TokenKind>
 {
@@ -149,6 +151,7 @@ pub fn find_keyword(str: &str) -> Option<TokenKind>
         'r' => { compare(str, RETURN, TokenKind::Return) },
         's' => { compare(str, SUPER,  TokenKind::Super ) },
         'w' => { compare(str, WHILE,  TokenKind::While ) },
+        'b' => { compare(str, BREAK,  TokenKind::Break ) },
         _ => { None }
     }
 }
