@@ -20,7 +20,7 @@ mod environment;
 
 fn main()
 {
-   let code = "var i = 2; while(i < 20) {print i; i=i*i;}";
+   let code = "for(var i=0; i<20; i=i+1) {print i;}";
    run(code);
 }
 

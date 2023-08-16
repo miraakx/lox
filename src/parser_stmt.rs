@@ -13,6 +13,7 @@ pub enum Stmt
     If(Expr, Box<Stmt>),
     IfElse(Expr, Box<Stmt>, Box<Stmt>),
     While(Expr, Box<Stmt>),
+    Loop(Box<Stmt>),
 }
 
 pub fn parse(token_iter: &mut dyn Iterator<Item=Token>) -> Result<Stmt, LoxError>
@@ -102,11 +103,109 @@ fn statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>
         TokenKind::While => {
             token_source.consume();
             return while_statement(token_source);
-        }
+        },
+        TokenKind::For => {
+            token_source.consume();
+            return for_statement(token_source);
+        },
         _ => {
             return expression_statement(token_source);
         }
     }
+}
+
+fn for_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
+    expect_token(token_source.next().unwrap(), TokenKind::LeftParen)?;
+
+    //Parsing ...
+    //parse initializer
+    let token = token_source.peek().unwrap();
+    let opt_initializer: Option<Stmt> = match token.kind {
+        TokenKind::EOF => {
+            return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position));
+        },
+        TokenKind::Semicolon => {
+            //consume semicolon
+            token_source.consume();
+            None
+        },
+        TokenKind::Var => {
+            //consume 'var'
+            token_source.consume();
+            Some(var_declaration(token_source)?)
+        },
+        _ => {
+            Some(expression_statement(token_source)?)
+        }
+    };
+    //semicolon already consumed by var_declaration or expression_statement
+
+    //parse condition
+    let token = token_source.peek().unwrap();
+    let opt_condition = match token.kind {
+        TokenKind::EOF => {
+            return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position));
+        },
+        TokenKind::Semicolon => {
+            None
+        },
+        _ => {
+            Some(expression(token_source)?)
+        }
+    };
+    //consume semicolon
+    token_source.consume();
+
+    //parse increment
+    let token = token_source.peek().unwrap();
+    let opt_increment = match token.kind {
+        TokenKind::EOF => {
+            return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position));
+        },
+        TokenKind::RightParen => {
+            None
+        },
+        _ => {
+            Some(expression(token_source)?)
+        }
+    };
+    //consume right paren
+    token_source.consume();
+
+    //parse body
+    let mut body = statement(token_source)?;
+
+    //Desugaring ...
+    // {
+    //    initializer;
+    //    while ( condition )
+    //    {
+    //       body;
+    //       increment;
+    //    }
+    // }
+    //desugar increment
+    if let Some(increment) = opt_increment {
+        body = Stmt::Block(vec!(body, Stmt::ExprStmt(increment)));
+    }
+
+    //desugar condition
+    match opt_condition
+    {
+        Some(condition) => {
+            body = Stmt::While(condition, Box::new(body));
+        },
+        None => {
+            body = Stmt::Loop(Box::new(body));
+        }
+    }
+
+    //desugar initializer
+    if let Some(initializer) = opt_initializer {
+        body = Stmt::Block(vec!(initializer, body));
+    }
+
+    return Ok(body);
 }
 
 fn while_statement(token_source: &mut TokenSource) -> Result<Stmt, LoxError>

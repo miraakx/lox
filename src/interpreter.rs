@@ -95,6 +95,12 @@ impl Interpreter
                     self.execute(body.as_ref())?;
                 }
             },
+            Stmt::Loop(body) => {
+                loop
+                {
+                    self.execute(body.as_ref())?;
+                }
+            },
         }
         Ok(())
     }
