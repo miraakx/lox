@@ -113,6 +113,9 @@ const RETURN: &str = "return";
 
 pub fn find_keyword(str: &str) -> Option<TokenKind>
 {
+    if str.len() < IF.len() || str.len() > RETURN.len() {
+        return None;
+    }
     let mut chars = str.chars();
     match chars.next()?
     {
