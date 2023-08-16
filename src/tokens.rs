@@ -114,21 +114,11 @@ const RETURN: &str = "return";
 pub fn find_keyword(str: &str) -> Option<TokenKind>
 {
     let mut chars = str.chars();
-    let opt_ch = chars.next();
-    if opt_ch.is_none() {
-        return None;
-    };
-    let ch = opt_ch.unwrap();
-    match ch
+    match chars.next()?
     {
         'f' =>
         {
-            let opt_ch = chars.next();
-            if opt_ch.is_none() {
-                return None;
-            };
-            let ch = opt_ch.unwrap();
-            match ch
+            match chars.next()?
             {
                 'a' => { return compare(str, FALSE, TokenKind::False); },
                 'o' => { return compare(str, FOR,   TokenKind::For  ); },
@@ -138,12 +128,7 @@ pub fn find_keyword(str: &str) -> Option<TokenKind>
         },
         't' =>
         {
-            let opt_ch = chars.next();
-            if opt_ch.is_none() {
-                return None;
-            };
-            let ch = opt_ch.unwrap();
-            match ch
+            match chars.next()?
             {
                 'h' => { return compare(str, THIS, TokenKind::This); },
                 'r' => { return compare(str, TRUE, TokenKind::True); },
@@ -167,7 +152,11 @@ pub fn find_keyword(str: &str) -> Option<TokenKind>
 
 #[inline(always)]
 fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind> {
-    if str.len() == keyword.len() && str.eq(keyword) { Some(token_kind) } else { None }
+    if str.len() == keyword.len() && str.eq(keyword) {
+        Some(token_kind)
+    } else {
+        None
+    }
 }
 
 #[inline]
