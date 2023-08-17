@@ -96,19 +96,19 @@ impl Interpreter
             {
                 let condition_value = self.evaluate(condition)?;
                 if is_truthy(&condition_value) {
-                    self.execute(then_stmt)?;
+                    return self.execute(then_stmt);
+                } else {
+                    return Ok(State::Normal);
                 }
-                return Ok(State::Normal);
             },
             Stmt::IfElse(condition, then_stmt, else_stmt) =>
             {
                 let condition_value = self.evaluate(condition)?;
                 if is_truthy(&condition_value) {
-                    self.execute(then_stmt)?;
+                    return self.execute(then_stmt);
                 } else {
-                    self.execute(else_stmt)?;
+                    return self.execute(else_stmt);
                 }
-                return Ok(State::Normal);
             },
             Stmt::While(condition, body) =>
             {

@@ -20,7 +20,7 @@ mod environment;
 
 fn main()
 {
-   let code = "for(var i=0; i<20; i=i+1) { print i; {continue;} print i; } print \"goodbye\";";
+   let code = "for(var i=0; i<20; i=i+1) { print i; if(i>5) {break;}  } print \"goodbye\";";
    run(code);
 }
 
