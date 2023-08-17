@@ -122,7 +122,7 @@ impl Interpreter
                         },
                         State::Break =>
                         {
-                            return Ok(State::Normal);
+                            break;
                         },
                     }
                 }
@@ -156,7 +156,7 @@ impl Interpreter
                         },
                         State::Break =>
                         {
-                            return Ok(State::Normal);
+                            break;
                         },
                     }
                 }
