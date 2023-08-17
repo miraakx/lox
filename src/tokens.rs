@@ -46,7 +46,7 @@ pub enum TokenKind
     Var,        Nil,
     Print,      Return,
     String,     Number,  Identifier,
-    Break,
+    Break,      Continue,
     UnexpectedToken,
     EOF
 }
@@ -95,27 +95,28 @@ impl<'a> TokenSource<'a>
     }
 }
 
-const TRUE:   &str = "true";
-const FALSE:  &str = "false";
-const IF:     &str = "if";
-const ELSE:   &str = "else";
-const FOR:    &str = "for";
-const WHILE:  &str = "while";
-const OR:     &str = "or";
-const AND:    &str = "and";
-const CLASS:  &str = "class";
-const FUN:    &str = "fun";
-const SUPER:  &str = "super";
-const THIS:   &str = "this";
-const VAR:    &str = "var";
-const NIL:    &str = "nil";
-const PRINT:  &str = "print";
-const RETURN: &str = "return";
-const BREAK:  &str = "break";
+const TRUE:     &str = "true";
+const FALSE:    &str = "false";
+const IF:       &str = "if";
+const ELSE:     &str = "else";
+const FOR:      &str = "for";
+const WHILE:    &str = "while";
+const OR:       &str = "or";
+const AND:      &str = "and";
+const CLASS:    &str = "class";
+const FUN:      &str = "fun";
+const SUPER:    &str = "super";
+const THIS:     &str = "this";
+const VAR:      &str = "var";
+const NIL:      &str = "nil";
+const PRINT:    &str = "print";
+const RETURN:   &str = "return";
+const BREAK:    &str = "break";
+const CONTINUE: &str = "continue";
 
 pub fn find_keyword(str: &str) -> Option<TokenKind>
 {
-    if str.len() < IF.len() || str.len() > RETURN.len() {
+    if str.len() < IF.len() || str.len() > CONTINUE.len() {
         return None;
     }
     let mut chars = str.chars();
@@ -142,7 +143,15 @@ pub fn find_keyword(str: &str) -> Option<TokenKind>
         },
         'v' => { compare(str, VAR,    TokenKind::Var   ) },
         'a' => { compare(str, AND,    TokenKind::And   ) },
-        'c' => { compare(str, CLASS,  TokenKind::Class ) },
+        'c' =>
+        {
+            match chars.next()?
+            {
+                'l' => { compare(str, CLASS, TokenKind::Class) },
+                'o' => { compare(str, CONTINUE, TokenKind::Continue) },
+                _ =>   { None }
+            }
+        },
         'e' => { compare(str, ELSE,   TokenKind::Else  ) },
         'i' => { compare(str, IF,     TokenKind::If    ) },
         'n' => { compare(str, NIL,    TokenKind::Nil   ) },

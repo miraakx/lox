@@ -23,7 +23,8 @@ impl Display for Value
 
 pub enum State {
     Normal,
-    Break
+    Break,
+    Continue,
 }
 
 pub struct Interpreter
@@ -80,6 +81,9 @@ impl Interpreter
                         State::Break => {
                             return Ok(State::Break);
                         },
+                        State::Continue => {
+                            return Ok(State::Normal);
+                        },
                     };
                 }
                 self.env.remove_scope();
@@ -111,6 +115,9 @@ impl Interpreter
                         State::Break => {
                             return Ok(State::Normal);
                         },
+                        State::Continue => {
+                            panic!("Unexpected state during while");
+                        },
                     }
                 }
             },
@@ -124,11 +131,17 @@ impl Interpreter
                         State::Break => {
                             return Ok(State::Normal);
                         },
+                        State::Continue => {
+                            panic!("Unexpected state during loop");
+                        },
                     }
                 }
             },
             Stmt::Break => {
                 return Ok(State::Break);
+            },
+            Stmt::Continue => {
+                return Ok(State::Continue);
             },
         }
         Ok(State::Normal)

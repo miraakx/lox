@@ -14,7 +14,7 @@ pub enum Stmt
     IfElse(Expr, Box<Stmt>, Box<Stmt>),
     While(Expr, Box<Stmt>),
     Loop(Box<Stmt>),
-    Break,
+    Break, Continue,
 }
 
 pub struct Parser {
@@ -132,10 +132,23 @@ impl Parser {
                 token_source.consume();
                 return self.break_statement(token_source);
             },
+            TokenKind::Continue => {
+                if self.in_loop < 1 {
+                    return Err(LoxError { kind: LoxErrorKind::BreakOutsideLoop, position: token.position })
+                }
+                token_source.consume();
+                return self.continue_statement(token_source);
+            },
             _ => {
                 return self.expression_statement(token_source);
             }
         }
+    }
+
+    fn continue_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
+    {
+        expect_token(token_source.next().unwrap(), TokenKind::Semicolon)?;
+        return Ok(Stmt::Continue);
     }
 
     fn break_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
