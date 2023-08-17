@@ -13,7 +13,7 @@ pub enum Stmt
     If(Expr, Box<Stmt>),
     IfElse(Expr, Box<Stmt>, Box<Stmt>),
     While(Expr, Box<Stmt>),
-    Loop(Box<Stmt>),
+    For(Box<Option<Stmt>>, Option<Expr>, Option<Expr>, Box<Stmt>),
     Break, Continue,
 }
 
@@ -217,39 +217,40 @@ impl Parser {
         token_source.consume();
 
         //parse body
-        let mut body = self.statement(token_source)?;
+        let body = self.statement(token_source)?;
 
-        //Desugaring ...
-        // {
-        //    initializer;
-        //    while ( condition )
-        //    {
-        //       body;
-        //       increment;
-        //    }
-        // }
-        //desugar increment
-        if let Some(increment) = opt_increment {
-            body = Stmt::Block(vec!(body, Stmt::ExprStmt(increment)));
-        }
-
-        //desugar condition
-        match opt_condition
-        {
-            Some(condition) => {
-                body = Stmt::While(condition, Box::new(body));
-            },
-            None => {
-                body = Stmt::Loop(Box::new(body));
+        return Ok(Stmt::For(Box::new(opt_initializer), opt_condition, opt_increment, Box::new(body)));
+        /*
+            //Desugaring ...
+            // {
+            //    initializer;
+            //    while ( condition )
+            //    {
+            //       body;
+            //       increment;
+            //    }
+            // }
+            //desugar increment
+            if let Some(increment) = opt_increment {
+                body = Stmt::Block(vec!(body, Stmt::ExprStmt(increment)));
             }
-        }
 
-        //desugar initializer
-        if let Some(initializer) = opt_initializer {
-            body = Stmt::Block(vec!(initializer, body));
-        }
+            //desugar condition
+            match opt_condition
+            {
+                Some(condition) => {
+                    body = Stmt::While(condition, Box::new(body));
+                },
+                None => {
+                    body = Stmt::Loop(Box::new(body));
+                }
+            }
 
-        return Ok(body);
+            //desugar initializer
+            if let Some(initializer) = opt_initializer {
+                body = Stmt::Block(vec!(initializer, body));
+            }
+        */
     }
 
     fn while_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>

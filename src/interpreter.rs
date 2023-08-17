@@ -49,10 +49,12 @@ impl Interpreter
             {
                 let value = self.evaluate(expr)?;
                 println!("{}", value);
+                return Ok(State::Normal);
             },
             Stmt::ExprStmt(expr) =>
             {
                 let _ = self.evaluate(expr)?;
+                return Ok(State::Normal);
             }
             Stmt::Var(variable, _, opt_expr) =>
             {
@@ -68,6 +70,7 @@ impl Interpreter
                         self.env.define(variable.to_owned(), Value::Nil);
                     },
                 }
+                return Ok(State::Normal);
             }
             Stmt::Block(statements) =>
             {
@@ -82,11 +85,12 @@ impl Interpreter
                             return Ok(State::Break);
                         },
                         State::Continue => {
-                            return Ok(State::Normal);
+                            return Ok(State::Continue);
                         },
                     };
                 }
                 self.env.remove_scope();
+                return Ok(State::Normal);
             },
             Stmt::If(condition, then_stmt) =>
             {
@@ -94,6 +98,7 @@ impl Interpreter
                 if is_truthy(&condition_value) {
                     self.execute(then_stmt)?;
                 }
+                return Ok(State::Normal);
             },
             Stmt::IfElse(condition, then_stmt, else_stmt) =>
             {
@@ -103,39 +108,25 @@ impl Interpreter
                 } else {
                     self.execute(else_stmt)?;
                 }
+                return Ok(State::Normal);
             },
             Stmt::While(condition, body) =>
             {
                 while is_truthy(&self.evaluate(condition)?)
                 {
-                    match self.execute(body.as_ref())? {
-                        State::Normal => {
+                    match self.execute(body.as_ref())?
+                    {
+                        State::Normal  | State::Continue =>
+                        {
                             continue;
                         },
-                        State::Break => {
+                        State::Break =>
+                        {
                             return Ok(State::Normal);
-                        },
-                        State::Continue => {
-                            panic!("Unexpected state during while");
                         },
                     }
                 }
-            },
-            Stmt::Loop(body) => {
-                loop
-                {
-                    match self.execute(body.as_ref())? {
-                        State::Normal => {
-                            continue;
-                        },
-                        State::Break => {
-                            return Ok(State::Normal);
-                        },
-                        State::Continue => {
-                            panic!("Unexpected state during loop");
-                        },
-                    }
-                }
+                return Ok(State::Normal);
             },
             Stmt::Break => {
                 return Ok(State::Break);
@@ -143,8 +134,48 @@ impl Interpreter
             Stmt::Continue => {
                 return Ok(State::Continue);
             },
+            Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
+            {
+                self.env.new_scope();
+                match opt_initializer.as_ref()
+                {
+                    Some(initializer) =>
+                    {
+                        self.execute(initializer)?;
+                    },
+                    None => {},
+                }
+                while is_truthy(&self.evaluate_or(opt_condition, Value::Bool(true))?)
+                {
+                    match self.execute(body)?
+                    {
+                        State::Normal | State::Continue =>
+                        {
+                            self.evaluate_or(opt_increment, Value::Bool(true))?;
+                            continue;
+                        },
+                        State::Break =>
+                        {
+                            return Ok(State::Normal);
+                        },
+                    }
+                }
+                self.env.remove_scope();
+                return Ok(State::Normal);
+            },
         }
-        Ok(State::Normal)
+    }
+
+    #[inline]
+    fn evaluate_or(&mut self, opt_expr: &Option<Expr>, or_value: Value) ->  Result<Value, LoxError> {
+        match opt_expr {
+            Some(expr) => {
+                return self.evaluate(expr);
+            },
+            None => {
+                return Ok(or_value);
+            },
+        };
     }
 
     fn evaluate(&mut self, expr: &Expr) -> Result<Value, LoxError>
