@@ -34,6 +34,7 @@ pub struct Interpreter
 
 impl Interpreter
 {
+    #[inline]
     pub fn new() -> Self
     {
         Interpreter{
@@ -41,6 +42,7 @@ impl Interpreter
         }
     }
 
+    #[inline]
     pub fn execute(&mut self, stmt: &Stmt) -> Result<State, LoxError>
     {
         match stmt
@@ -137,14 +139,11 @@ impl Interpreter
             Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
             {
                 self.env.new_scope();
-                match opt_initializer.as_ref()
-                {
-                    Some(initializer) =>
-                    {
-                        self.execute(initializer)?;
-                    },
-                    None => {},
+
+                if let Some(initializer) = opt_initializer.as_ref() {
+                    self.execute(initializer)?;
                 }
+
                 while is_truthy(&self.evaluate_or(opt_condition, Value::Bool(true))?)
                 {
                     match self.execute(body)?
@@ -160,7 +159,9 @@ impl Interpreter
                         },
                     }
                 }
+
                 self.env.remove_scope();
+
                 return Ok(State::Normal);
             },
         }
