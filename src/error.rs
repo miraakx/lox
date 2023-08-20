@@ -20,7 +20,8 @@ pub enum LoxErrorKind
     UdefinedVariable(String),
     BreakOutsideLoop,
     NotCallable,
-    WrongArity(u32, u32)
+    WrongArity(u32, u32),
+    NativeClockSysTimeError
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -60,6 +61,7 @@ impl fmt::Display for LoxError
             LoxErrorKind::BreakOutsideLoop                 => write!(f, "Found 'break' keyword outside a loop at {}",      self.position),
             LoxErrorKind::NotCallable                      => write!(f, "Not a callable expression at {}",                 self.position),
             LoxErrorKind::WrongArity(expected, found) => write!(f, "Expected {} arguments, found {}, at {}",   expected, found, self.position),
+            LoxErrorKind::NativeClockSysTimeError          => write!(f, "System time error calling clock(), at {}",        self.position),
         }
     }
 }

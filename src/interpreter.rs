@@ -1,6 +1,6 @@
 use std::{fmt::{Display, Debug}, rc::Rc, cell::RefCell};
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration}, tokens::{TokenKind, LiteralValue}, environment::Environment, error::{LoxError, LoxErrorKind}, parser_expr::Expr, native::clock};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, LoxErrorKind}, parser_expr::Expr, native::clock};
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -24,7 +24,7 @@ impl Function
         }
     }
 
-    fn call(&self,  interpreter: &Interpreter, args: &[Value]) -> Result<Value, LoxError> {
+    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: Position) -> Result<Value, LoxError> {
         match self
         {
             Function::Lox(declaration, environment) =>
@@ -43,7 +43,7 @@ impl Function
             },
             Function::Clock =>
             {
-                return clock(interpreter, args);
+                return clock(interpreter, args, position);
             },
         }
     }
@@ -481,7 +481,7 @@ impl Interpreter
                         if function.arity() != args.len() as u32 {
                             return Err(LoxError { kind: LoxErrorKind::WrongArity(function.arity(), args.len() as u32), position: token.position })
                         }
-                        return function.call(self, &args);
+                        return function.call(self, &args, token.position);
                     },
                     _ => {
                         return Err(LoxError { kind: LoxErrorKind::NotCallable, position: token.position })
