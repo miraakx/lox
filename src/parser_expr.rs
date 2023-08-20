@@ -1,4 +1,4 @@
-use crate::{tokens::{Token, Position, TokenKind, TokenSource, extract_identifier}, error::{LoxError, LoxErrorKind}};
+use crate::{tokens::{Token, Position, TokenKind, TokenSource, consume_if, consume, check}, error::{LoxError, LoxErrorKind}};
 
 #[derive(Clone, Debug)]
 pub enum Expr
@@ -9,7 +9,8 @@ pub enum Expr
     Literal(Token),
     Variable(String, Position),
     Assign(String, Box<Expr>, Position),
-    Logical(Box<Expr>, Token, Box<Expr>)
+    Logical(Box<Expr>, Token, Box<Expr>),
+    Call(Box<Expr>, Option<Vec<Expr>>, Token),
 }
 
 #[inline(always)]
@@ -21,6 +22,7 @@ pub fn expression(token_source: &mut TokenSource) -> Result<Expr,LoxError>
 fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError>
 {
     let expr = or(token_source)?;
+
     let peek_token = token_source.peek().unwrap();
     //Copy position to evade borrow checker
     let position = peek_token.position;
@@ -141,7 +143,7 @@ fn term(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::EOF => {
                 return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, peek_token.position));
             },
-            TokenKind::Minus|TokenKind::Plus => {
+            TokenKind::Minus | TokenKind::Plus => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = factor(token_source)?;
                 expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
@@ -187,8 +189,35 @@ fn unary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             Ok(Expr::Unary(operator, Box::new(right)))
         },
         _ => {
-            primary(token_source)
+            call(token_source)
         }
+    }
+}
+
+fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
+{
+    let mut expr = primary(token_source)?;
+    loop {
+        if !check(token_source, TokenKind::LeftParen) {
+            return Ok(expr);
+        }
+        let left_paren = token_source.next().unwrap();
+        if consume_if(token_source, TokenKind::RightParen) {
+            expr = Expr::Call(Box::new(expr), None, left_paren);
+            continue;
+        }
+        let mut args: Vec<Expr> = Vec::new();
+        loop {
+            args.push(expression(token_source)?);
+            if !consume_if(token_source, TokenKind::Comma) {
+               break;
+            }
+        }
+        consume(token_source, TokenKind::RightParen)?;
+        if args.len() >= 255 {
+            todo!("Segnalare errore se più di 255 argomenti");
+        }
+        expr = Expr::Call(Box::new(expr), Some(args), left_paren);
     }
 }
 
@@ -205,7 +234,7 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             Ok(Expr::Literal(token_source.next().unwrap()))
         },
         TokenKind::Identifier => {
-            let val = extract_identifier(token_source.next().unwrap());
+            let val = token_source.next().unwrap().get_identifier().unwrap();
             Ok(Expr::Variable(val.0, val.1))
         },
         TokenKind::LeftParen => {

@@ -1,7 +1,7 @@
 
 use std::{fmt, rc::Rc};
 
-use crate::common::Peekable;
+use crate::{common::Peekable, error::{LoxErrorKind, LoxError}};
 
 pub const SPACE:           char = ' ';
 pub const TAB:             char = '\t';
@@ -83,6 +83,20 @@ pub struct Token
     pub value:    Option<LiteralValue>,
     pub position: Position,
     pub length:   u32,
+}
+
+impl Token {
+    #[inline]
+    pub fn get_identifier(&self) -> Option<(String, Position)>
+    {
+        if self.value.is_none() {
+           return None;
+        }
+        if let LiteralValue::Identifier(identifier) = self.value.clone().unwrap() {
+            return Some((identifier, self.position));
+        }
+        return None;
+    }
 }
 
 pub type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
@@ -174,21 +188,40 @@ fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
     }
 }
 
-#[inline]
-pub fn extract_identifier(token: Token) -> (String, Position)
+#[inline(always)]
+pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<Token,LoxError>
 {
-    if let Some(value) = token.value {
-        match value
-        {
-            crate::tokens::LiteralValue::Identifier(identifier) => {
-                return (identifier, token.position);
-            },
-            _ => {
-                panic!();
-            }
-        }
-
+    let token = token_source.next().unwrap();
+    if token_kind == token.kind {
+        Ok(token)
+    } else if token.kind == TokenKind::EOF {
+        Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position))
     } else {
-        panic!();
+        Err(LoxError::new(LoxErrorKind::ExpectedToken(token_kind), token.position))
+    }
+}
+
+#[inline(always)]
+pub fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
+    token_source.peek().unwrap().kind == token_kind
+}
+
+#[inline(always)]
+pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
+    let token = token_source.peek().unwrap();
+    if token_kind == token.kind {
+        token_source.consume();
+        return true;
+    }
+    return false;
+}
+
+#[inline(always)]
+pub fn check_end_of_file(token_source: &mut TokenSource) -> Result<(),LoxError> {
+    let peek = token_source.peek().unwrap();
+    if peek.kind == TokenKind::EOF {
+        Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, peek.position))
+    } else {
+        Ok(())
     }
 }

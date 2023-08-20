@@ -17,10 +17,11 @@ mod parser_stmt;
 mod parser_expr;
 mod tokens;
 mod environment;
+mod native;
 
 fn main()
 {
-   let code = "for(var i=0; i<20; i=i+1) { print i; if(i>5) {break;}  } print \"goodbye\";";
+   let code = "fun ciao(name) { return \"ciao \" + name ; } print ciao(\"mondo\"); ";
    run(code);
 }
 

@@ -19,6 +19,8 @@ pub enum LoxErrorKind
     ExpectedToken(TokenKind),
     UdefinedVariable(String),
     BreakOutsideLoop,
+    NotCallable,
+    WrongArity(u32, u32)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -56,6 +58,8 @@ impl fmt::Display for LoxError
             LoxErrorKind::ExpectedToken(kind)  => write!(f, "Expected token '{:?}' at {}",              kind,  self.position),
             LoxErrorKind::UdefinedVariable(name)  => write!(f, "Undefined variable '{}' at {}",            name,  self.position),
             LoxErrorKind::BreakOutsideLoop                 => write!(f, "Found 'break' keyword outside a loop at {}",      self.position),
+            LoxErrorKind::NotCallable                      => write!(f, "Not a callable expression at {}",                 self.position),
+            LoxErrorKind::WrongArity(expected, found) => write!(f, "Expected {} arguments, found {}, at {}",   expected, found, self.position),
         }
     }
 }

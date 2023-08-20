@@ -1,11 +1,54 @@
-use std::{fmt::Display, rc::Rc};
+use std::{fmt::{Display, Debug}, rc::Rc, cell::RefCell};
 
-use crate::{parser_stmt::Stmt, tokens::TokenKind, environment::Environment, error::LoxError, parser_expr::Expr};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration}, tokens::{TokenKind, LiteralValue}, environment::Environment, error::{LoxError, LoxErrorKind}, parser_expr::Expr, native::clock};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Value {
-    String(Rc<String>), Number(f64), Bool(bool), Nil
+    String(Rc<String>), Number(f64), Bool(bool), Nil, Callable(Rc<Function>)
 }
+
+#[derive(Clone, Debug)]
+pub enum Function {
+    Lox(Rc<FunctionDeclaration>, Rc<RefCell<Environment>>),
+    Clock
+}
+
+impl Function
+{
+    fn arity(&self) -> u32 {
+        match self {
+            Function::Lox(declaration, _) => {
+                declaration.parameters.len() as u32
+            },
+            Function::Clock => 0,
+        }
+    }
+
+    fn call(&self,  interpreter: &Interpreter, args: &[Value]) -> Result<Value, LoxError> {
+        match self
+        {
+            Function::Lox(declaration, environment) =>
+            {
+                let mut env = Environment::from(&environment.borrow());
+                for (index, param) in declaration.parameters.iter().enumerate()
+                {
+                    env.define(param.get_identifier().unwrap().0, args.get(index).unwrap().clone());
+                }
+                let mut local_interpreter = Interpreter::from(Rc::new(RefCell::new(env)));
+                let state = local_interpreter.execute(&declaration.body)?;
+                match state {
+                    State::Return(value) => Ok(value),
+                    _                           => Ok(Value::Nil)
+                }
+            },
+            Function::Clock =>
+            {
+                return clock(interpreter, args);
+            },
+        }
+    }
+}
+
 
 impl Display for Value
 {
@@ -17,6 +60,7 @@ impl Display for Value
             Value::Number(num) => { write!(f, "{}", num ) },
             Value::Bool(bool) => { write!(f, "{}", bool) },
             Value::Nil => { write!(f, "nil") },
+            Value::Callable(_) => { write!(f, "callable()") },
         }
     }
 }
@@ -25,11 +69,12 @@ pub enum State {
     Normal,
     Break,
     Continue,
+    Return(Value)
 }
 
 pub struct Interpreter
 {
-    env: Environment
+    env: Rc<RefCell<Environment>>
 }
 
 impl Interpreter
@@ -37,8 +82,18 @@ impl Interpreter
     #[inline]
     pub fn new() -> Self
     {
-        Interpreter{
-            env: Environment::new()
+        let mut env = Environment::new();
+        env.define("clock".to_owned(), Value::Callable(Rc::new(Function::Clock)));
+        Interpreter {
+            env: Rc::new(RefCell::new(env))
+        }
+    }
+
+    #[inline]
+    pub fn from(environment: Rc<RefCell<Environment>>) -> Self
+    {
+        Interpreter {
+            env: environment
         }
     }
 
@@ -65,21 +120,22 @@ impl Interpreter
                     Some(expr) =>
                     {
                         let value = self.evaluate(expr)?;
-                        self.env.define(variable.to_owned(), value);
+                        self.env.borrow_mut().define(variable.to_owned(), value);
                     },
                     None =>
                     {
-                        self.env.define(variable.to_owned(), Value::Nil);
+                        self.env.borrow_mut().define(variable.to_owned(), Value::Nil);
                     },
                 }
                 return Ok(State::Normal);
             }
             Stmt::Block(statements) =>
             {
-                self.env.new_scope();
+                self.env.borrow_mut().new_scope();
                 for stmt in statements
                 {
-                    match self.execute(stmt)? {
+                    let state = self.execute(stmt)?;
+                    match state {
                         State::Normal => {
                             continue;
                         },
@@ -89,9 +145,10 @@ impl Interpreter
                         State::Continue => {
                             return Ok(State::Continue);
                         },
+                        State::Return(_) => return Ok(state),
                     };
                 }
-                self.env.remove_scope();
+                self.env.borrow_mut().remove_scope();
                 return Ok(State::Normal);
             },
             Stmt::If(condition, then_stmt) =>
@@ -116,7 +173,8 @@ impl Interpreter
             {
                 while is_truthy(&self.evaluate(condition)?)
                 {
-                    match self.execute(body.as_ref())?
+                    let state = self.execute(body.as_ref())?;
+                    match state
                     {
                         State::Normal  | State::Continue =>
                         {
@@ -126,6 +184,7 @@ impl Interpreter
                         {
                             break;
                         },
+                        State::Return(_) => return Ok(state),
                     }
                 }
                 return Ok(State::Normal);
@@ -138,7 +197,7 @@ impl Interpreter
             },
             Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
             {
-                self.env.new_scope();
+                self.env.borrow_mut().new_scope();
 
                 if let Some(initializer) = opt_initializer.as_ref() {
                     self.execute(initializer)?;
@@ -146,7 +205,8 @@ impl Interpreter
 
                 while is_truthy(&self.evaluate_or(opt_condition, Value::Bool(true))?)
                 {
-                    match self.execute(body)?
+                    let state = self.execute(body)?;
+                    match state
                     {
                         State::Normal | State::Continue =>
                         {
@@ -157,12 +217,32 @@ impl Interpreter
                         {
                             break;
                         },
+                        State::Return(_) => return Ok(state),
                     }
                 }
 
-                self.env.remove_scope();
+                self.env.borrow_mut().remove_scope();
 
                 return Ok(State::Normal);
+            },
+            Stmt::Function(declaration) => {
+                let function = Function::Lox(declaration.clone(), self.env.clone());
+                self.env
+                    .as_ref()
+                    .borrow_mut()
+                    .define(
+                        declaration.name.get_identifier().unwrap().0,
+                        Value::Callable(Rc::new(function))
+                    );
+                return Ok(State::Normal);
+            },
+            Stmt::Return(_, opt_expr) => {
+                let value = if let Some(expr) = opt_expr {
+                    self.evaluate(expr)?
+                } else {
+                    Value::Nil
+                };
+                return Ok(State::Return(value));
             },
         }
     }
@@ -186,23 +266,23 @@ impl Interpreter
             {
                 if let Some(value) = &token.value {
                     match value {
-                        crate::tokens::LiteralValue::String(val) =>
+                        LiteralValue::String(val) =>
                         {
                             return Ok(Value::String(val.clone()));
                         }
-                        crate::tokens::LiteralValue::Number(val) =>
+                        LiteralValue::Number(val) =>
                         {
                             return Ok(Value::Number(*val));
                         },
-                        crate::tokens::LiteralValue::Bool(val) =>
+                        LiteralValue::Bool(val) =>
                         {
                             return Ok(Value::Bool(*val));
                         },
-                        crate::tokens::LiteralValue::Nil =>
+                        LiteralValue::Nil =>
                         {
                             return Ok(Value::Nil);
                         },
-                        crate::tokens::LiteralValue::Identifier(_) =>
+                        LiteralValue::Identifier(_) =>
                         {
                             panic!("unexpected state");
                         },
@@ -355,12 +435,12 @@ impl Interpreter
             }
             Expr::Variable(variable, position) =>
             {
-                self.env.get(&variable, *position)
+                self.env.borrow().get(&variable, *position)
             },
             Expr::Assign(name, expr, pos) =>
             {
                 let value: Value = self.evaluate(expr.as_ref())?;
-                let result: Value = self.env.assign(name.to_owned(), value, *pos)?;
+                let result: Value = self.env.borrow_mut().assign(name.to_owned(), value, *pos)?;
                 return Ok(result);
             },
             Expr::Logical(left, token, right) => {
@@ -382,6 +462,29 @@ impl Interpreter
                     },
                     _ => {
                         panic!("invalid operator type for logical expression!");
+                    }
+                }
+            },
+            Expr::Call(callee_expr, opt_args_expr, token) => {
+                let callee = self.evaluate(callee_expr)?;
+                let mut args: Vec<Value>;
+                if let Some(args_expr) = opt_args_expr {
+                    args = Vec::with_capacity(args_expr.len());
+                    for arg_expr in args_expr {
+                        args.push(self.evaluate(arg_expr)?);
+                    }
+                } else {
+                    args = vec!();
+                }
+                match callee {
+                    Value::Callable(function) => {
+                        if function.arity() != args.len() as u32 {
+                            return Err(LoxError { kind: LoxErrorKind::WrongArity(function.arity(), args.len() as u32), position: token.position })
+                        }
+                        return function.call(self, &args);
+                    },
+                    _ => {
+                        return Err(LoxError { kind: LoxErrorKind::NotCallable, position: token.position })
                     }
                 }
             },
@@ -412,5 +515,6 @@ fn is_truthy(value: &Value) -> bool
         Value::Number(_)           => true,
         Value::Bool(boolean) => *boolean,
         Value::Nil                 => false,
+        Value::Callable(_)         => true,
     }
 }
