@@ -1,4 +1,4 @@
-use std::{fmt::{Display, Debug}, rc::Rc, cell::RefCell};
+use std::{fmt::{Display, Debug}, rc::Rc, cell::RefCell, collections::HashMap};
 
 use crate::{parser_stmt::{Stmt, FunctionDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, LoxErrorKind}, parser_expr::Expr, native::clock};
 
@@ -74,7 +74,8 @@ pub enum State {
 
 pub struct Interpreter
 {
-    env: Rc<RefCell<Environment>>
+    env: Rc<RefCell<Environment>>,
+  //  locals: HashMap<>
 }
 
 impl Interpreter
@@ -95,6 +96,10 @@ impl Interpreter
         Interpreter {
             env: environment
         }
+    }
+
+    pub fn resolve(expr: &Expr, depth: u32) {
+
     }
 
     #[inline]
