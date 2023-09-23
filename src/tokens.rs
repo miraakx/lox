@@ -85,17 +85,26 @@ pub struct Token
     pub length:   u32,
 }
 
-impl Token {
+impl Token
+{
     #[inline]
-    pub fn get_identifier(&self) -> Option<(String, Position)>
+    pub fn get_identifier(&self) -> String
     {
-        if self.value.is_none() {
-           return None;
+        if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
+            return identifier.clone();
+        } else {
+            panic!("Internal error identifier not found inside token");
         }
-        if let LiteralValue::Identifier(identifier) = self.value.clone().unwrap() {
-            return Some((identifier, self.position));
+    }
+
+    #[inline]
+    pub fn get_identifier_and_position(&self) -> (String, Position)
+    {
+        if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
+            return (identifier.clone(), self.position);
+        } else {
+            panic!("Internal error identifier not found inside token");
         }
-        return None;
     }
 }
 

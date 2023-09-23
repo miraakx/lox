@@ -94,11 +94,11 @@ impl Parser {
         if consume_if(token_source, TokenKind::Equal) {
             let expr: Expr = expression(token_source)?;
             consume(token_source, TokenKind::Semicolon)?;
-            let val = identifier.get_identifier().unwrap();
+            let val = identifier.get_identifier_and_position();
             return Ok(Stmt::Var(val.0, val.1, Some(expr)));
         } else {
             consume(token_source, TokenKind::Semicolon)?;
-            let val = identifier.get_identifier().unwrap();
+            let val = identifier.get_identifier_and_position();
             return Ok(Stmt::Var(val.0, val.1, None));
         }
     }

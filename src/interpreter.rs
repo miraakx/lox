@@ -32,7 +32,7 @@ impl Function
                 let mut env = Environment::from(&environment.borrow());
                 for (index, param) in declaration.parameters.iter().enumerate()
                 {
-                    env.define(param.get_identifier().unwrap().0, args.get(index).unwrap().clone());
+                    env.define(param.get_identifier(), args.get(index).unwrap().clone());
                 }
                 let mut local_interpreter = Interpreter::from(Rc::new(RefCell::new(env)));
                 let state = local_interpreter.execute(&declaration.body)?;
@@ -231,7 +231,7 @@ impl Interpreter
                     .as_ref()
                     .borrow_mut()
                     .define(
-                        declaration.name.get_identifier().unwrap().0,
+                        declaration.name.get_identifier(),
                         Value::Callable(Rc::new(function))
                     );
                 return Ok(State::Normal);
@@ -498,10 +498,10 @@ fn is_equal(val_left: Value, val_right: Value) -> bool
 {
     match (val_left, val_right)
     {
-        (Value::Bool(left),     Value::Bool(right))             => left == right,
-        (Value::Number(left),    Value::Number(right))            => left == right,
+        (Value::Bool(left),         Value::Bool(right))         => left == right,
+        (Value::Number(left),        Value::Number(right))        => left == right,
         (Value::String(left), Value::String(right)) => left == right,
-        (Value::Nil,                  Value::Nil)                           => true,
+        (Value::Nil,                      Value::Nil)                       => true,
         _                                                                   => false
     }
 }

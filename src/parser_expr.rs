@@ -234,7 +234,7 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             Ok(Expr::Literal(token_source.next().unwrap()))
         },
         TokenKind::Identifier => {
-            let val = token_source.next().unwrap().get_identifier().unwrap();
+            let val = token_source.next().unwrap().get_identifier_and_position();
             Ok(Expr::Variable(val.0, val.1))
         },
         TokenKind::LeftParen => {

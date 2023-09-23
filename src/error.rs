@@ -21,7 +21,8 @@ pub enum LoxErrorKind
     BreakOutsideLoop,
     NotCallable,
     WrongArity(u32, u32),
-    NativeClockSysTimeError
+    NativeClockSysTimeError,
+    ResolverLocalVariableNotFound(String)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -62,6 +63,7 @@ impl fmt::Display for LoxError
             LoxErrorKind::NotCallable                      => write!(f, "Not a callable expression at {}",                 self.position),
             LoxErrorKind::WrongArity(expected, found) => write!(f, "Expected {} arguments, found {}, at {}",   expected, found, self.position),
             LoxErrorKind::NativeClockSysTimeError          => write!(f, "System time error calling clock(), at {}",        self.position),
+            LoxErrorKind::ResolverLocalVariableNotFound(name) => write!(f, "Can't read local variable {} in its own initializer, at {}", name, self.position),
         }
     }
 }

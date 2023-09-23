@@ -1,4 +1,4 @@
-use std::str::Chars;
+use std::{str::Chars, slice::Iter};
 
 struct CircularBuffer<T: Clone>
 {
@@ -274,6 +274,54 @@ impl <'a> Scanner<'a>
         self.index
     }
 }
+
+pub struct Stack<T> {
+    vec: Vec<T>
+}
+
+impl <T> Stack<T>
+{
+    #[inline]
+    pub fn new() -> Self {
+        Stack { vec: Vec::new() }
+    }
+
+    #[inline]
+    pub fn push(&mut self, value: T) {
+        self.vec.push(value);
+    }
+
+    #[inline]
+    pub fn pop(&mut self) -> Option<T> {
+        self.vec.pop()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+
+    pub fn peek_mut(&mut self) -> Option<&mut T> {
+        let len = self.vec.len();
+        if len == 0 {
+            return None;
+        }
+        Some(&mut self.vec[len-1])
+    }
+
+    pub fn peek(&self) -> Option<&T> {
+        let len = self.vec.len();
+        if len == 0 {
+            return None;
+        }
+        Some(&self.vec[len-1])
+    }
+
+    pub fn iter(&self) -> Iter<T> {
+        return self.vec.iter();
+    }
+}
+
 
 #[test]
 fn test_circular_buffer()

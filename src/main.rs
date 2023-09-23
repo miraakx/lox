@@ -18,10 +18,12 @@ mod parser_expr;
 mod tokens;
 mod environment;
 mod native;
+mod resolver;
 
 fn main()
 {
-   let code = "fun ciao(name) { return \"ciao \" + name ; } print ciao(\"mondo\"); ";
+   //let code = "fun ciao() { return \"ciao\"; } fun stampa(fn) { print fn(); } stampa(ciao);";
+   let code = "var a = \"global\"; { fun showA() {print a;} showA(); var a = \"block\"; showA(); }";
    run(code);
 }
 
