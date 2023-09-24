@@ -1,6 +1,6 @@
 use std::{fmt::{Display, Debug}, rc::Rc, cell::RefCell, collections::HashMap};
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, LoxErrorKind}, parser_expr::Expr, native::clock};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, LoxErrorKind}, parser_expr::{Expr, ExprKind}, native::clock};
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -75,7 +75,7 @@ pub enum State {
 pub struct Interpreter
 {
     env: Rc<RefCell<Environment>>,
-  //  locals: HashMap<>
+    locals: HashMap<i64, usize>
 }
 
 impl Interpreter
@@ -86,7 +86,8 @@ impl Interpreter
         let mut env = Environment::new();
         env.define("clock".to_owned(), Value::Callable(Rc::new(Function::Clock)));
         Interpreter {
-            env: Rc::new(RefCell::new(env))
+            env: Rc::new(RefCell::new(env)),
+            locals: HashMap::new()
         }
     }
 
@@ -94,12 +95,13 @@ impl Interpreter
     pub fn from(environment: Rc<RefCell<Environment>>) -> Self
     {
         Interpreter {
-            env: environment
+            env: environment,
+            locals: HashMap::new()
         }
     }
 
-    pub fn resolve(expr: &Expr, depth: u32) {
-
+    pub fn resolve(&mut self, expr_id: i64, depth: usize) {
+        self.locals.insert(expr_id, depth);
     }
 
     #[inline]
@@ -266,8 +268,8 @@ impl Interpreter
 
     fn evaluate(&mut self, expr: &Expr) -> Result<Value, LoxError>
     {
-        match expr {
-            Expr::Literal(token) =>
+        match &expr.kind {
+            ExprKind::Literal( token) =>
             {
                 if let Some(value) = &token.value {
                     match value {
@@ -296,7 +298,7 @@ impl Interpreter
                     panic!("unsupported token!");
                 }
             },
-            Expr::Unary(token, right) =>
+            ExprKind::Unary(token, right) =>
             {
                 let val_right: Value = self.evaluate(right.as_ref())?;
                 match token.kind
@@ -323,11 +325,11 @@ impl Interpreter
                     }
                 }
             },
-            Expr::Grouping(expr) =>
+            ExprKind::Grouping(expr) =>
             {
                 self.evaluate(expr.as_ref())
             },
-            Expr::Binary(left, token, right) =>
+            ExprKind::Binary(left, token, right) =>
             {
                 let val_left:  Value = self.evaluate(left.as_ref())?;
                 let val_right: Value = self.evaluate(right.as_ref())?;
@@ -438,17 +440,17 @@ impl Interpreter
                     }
                 }
             }
-            Expr::Variable(variable, position) =>
+            ExprKind::Variable(variable, position) =>
             {
                 self.env.borrow().get(&variable, *position)
             },
-            Expr::Assign(name, expr, pos) =>
+            ExprKind::Assign(name, expr, pos) =>
             {
                 let value: Value = self.evaluate(expr.as_ref())?;
                 let result: Value = self.env.borrow_mut().assign(name.to_owned(), value, *pos)?;
                 return Ok(result);
             },
-            Expr::Logical(left, token, right) => {
+            ExprKind::Logical(left, token, right) => {
                 let val_left:  Value = self.evaluate(left.as_ref())?;
                 match token.kind {
                     TokenKind::Or => {
@@ -470,7 +472,7 @@ impl Interpreter
                     }
                 }
             },
-            Expr::Call(callee_expr, opt_args_expr, token) => {
+            ExprKind::Call(callee_expr, opt_args_expr, token) => {
                 let callee = self.evaluate(callee_expr)?;
                 let mut args: Vec<Value>;
                 if let Some(args_expr) = opt_args_expr {

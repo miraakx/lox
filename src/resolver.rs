@@ -1,18 +1,19 @@
 use std::collections::HashMap;
 
-use crate::{parser_stmt::Stmt, parser_expr::Expr, common::Stack, error::LoxError};
+use crate::{parser_stmt::Stmt, parser_expr::{Expr, ExprKind}, common::Stack, error::LoxError, interpreter::Interpreter};
 
-struct Resolver {
+pub struct Resolver<'a> {
+    interpreter: &'a mut Interpreter,
     stack: Stack<HashMap<String, bool>>
 }
 
-impl Resolver
+impl <'a> Resolver<'a>
 {
-    fn new() -> Self {
-        Resolver { stack: Stack::new() }
+    pub fn new(interpreter: &'a mut Interpreter) -> Self {
+        Resolver { stack: Stack::new(), interpreter }
     }
 
-    fn resolve(&mut self, stmt: &Stmt)
+    pub fn resolve(&mut self, stmt: &Stmt)
     {
         match stmt
         {
@@ -90,28 +91,28 @@ impl Resolver
         }
     }
 
-    fn resolve_expr(&self, expr: &Expr)
+    fn resolve_expr(&mut self, expr: &Expr)
     {
-        match expr
+        match &expr.kind
         {
-            Expr::Binary(expr_left, _, expr_right) =>
+            ExprKind::Binary(expr_left, _, expr_right) =>
             {
                 self.resolve_expr(expr_left);
                 self.resolve_expr(expr_right);
             },
-            Expr::Grouping(expr) =>
+            ExprKind::Grouping(expr) =>
             {
                 self.resolve_expr(expr);
             },
-            Expr::Unary(_, expr) =>
+            ExprKind::Unary(_, expr) =>
             {
                 self.resolve_expr(expr);
             },
-            Expr::Literal(_) =>
+            ExprKind::Literal(_) =>
             {
                 /*do nothing*/
             },
-            Expr::Variable(name, pos) =>
+            ExprKind::Variable(name, pos) =>
             {
                 if !self.stack.is_empty() {
                     let opt_bool =self.stack.peek().unwrap().get(name);
@@ -121,17 +122,17 @@ impl Resolver
                 }
                 self.resolve_local(expr, name);
             },
-            Expr::Assign(name, expr, _) =>
+            ExprKind::Assign(name, expr, _) =>
             {
                 self.resolve_expr(expr);
                 self.resolve_local(expr, name);
             },
-            Expr::Logical(expr_left, _, expr_right) =>
+            ExprKind::Logical(expr_left, _, expr_right) =>
             {
                 self.resolve_expr(expr_left);
                 self.resolve_expr(expr_right);
             },
-            Expr::Call(expr, opt_args, _) =>
+            ExprKind::Call(expr, opt_args, _) =>
             {
                 self.resolve_expr(expr);
                 if let Some(args) = opt_args {
@@ -177,12 +178,11 @@ impl Resolver
         }
     }
 
-    fn resolve_local(&self, expr: &Expr, name: &String)
+    fn resolve_local(&mut self, expr: &Expr, name: &String)
     {
-        for scope in self.stack.iter().rev() {
+        for (index, scope) in self.stack.iter().enumerate().rev() {
             if scope.contains_key(name) {
-                todo!();
-                return;
+                self.interpreter.resolve(expr.id, self.stack.len() - 1 - index);
             }
         }
     }

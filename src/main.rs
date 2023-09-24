@@ -8,6 +8,7 @@ use std::io;
 use interpreter::Interpreter;
 use lexer::Lexer;
 use parser_stmt::Parser;
+use resolver::Resolver;
 
 mod common;
 mod error;
@@ -73,6 +74,8 @@ fn run(code: &str)
    {
       Ok(stmt) => {
          let mut interpreter = Interpreter::new();
+         let mut resolver: Resolver = Resolver::new(&mut interpreter);
+         resolver.resolve(&stmt);
          let result = interpreter.execute(&stmt);
          match result
          {

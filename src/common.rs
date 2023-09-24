@@ -320,6 +320,10 @@ impl <T> Stack<T>
     pub fn iter(&self) -> Iter<T> {
         return self.vec.iter();
     }
+
+    pub fn len(&self) -> usize {
+        self.vec.len()
+    }
 }
 
 
