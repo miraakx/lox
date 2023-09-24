@@ -13,7 +13,13 @@ impl <'a> Resolver<'a>
         Resolver { stack: Stack::new(), interpreter }
     }
 
-    pub fn resolve(&mut self, stmt: &Stmt)
+    pub fn resolve(&mut self, stmts: &[Stmt]) {
+        for stmt in stmts {
+            self.resolve_stmt(stmt);
+        }
+    }
+
+    pub fn resolve_stmt(&mut self, stmt: &Stmt)
     {
         match stmt
         {
@@ -42,23 +48,23 @@ impl <'a> Resolver<'a>
             Stmt::If(expr, then_stmt) =>
             {
                 self.resolve_expr(expr);
-                self.resolve(then_stmt);
+                self.resolve_stmt(then_stmt);
             },
             Stmt::IfElse(expr, then_stmt, else_stmt) =>
             {
                 self.resolve_expr(expr);
-                self.resolve(&then_stmt);
-                self.resolve(&else_stmt);
+                self.resolve_stmt(&then_stmt);
+                self.resolve_stmt(&else_stmt);
             },
             Stmt::While(condition, body) =>
             {
                 self.resolve_expr(condition);
-                self.resolve(body);
+                self.resolve_stmt(body);
             },
             Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
             {
                 if let Some(initializer) = opt_initializer.as_ref() {
-                    self.resolve(initializer);
+                    self.resolve_stmt(initializer);
                 }
                 if let Some(condition) = opt_condition {
                     self.resolve_expr(condition);
@@ -66,7 +72,7 @@ impl <'a> Resolver<'a>
                 if let Some(increment) = opt_increment {
                     self.resolve_expr(increment);
                 }
-                self.resolve(body);
+                self.resolve_stmt(body);
             },
             Stmt::Break     => { /*do nothing*/ },
             Stmt::Continue  => { /*do nothing*/ },
@@ -80,7 +86,7 @@ impl <'a> Resolver<'a>
                     self.declare(&param.get_identifier());
                     self.define(&param.get_identifier());
                 }
-                self.resolve(&func_decl.body);
+                self.resolve_stmt(&func_decl.body);
             },
             Stmt::Return(_, opt_expr) =>
             {
@@ -147,7 +153,7 @@ impl <'a> Resolver<'a>
     fn resolve_block(&mut self, stmt_list: &Vec<Stmt>)
     {
         for stmt in stmt_list {
-            self.resolve(stmt);
+            self.resolve_stmt(stmt);
         }
     }
 
@@ -182,7 +188,7 @@ impl <'a> Resolver<'a>
     {
         for (index, scope) in self.stack.iter().enumerate().rev() {
             if scope.contains_key(name) {
-                self.interpreter.resolve(expr.id, self.stack.len() - 1 - index);
+                self.interpreter.resolve(expr.id, index);
             }
         }
     }

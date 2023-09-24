@@ -1,4 +1,4 @@
-use std::{fmt::{Display, Debug}, rc::Rc, cell::RefCell, collections::HashMap};
+use std::{fmt::{Display, Debug}, rc::Rc, cell::RefCell};
 
 use crate::{parser_stmt::{Stmt, FunctionDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, LoxErrorKind}, parser_expr::{Expr, ExprKind}, native::clock};
 
@@ -32,10 +32,10 @@ impl Function
                 let mut env = Environment::from(&environment.borrow());
                 for (index, param) in declaration.parameters.iter().enumerate()
                 {
-                    env.define(param.get_identifier(), args.get(index).unwrap().clone());
+                    env.define_variable(param.get_identifier(), args.get(index).unwrap().clone());
                 }
                 let mut local_interpreter = Interpreter::from(Rc::new(RefCell::new(env)));
-                let state = local_interpreter.execute(&declaration.body)?;
+                let state = local_interpreter.execute_stmt(&declaration.body)?;
                 match state {
                     State::Return(value) => Ok(value),
                     _                           => Ok(Value::Nil)
@@ -74,8 +74,7 @@ pub enum State {
 
 pub struct Interpreter
 {
-    env: Rc<RefCell<Environment>>,
-    locals: HashMap<i64, usize>
+    env: Rc<RefCell<Environment>>
 }
 
 impl Interpreter
@@ -84,10 +83,9 @@ impl Interpreter
     pub fn new() -> Self
     {
         let mut env = Environment::new();
-        env.define("clock".to_owned(), Value::Callable(Rc::new(Function::Clock)));
+        env.define_variable("clock".to_owned(), Value::Callable(Rc::new(Function::Clock)));
         Interpreter {
-            env: Rc::new(RefCell::new(env)),
-            locals: HashMap::new()
+            env: Rc::new(RefCell::new(env))
         }
     }
 
@@ -95,17 +93,35 @@ impl Interpreter
     pub fn from(environment: Rc<RefCell<Environment>>) -> Self
     {
         Interpreter {
-            env: environment,
-            locals: HashMap::new()
+            env: environment
         }
     }
 
+    #[inline]
     pub fn resolve(&mut self, expr_id: i64, depth: usize) {
-        self.locals.insert(expr_id, depth);
+        self.env.borrow_mut().insert_into_side_table(expr_id, depth);
     }
 
     #[inline]
-    pub fn execute(&mut self, stmt: &Stmt) -> Result<State, LoxError>
+    pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
+    {
+        for stmt in stmts
+        {
+            let result = self.execute_stmt(stmt);
+            match result
+            {
+                Ok(_) => {}
+                Err(err) => {
+                    println!("{}", err);
+                    return Err(());
+                },
+            }
+        }
+        Ok(())
+    }
+
+    #[inline]
+    pub fn execute_stmt(&mut self, stmt: &Stmt) -> Result<State, LoxError>
     {
         match stmt
         {
@@ -127,21 +143,21 @@ impl Interpreter
                     Some(expr) =>
                     {
                         let value = self.evaluate(expr)?;
-                        self.env.borrow_mut().define(variable.to_owned(), value);
+                        self.env.borrow_mut().define_variable(variable.to_owned(), value);
                     },
                     None =>
                     {
-                        self.env.borrow_mut().define(variable.to_owned(), Value::Nil);
+                        self.env.borrow_mut().define_variable(variable.to_owned(), Value::Nil);
                     },
                 }
                 return Ok(State::Normal);
             }
             Stmt::Block(statements) =>
             {
-                self.env.borrow_mut().new_scope();
+                self.env.borrow_mut().new_local_scope();
                 for stmt in statements
                 {
-                    let state = self.execute(stmt)?;
+                    let state = self.execute_stmt(stmt)?;
                     match state {
                         State::Normal => {
                             continue;
@@ -155,14 +171,14 @@ impl Interpreter
                         State::Return(_) => return Ok(state),
                     };
                 }
-                self.env.borrow_mut().remove_scope();
+                self.env.borrow_mut().remove_loval_scope();
                 return Ok(State::Normal);
             },
             Stmt::If(condition, then_stmt) =>
             {
                 let condition_value = self.evaluate(condition)?;
                 if is_truthy(&condition_value) {
-                    return self.execute(then_stmt);
+                    return self.execute_stmt(then_stmt);
                 } else {
                     return Ok(State::Normal);
                 }
@@ -171,16 +187,16 @@ impl Interpreter
             {
                 let condition_value = self.evaluate(condition)?;
                 if is_truthy(&condition_value) {
-                    return self.execute(then_stmt);
+                    return self.execute_stmt(then_stmt);
                 } else {
-                    return self.execute(else_stmt);
+                    return self.execute_stmt(else_stmt);
                 }
             },
             Stmt::While(condition, body) =>
             {
                 while is_truthy(&self.evaluate(condition)?)
                 {
-                    let state = self.execute(body.as_ref())?;
+                    let state = self.execute_stmt(body.as_ref())?;
                     match state
                     {
                         State::Normal  | State::Continue =>
@@ -204,15 +220,15 @@ impl Interpreter
             },
             Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
             {
-                self.env.borrow_mut().new_scope();
+                self.env.borrow_mut().new_local_scope();
 
                 if let Some(initializer) = opt_initializer.as_ref() {
-                    self.execute(initializer)?;
+                    self.execute_stmt(initializer)?;
                 }
 
                 while is_truthy(&self.evaluate_or(opt_condition, Value::Bool(true))?)
                 {
-                    let state = self.execute(body)?;
+                    let state = self.execute_stmt(body)?;
                     match state
                     {
                         State::Normal | State::Continue =>
@@ -228,7 +244,7 @@ impl Interpreter
                     }
                 }
 
-                self.env.borrow_mut().remove_scope();
+                self.env.borrow_mut().remove_loval_scope();
 
                 return Ok(State::Normal);
             },
@@ -237,7 +253,7 @@ impl Interpreter
                 self.env
                     .as_ref()
                     .borrow_mut()
-                    .define(
+                    .define_variable(
                         declaration.name.get_identifier(),
                         Value::Callable(Rc::new(function))
                     );
@@ -440,15 +456,17 @@ impl Interpreter
                     }
                 }
             }
-            ExprKind::Variable(variable, position) =>
+            ExprKind::Variable(name, position) =>
             {
-                self.env.borrow().get(&variable, *position)
+                return self.env.borrow().lookup_variable(name, expr.id).ok_or(LoxError::new(LoxErrorKind::InternalErrorVariableNotFoundWhereExpected(name.to_owned()), *position));
             },
             ExprKind::Assign(name, expr, pos) =>
             {
                 let value: Value = self.evaluate(expr.as_ref())?;
-                let result: Value = self.env.borrow_mut().assign(name.to_owned(), value, *pos)?;
-                return Ok(result);
+                return self.env
+                        .borrow_mut()
+                        .assign_variable(name.to_owned(), value, expr.id)
+                        .map_err(|_| LoxError::new(LoxErrorKind::InternalErrorVariableNotFoundWhereExpected(name.to_owned()), *pos));
             },
             ExprKind::Logical(left, token, right) => {
                 let val_left:  Value = self.evaluate(left.as_ref())?;
@@ -499,6 +517,8 @@ impl Interpreter
     }
 
 }
+
+
 
 #[inline]
 fn is_equal(val_left: Value, val_right: Value) -> bool

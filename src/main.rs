@@ -69,23 +69,14 @@ fn run(code: &str)
 {
    let mut lexer = Lexer::new(code);
    let mut parser: Parser = Parser::new();
-   let r_stmt  = parser.parse(&mut lexer);
-   match r_stmt
+   let r_stmts  = parser.parse(&mut lexer);
+   match r_stmts
    {
-      Ok(stmt) => {
+      Ok(stmts) => {
          let mut interpreter = Interpreter::new();
          let mut resolver: Resolver = Resolver::new(&mut interpreter);
-         resolver.resolve(&stmt);
-         let result = interpreter.execute(&stmt);
-         match result
-         {
-            Ok(_) => {
-               //do nothing
-            },
-            Err(err) => {
-               println!("{}", err);
-            }
-         }
+         resolver.resolve(&stmts[..]);
+         let _ = interpreter.execute(&stmts[..]);
       },
       Err(err) => {
          println!("{}", err);

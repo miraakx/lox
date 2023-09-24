@@ -1,10 +1,10 @@
 use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
-use crate::{interpreter::Value, error::LoxError, tokens::Position};
+use crate::interpreter::Value;
 
 #[derive(Clone, Debug)]
 struct Scope {
-    scope: HashMap<String, Value>
+    map: HashMap<String, Value>
 }
 
 impl Scope
@@ -12,19 +12,19 @@ impl Scope
     #[inline]
     pub fn new() -> Self
     {
-        Scope { scope: HashMap::new() }
+        Scope { map: HashMap::new() }
     }
 
     #[inline]
-    pub fn define(&mut self, variable: String, var_value: Value)
+    pub fn define_variable(&mut self, variable: String, var_value: Value)
     {
-        self.scope.insert(variable, var_value);
+        self.map.insert(variable, var_value);
     }
 
     #[inline]
-    pub fn get(&self, variable: &str) -> Option<Value>
+    pub fn get_variable(&self, variable: &str) -> Option<Value>
     {
-        if let Some(value) = self.scope.get(variable)
+        if let Some(value) = self.map.get(variable)
         {
             return match value
             {
@@ -39,86 +39,125 @@ impl Scope
     }
 
     #[inline]
-    pub fn assign(&mut self, variable: String, var_value: Value, position: Position) -> Result<Value, LoxError>
+    pub fn assign_variable(&mut self, variable: String, var_value: Value) -> Result<Value, ()>
     {
-        if self.scope.contains_key(&variable)
+        if self.map.contains_key(&variable)
         {
-            self.scope.insert(variable, var_value.clone());
+            self.map.insert(variable, var_value.clone());
             return Ok(var_value);
         }
-        return Err(LoxError::new(crate::error::LoxErrorKind::UdefinedVariable(variable.to_owned()), position));
+        return Err(());
     }
 
     #[inline]
-    pub fn contains(&self, variable: &String) -> bool
+    pub fn contains_variable(&self, variable: &String) -> bool
     {
-        self.scope.contains_key(variable)
+        self.map.contains_key(variable)
     }
+
 }
 
 #[derive(Clone, Debug)]
 pub struct Environment
 {
-    scopes: Vec<Rc<RefCell<Scope>>>
+    global_scope: Rc<RefCell<Scope>>,
+    locals_scope: Vec<Rc<RefCell<Scope>>>,
+    side_table: HashMap<i64, usize>
 }
 
 impl Environment
 {
+    #[inline]
     pub fn new() -> Self
     {
-        let mut vec = Vec::new();
-        vec.push(Rc::new(RefCell::new(Scope::new())));
-        Environment { scopes: vec }
+        Environment
+        {
+            global_scope: Rc::new(RefCell::new(Scope::new())),
+            locals_scope: Vec::new(),
+            side_table: HashMap::new()
+        }
     }
 
+    #[inline]
     pub fn from(environment: &Environment) -> Self
     {
-        let mut vec = Vec::with_capacity(environment.scopes.len());
-        for scope in &environment.scopes {
-            vec.push(scope.clone());
+        environment.clone()
+    }
+
+    #[inline]
+    pub fn define_variable(&mut self, variable: String, var_value: Value)
+    {
+        let inner = self.locals_scope.last();
+        match inner {
+            Some(scope) => {
+                scope.borrow_mut().define_variable(variable, var_value);
+            },
+            None => {
+                self.global_scope.borrow_mut().define_variable(variable, var_value);
+            },
         }
-        Environment { scopes: vec }
     }
 
-    pub fn define(&mut self, variable: String, var_value: Value)
+    #[inline]
+    pub fn lookup_variable(&self, name: &String, expr_id: i64) -> Option<Value>
     {
-        let last = self.scopes.len() - 1;
-        self.scopes[last].borrow_mut().define(variable, var_value);
-    }
-
-    pub fn get(&self, variable: &str, position: Position) -> Result<Value, LoxError>
-    {
-        for scope in self.scopes.iter().rev()
-        {
-            if let Some(value) = scope.borrow().get(variable)
-            {
-                return Ok(value);
-            }
+        let opt_index = self.side_table.get(&expr_id);
+        if let Some(index) = opt_index {
+            return self.get_variable_from_local_at(*index, name);
+        } else {
+            return self.get_variable_from_global(name);
         }
-        return Err(LoxError::new(crate::error::LoxErrorKind::UdefinedVariable(variable.to_owned()), position));
     }
 
-    pub fn assign(&mut self, variable: String, var_value: Value, position: Position) -> Result<Value, LoxError>
+    pub fn assign_variable(&mut self, variable: String, var_value: Value, expr_id: i64) -> Result<Value, ()>
     {
-        for scope in self.scopes.iter_mut().rev()
-        {
-            if scope.borrow().contains(&variable)
-            {
-                scope.borrow_mut().define(variable, var_value.clone());
-                return Ok(var_value);
-            }
+        let opt_index = self.side_table.get(&expr_id);
+        if let Some(index) = opt_index {
+            return self.assign_variable_to_local_at(*index, variable, var_value);
+        } else {
+            return self.assign_variable_to_global(variable, var_value);
         }
-        return Err(LoxError::new(crate::error::LoxErrorKind::UdefinedVariable(variable.to_owned()), position));
     }
 
-    pub fn new_scope(&mut self)
+    #[inline]
+    fn get_variable_from_local_at(&self, index: usize, name: &str) -> Option<Value>
     {
-        self.scopes.push(Rc::new(RefCell::new(Scope::new())));
+        return self.locals_scope[index].borrow().get_variable(name);
     }
 
-    pub fn remove_scope(&mut self)
+    #[inline]
+    fn get_variable_from_global(&self, name: &str) -> Option<Value>
     {
-        self.scopes.pop();
+        return self.global_scope.borrow().get_variable(name);
+    }
+
+    #[inline]
+    fn assign_variable_to_local_at(&mut self, index: usize, variable: String, var_value: Value) -> Result<Value, ()>
+    {
+        return self.locals_scope[index].borrow_mut().assign_variable(variable, var_value);
+    }
+
+    #[inline]
+    fn assign_variable_to_global(&mut self, variable: String, var_value: Value) -> Result<Value, ()>
+    {
+        return self.global_scope.borrow_mut().assign_variable(variable, var_value);
+    }
+
+    #[inline]
+    pub fn new_local_scope(&mut self)
+    {
+        self.locals_scope.push(Rc::new(RefCell::new(Scope::new())));
+    }
+
+    #[inline]
+    pub fn remove_loval_scope(&mut self)
+    {
+        self.locals_scope.pop();
+    }
+
+    #[inline]
+    pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize) {
+        self.side_table.insert(expr_id, depth);
     }
 
 }

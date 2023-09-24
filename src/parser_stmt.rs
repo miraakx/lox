@@ -38,13 +38,13 @@ impl Parser {
         Parser { in_loop: 0 }
     }
 
-    pub fn parse(&mut self, token_iter: &mut dyn Iterator<Item=Token>) -> Result<Stmt, LoxError>
+    pub fn parse(&mut self, token_iter: &mut dyn Iterator<Item=Token>) -> Result<Vec<Stmt>, LoxError>
     {
         let mut token_source: &mut TokenSource = &mut Peekable::new(token_iter);
         let mut statements: Vec<Stmt> = vec!();
         loop {
             if check(&mut token_source, TokenKind::EOF) {
-                return Ok(Stmt::Block(statements));
+                return Ok(statements);
             }
             statements.push(self.declaration(token_source)?);
         }
