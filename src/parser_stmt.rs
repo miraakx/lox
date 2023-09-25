@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::error::{LoxError, LoxErrorKind, ErrorLogger};
+use crate::error::{LoxError, ParserErrorKind, ErrorLogger};
 use crate::common::Peekable;
 use crate::parser_expr::{Expr, expression};
 use crate::tokens::{Token, TokenKind, Position, TokenSource, consume, check, consume_if, check_end_of_file, is_at_end};
@@ -141,7 +141,7 @@ impl Parser {
         let token = token_source.peek().unwrap();
         match token.kind {
             TokenKind::EOF => {
-                return Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position));
+                return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position));
             },
             TokenKind::Print => {
                 token_source.consume();
@@ -171,14 +171,14 @@ impl Parser {
             },
             TokenKind::Break => {
                 if self.in_loop < 1 {
-                    return Err(LoxError { kind: LoxErrorKind::BreakOutsideLoop, position: token.position })
+                    return Err(LoxError::parser_error(ParserErrorKind::BreakOutsideLoop, token.position))
                 }
                 token_source.consume();
                 return self.break_statement(token_source);
             },
             TokenKind::Continue => {
                 if self.in_loop < 1 {
-                    return Err(LoxError { kind: LoxErrorKind::BreakOutsideLoop, position: token.position })
+                    return Err(LoxError::parser_error(ParserErrorKind::BreakOutsideLoop, token.position))
                 }
                 token_source.consume();
                 return self.continue_statement(token_source);

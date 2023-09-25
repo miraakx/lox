@@ -173,15 +173,14 @@ impl<'a> Iterator for Lexer<'a>
                         if value.is_none() {
                             self.error_logger.borrow_mut().log
                             (
-                                LoxError
-                                {
-                                    kind: LoxErrorKind::UnterminatedString,
-                                    position: Position
+                                LoxError::parser_error(
+                                     ParserErrorKind::UnterminatedString,
+                                     Position
                                     {
                                         line: self.scanner.line(),
                                         column: self.scanner.column()
                                     }
-                                }
+                                )
                             );
                             opt_token_kind = Some(TokenKind::String);
                             opt_token_value = Some(LiteralValue::String(Rc::new(string)));
@@ -218,7 +217,7 @@ impl<'a> Iterator for Lexer<'a>
                                         },
                                         _=> {
                                             string.push(ch);
-                                            self.error_logger.borrow_mut().log(LoxError { kind: LoxErrorKind::InvalidEscapeCharacter, position: Position { line: self.scanner.line(), column: self.scanner.column() }});
+                                            self.error_logger.borrow_mut().log(LoxError::parser_error(ParserErrorKind::InvalidEscapeCharacter, Position { line: self.scanner.line(), column: self.scanner.column() }));
                                         }
                                     }
                                 }
@@ -265,7 +264,7 @@ impl<'a> Iterator for Lexer<'a>
                             opt_token_value = Some(LiteralValue::Number(number));
                         }
                         Err(_) => {
-                            self.error_logger.borrow_mut().log(LoxError { kind: LoxErrorKind::ParseFloatError(number_string), position: Position { line: self.scanner.line(), column: self.scanner.column() } });
+                            self.error_logger.borrow_mut().log(LoxError::parser_error(ParserErrorKind::ParseFloatError(number_string), Position { line: self.scanner.line(), column: self.scanner.column() }));
                             opt_token_kind = Some(TokenKind::Number);
                             opt_token_value = Some(LiteralValue::Number(f64::NAN));
                         }
@@ -303,7 +302,7 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 _ =>
                 {
-                    self.error_logger.borrow_mut().log(LoxError { kind: LoxErrorKind::UnexpectedToken(ch), position: Position { line: self.scanner.line(), column: self.scanner.column() }});
+                    self.error_logger.borrow_mut().log(LoxError::parser_error(ParserErrorKind::UnexpectedToken(ch), Position { line: self.scanner.line(), column: self.scanner.column() }));
                     opt_token_kind = Some(TokenKind::UnexpectedToken);
                 }
             }

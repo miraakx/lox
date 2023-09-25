@@ -1,6 +1,6 @@
 use std::{fmt::{Display, Debug}, rc::Rc, cell::RefCell};
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, LoxErrorKind}, parser_expr::{Expr, ExprKind}, native::clock};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock};
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -328,7 +328,7 @@ impl Interpreter
                                 return Ok(Value::Number(-num));
                             },
                             _ => {
-                                panic!("unsupported unary expression!");
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidUnaryType, token.position));
                             }
                         }
                     },
@@ -337,7 +337,7 @@ impl Interpreter
                         Ok(Value::Bool(!is_truthy(&val_right)))
                     },
                     _ => {
-                        panic!("invalid token type for unary expression!");
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidUnaryType, token.position));
                     }
                 }
             },
@@ -358,7 +358,7 @@ impl Interpreter
                                 return Ok(Value::Number(num_left - num_right));
                             },
                             _ => {
-                                panic!("both expressions side are not of the same type!");
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
                             }
                         }
                     },
@@ -374,7 +374,7 @@ impl Interpreter
                                 return Ok(Value::String(Rc::new(result)));
                             },
                             _ => {
-                                panic!("both expressions side are not of the same type!");
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
                             }
                         }
                     },
@@ -385,7 +385,7 @@ impl Interpreter
                                 return Ok(Value::Number(num_left / num_right));
                             },
                             _ => {
-                                panic!("both expressions side are not of the same type!");
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
                             }
                         }
                     },
@@ -396,7 +396,7 @@ impl Interpreter
                                 return Ok(Value::Number(num_left * num_right));
                             },
                             _ => {
-                                panic!("both expressions side are not of the same type!");
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
                             }
                         }
                     },
@@ -407,7 +407,7 @@ impl Interpreter
                                 return Ok(Value::Bool(num_left > num_right));
                             },
                             _ => {
-                                panic!("both expressions side are not of the same type!");
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
                             }
                         }
                     },
@@ -418,7 +418,7 @@ impl Interpreter
                                 return Ok(Value::Bool(num_left >= num_right));
                             },
                             _ => {
-                                panic!("both expressions side are not of the same type!");
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
                             }
                         }
                     },
@@ -428,7 +428,7 @@ impl Interpreter
                                 return Ok(Value::Bool(num_left < num_right));
                             },
                             _ => {
-                                panic!("both expressions side are not of the same type!");
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
                             }
                         }
                     },
@@ -439,7 +439,7 @@ impl Interpreter
                                 return Ok(Value::Bool(num_left <= num_right));
                             },
                             _ => {
-                                panic!("both expressions side are not of the same type!");
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
                             }
                         }
                     },
@@ -452,7 +452,7 @@ impl Interpreter
                         return Ok(Value::Bool(!is_equal(val_left, val_right)));
                     },
                     _ => {
-                        panic!("invalid token type for binary expression between numbers!");
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidBinaryType, token.position));
                     }
                 }
             }
@@ -485,7 +485,7 @@ impl Interpreter
                         }
                     },
                     _ => {
-                        panic!("invalid operator type for logical expression!");
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidBinaryType, token.position));
                     }
                 }
             },
@@ -503,12 +503,12 @@ impl Interpreter
                 match callee {
                     Value::Callable(function) => {
                         if function.arity() != args.len() as u32 {
-                            return Err(LoxError { kind: LoxErrorKind::WrongArity(function.arity(), args.len() as u32), position: token.position })
+                            return Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(), args.len() as u32), token.position));
                         }
                         return function.call(self, &args, token.position);
                     },
                     _ => {
-                        return Err(LoxError { kind: LoxErrorKind::NotCallable, position: token.position })
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::NotCallable, token.position));
                     }
                 }
             },

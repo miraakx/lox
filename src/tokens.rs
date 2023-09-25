@@ -1,7 +1,7 @@
 
 use std::{fmt, rc::Rc};
 
-use crate::{common::Peekable, error::{LoxErrorKind, LoxError}};
+use crate::{common::Peekable, error::{ParserErrorKind, LoxError}};
 
 pub const SPACE:           char = ' ';
 pub const TAB:             char = '\t';
@@ -204,9 +204,9 @@ pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<
     if token_kind == token.kind {
         Ok(token)
     } else if token.kind == TokenKind::EOF {
-        Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, token.position))
+        Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
     } else {
-        Err(LoxError::new(LoxErrorKind::ExpectedToken(token_kind), token.position))
+        Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(token_kind), token.position))
     }
 }
 
@@ -234,7 +234,7 @@ pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool
 pub fn check_end_of_file(token_source: &mut TokenSource) -> Result<(),LoxError> {
     let peek = token_source.peek().unwrap();
     if peek.kind == TokenKind::EOF {
-        Err(LoxError::new(LoxErrorKind::UnexpectedEndOfFile, peek.position))
+        Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek.position))
     } else {
         Ok(())
     }

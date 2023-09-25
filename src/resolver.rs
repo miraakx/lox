@@ -123,7 +123,7 @@ impl <'a> Resolver<'a>
                 if !self.stack.is_empty() {
                     let opt_bool =self.stack.peek().unwrap().get(name);
                     if opt_bool.is_none() || *opt_bool.unwrap() == false {
-                        LoxError::new(crate::error::LoxErrorKind::ResolverLocalVariableNotFound(name.to_owned()), *pos);
+                        LoxError::resolver_error(crate::error::ResolverErrorKind::LocalVariableNotFound(name.to_owned()), *pos);
                     }
                 }
                 self.resolve_local(expr, name);
