@@ -19,7 +19,7 @@ impl <'a> Resolver<'a>
         }
     }
 
-    pub fn resolve_stmt(&mut self, stmt: &Stmt)
+    fn resolve_stmt(&mut self, stmt: &Stmt)
     {
         match stmt
         {
@@ -171,9 +171,12 @@ impl <'a> Resolver<'a>
 
     fn declare(&mut self, token: &String)
     {
-        if let Some(last) = self.stack.peek_mut()
+        if let Some(variable) = self.stack.peek_mut()
         {
-            last.insert(token.clone(), false);
+            if variable.contains_key(token) {
+                todo!()
+            }
+            variable.insert(token.clone(), false);
         }
     }
 

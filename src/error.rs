@@ -22,8 +22,7 @@ pub enum LoxErrorKind
     NotCallable,
     WrongArity(u32, u32),
     NativeClockSysTimeError,
-    ResolverLocalVariableNotFound(String),
-    InternalErrorVariableNotFoundWhereExpected(String)
+    ResolverLocalVariableNotFound(String)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -65,11 +64,20 @@ impl fmt::Display for LoxError
             LoxErrorKind::WrongArity(expected, found) => write!(f, "Expected {} arguments, found {}, at {}",   expected, found, self.position),
             LoxErrorKind::NativeClockSysTimeError          => write!(f, "System time error calling clock(), at {}",        self.position),
             LoxErrorKind::ResolverLocalVariableNotFound(name) => write!(f, "Can't read local variable {} in its own initializer, at {}", name, self.position),
-            LoxErrorKind::InternalErrorVariableNotFoundWhereExpected(name) => write!(f, "Internal error: can't read local variable {}, at {}", name, self.position),
         }
     }
 }
 
-pub fn println_handle_error(error: LoxError) {
-    println!("{}", error);
+pub trait ErrorLogger
+{
+    fn log(&mut self, error: LoxError);
+}
+
+pub struct ConsoleErrorLogger;
+
+impl ErrorLogger for ConsoleErrorLogger
+{
+    fn log(&mut self, error: LoxError) {
+        println!("{}", error);
+    }
 }

@@ -39,14 +39,14 @@ impl Scope
     }
 
     #[inline]
-    pub fn assign_variable(&mut self, variable: String, var_value: Value) -> Result<Value, ()>
+    pub fn assign_variable(&mut self, variable: String, var_value: Value) -> Value
     {
         if self.map.contains_key(&variable)
         {
             self.map.insert(variable, var_value.clone());
-            return Ok(var_value);
+            return var_value;
         }
-        return Err(());
+        panic!("Variable not found");
     }
 
     #[inline]
@@ -99,7 +99,7 @@ impl Environment
     }
 
     #[inline]
-    pub fn lookup_variable(&self, name: &String, expr_id: i64) -> Option<Value>
+    pub fn lookup_variable(&self, name: &String, expr_id: i64) -> Value
     {
         let opt_index = self.side_table.get(&expr_id);
         if let Some(index) = opt_index {
@@ -109,7 +109,7 @@ impl Environment
         }
     }
 
-    pub fn assign_variable(&mut self, variable: String, var_value: Value, expr_id: i64) -> Result<Value, ()>
+    pub fn assign_variable(&mut self, variable: String, var_value: Value, expr_id: i64) -> Value
     {
         let opt_index = self.side_table.get(&expr_id);
         if let Some(index) = opt_index {
@@ -120,25 +120,25 @@ impl Environment
     }
 
     #[inline]
-    fn get_variable_from_local_at(&self, index: usize, name: &str) -> Option<Value>
+    fn get_variable_from_local_at(&self, index: usize, name: &str) -> Value
     {
-        return self.locals_scope[index].borrow().get_variable(name);
+        return self.locals_scope[index].borrow().get_variable(name).unwrap();
     }
 
     #[inline]
-    fn get_variable_from_global(&self, name: &str) -> Option<Value>
+    fn get_variable_from_global(&self, name: &str) -> Value
     {
-        return self.global_scope.borrow().get_variable(name);
+        return self.global_scope.borrow().get_variable(name).unwrap();
     }
 
     #[inline]
-    fn assign_variable_to_local_at(&mut self, index: usize, variable: String, var_value: Value) -> Result<Value, ()>
+    fn assign_variable_to_local_at(&mut self, index: usize, variable: String, var_value: Value) -> Value
     {
         return self.locals_scope[index].borrow_mut().assign_variable(variable, var_value);
     }
 
     #[inline]
-    fn assign_variable_to_global(&mut self, variable: String, var_value: Value) -> Result<Value, ()>
+    fn assign_variable_to_global(&mut self, variable: String, var_value: Value) -> Value
     {
         return self.global_scope.borrow_mut().assign_variable(variable, var_value);
     }

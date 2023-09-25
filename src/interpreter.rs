@@ -121,7 +121,7 @@ impl Interpreter
     }
 
     #[inline]
-    pub fn execute_stmt(&mut self, stmt: &Stmt) -> Result<State, LoxError>
+    fn execute_stmt(&mut self, stmt: &Stmt) -> Result<State, LoxError>
     {
         match stmt
         {
@@ -456,17 +456,16 @@ impl Interpreter
                     }
                 }
             }
-            ExprKind::Variable(name, position) =>
+            ExprKind::Variable(name, _) =>
             {
-                return self.env.borrow().lookup_variable(name, expr.id).ok_or(LoxError::new(LoxErrorKind::InternalErrorVariableNotFoundWhereExpected(name.to_owned()), *position));
+                Ok(self.env.borrow().lookup_variable(name, expr.id))
             },
-            ExprKind::Assign(name, expr, pos) =>
+            ExprKind::Assign(name, expr, _) =>
             {
                 let value: Value = self.evaluate(expr.as_ref())?;
-                return self.env
-                        .borrow_mut()
-                        .assign_variable(name.to_owned(), value, expr.id)
-                        .map_err(|_| LoxError::new(LoxErrorKind::InternalErrorVariableNotFoundWhereExpected(name.to_owned()), *pos));
+                return Ok(self.env
+                            .borrow_mut()
+                            .assign_variable(name.to_owned(), value, expr.id));
             },
             ExprKind::Logical(left, token, right) => {
                 let val_left:  Value = self.evaluate(left.as_ref())?;

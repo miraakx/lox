@@ -1,9 +1,10 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::error::{LoxError, LoxErrorKind};
+use crate::error::{LoxError, LoxErrorKind, ErrorLogger};
 use crate::common::Peekable;
 use crate::parser_expr::{Expr, expression};
-use crate::tokens::{Token, TokenKind, Position, TokenSource, consume, check, consume_if, check_end_of_file};
+use crate::tokens::{Token, TokenKind, Position, TokenSource, consume, check, consume_if, check_end_of_file, is_at_end};
 
 #[derive(Clone, Debug)]
 pub enum Stmt
@@ -29,31 +30,63 @@ pub struct FunctionDeclaration {
 }
 
 pub struct Parser {
-    in_loop: u32
+    in_loop: u32,
+    error_logger: Rc<RefCell<dyn ErrorLogger>>
 }
 
 impl Parser {
 
-    pub fn new() -> Self {
-        Parser { in_loop: 0 }
+    pub fn new(error_logger: impl ErrorLogger + 'static) -> Self {
+        Parser { in_loop: 0, error_logger: Rc::new(RefCell::new(error_logger)) }
+    }
+
+    fn synchronize(&mut self, token_source: &mut TokenSource) {
+        loop {
+            let peek = token_source.peek().unwrap();
+            match peek.kind {
+                TokenKind::Class | TokenKind::Fun    |
+                TokenKind::Var   | TokenKind::For    |
+                TokenKind::If    | TokenKind::While  |
+                TokenKind::Print | TokenKind::Return |
+                TokenKind::EOF =>
+                {
+                    return;
+                },
+                TokenKind::Semicolon =>
+                {
+                    token_source.consume();
+                    return;
+                },
+                _ => {
+                    token_source.consume();
+                }
+            }
+        }
     }
 
     pub fn parse(&mut self, token_iter: &mut dyn Iterator<Item=Token>) -> Result<Vec<Stmt>, LoxError>
     {
-        let mut token_source: &mut TokenSource = &mut Peekable::new(token_iter);
+        let token_source: &mut TokenSource = &mut Peekable::new(token_iter);
         let mut statements: Vec<Stmt> = vec!();
         loop {
-            if check(&mut token_source, TokenKind::EOF) {
+            if is_at_end(token_source) {
                 return Ok(statements);
             }
-            statements.push(self.declaration(token_source)?);
+            let result = self.declaration(token_source);
+            match result {
+                Ok(stmt) => {
+                    statements.push(stmt);
+                }
+                Err(err) => {
+                    self.error_logger.borrow_mut().log(err);
+                    self.synchronize(token_source);
+                }
+            }
         }
     }
 
     fn declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
     {
-        check_end_of_file(token_source)?;
-        return
         if consume_if(token_source, TokenKind::Var)
         {
             self.var_declaration(token_source)
@@ -65,7 +98,7 @@ impl Parser {
         else
         {
             self.statement(token_source)
-        };
+        }
     }
 
     fn fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>

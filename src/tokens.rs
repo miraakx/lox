@@ -216,6 +216,11 @@ pub fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
 }
 
 #[inline(always)]
+pub fn is_at_end(token_source: &mut TokenSource) -> bool {
+    check(token_source, TokenKind::EOF)
+}
+
+#[inline(always)]
 pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
     let token = token_source.peek().unwrap();
     if token_kind == token.kind {

@@ -1,21 +1,21 @@
-use std::rc::Rc;
+use std::{rc::Rc, cell::RefCell};
 use crate::{common::Scanner, tokens::*, error::*};
 
 pub struct Lexer<'a>
 {
     scanner:       Scanner<'a>,
-    error_handler: Box<dyn Fn(LoxError)>,
+    error_logger:  Rc<RefCell<dyn ErrorLogger>>,
     end_of_file:   bool
 }
 
 impl<'a> Lexer<'a>
 {
-    pub fn new(code: &'a str) -> Self
+    pub fn new(code: &'a str, error_logger: impl ErrorLogger + 'static) -> Self
     {
         Lexer
         {
            scanner:       Scanner::from_str(code, 2),
-           error_handler: Box::new(println_handle_error),
+           error_logger:  Rc::new(RefCell::new(error_logger)),
            end_of_file:   false
         }
     }
@@ -171,7 +171,7 @@ impl<'a> Iterator for Lexer<'a>
                     loop {
                         let value: Option<char> = self.scanner.next();
                         if value.is_none() {
-                            (self.error_handler)
+                            self.error_logger.borrow_mut().log
                             (
                                 LoxError
                                 {
@@ -218,7 +218,7 @@ impl<'a> Iterator for Lexer<'a>
                                         },
                                         _=> {
                                             string.push(ch);
-                                            (self.error_handler)(LoxError { kind: LoxErrorKind::InvalidEscapeCharacter, position: Position { line: self.scanner.line(), column: self.scanner.column() }});
+                                            self.error_logger.borrow_mut().log(LoxError { kind: LoxErrorKind::InvalidEscapeCharacter, position: Position { line: self.scanner.line(), column: self.scanner.column() }});
                                         }
                                     }
                                 }
@@ -265,7 +265,7 @@ impl<'a> Iterator for Lexer<'a>
                             opt_token_value = Some(LiteralValue::Number(number));
                         }
                         Err(_) => {
-                            (self.error_handler)(LoxError { kind: LoxErrorKind::ParseFloatError(number_string), position: Position { line: self.scanner.line(), column: self.scanner.column() } });
+                            self.error_logger.borrow_mut().log(LoxError { kind: LoxErrorKind::ParseFloatError(number_string), position: Position { line: self.scanner.line(), column: self.scanner.column() } });
                             opt_token_kind = Some(TokenKind::Number);
                             opt_token_value = Some(LiteralValue::Number(f64::NAN));
                         }
@@ -303,7 +303,7 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 _ =>
                 {
-                    (self.error_handler)(LoxError { kind: LoxErrorKind::UnexpectedToken(ch), position: Position { line: self.scanner.line(), column: self.scanner.column() }});
+                    self.error_logger.borrow_mut().log(LoxError { kind: LoxErrorKind::UnexpectedToken(ch), position: Position { line: self.scanner.line(), column: self.scanner.column() }});
                     opt_token_kind = Some(TokenKind::UnexpectedToken);
                 }
             }
@@ -335,7 +335,7 @@ fn is_identifier_char_allowed(ch: char) -> bool
 #[inline(always)]
 fn tokenize(code: &str) -> Vec<Token>
 {
-    Lexer::new(code).collect()
+    Lexer::new(code, ConsoleErrorLogger{}).collect()
 }
 
 #[test]

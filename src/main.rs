@@ -5,6 +5,7 @@ use std::error::Error;
 use std::fs;
 use std::io;
 
+use error::ConsoleErrorLogger;
 use interpreter::Interpreter;
 use lexer::Lexer;
 use parser_stmt::Parser;
@@ -67,8 +68,8 @@ fn run_prompt() -> Result<(), Box<dyn Error>>
 
 fn run(code: &str)
 {
-   let mut lexer = Lexer::new(code);
-   let mut parser: Parser = Parser::new();
+   let mut lexer = Lexer::new(code, ConsoleErrorLogger{});
+   let mut parser: Parser = Parser::new(ConsoleErrorLogger{});
    let r_stmts  = parser.parse(&mut lexer);
    match r_stmts
    {
