@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::error::{LoxError, ParserErrorKind, ErrorLogger};
@@ -31,13 +30,13 @@ pub struct FunctionDeclaration {
 
 pub struct Parser {
     in_loop: u32,
-    error_logger: Rc<RefCell<dyn ErrorLogger>>
+    error_logger: Box<dyn ErrorLogger>
 }
 
 impl Parser {
 
     pub fn new(error_logger: impl ErrorLogger + 'static) -> Self {
-        Parser { in_loop: 0, error_logger: Rc::new(RefCell::new(error_logger)) }
+        Parser { in_loop: 0, error_logger: Box::new(error_logger) }
     }
 
     fn synchronize(&mut self, token_source: &mut TokenSource) {
@@ -78,7 +77,7 @@ impl Parser {
                     statements.push(stmt);
                 }
                 Err(err) => {
-                    self.error_logger.borrow_mut().log(err);
+                    self.error_logger.log(err);
                     self.synchronize(token_source);
                 }
             }

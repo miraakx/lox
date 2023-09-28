@@ -75,7 +75,7 @@ fn run(code: &str)
    {
       Ok(stmts) => {
          let mut interpreter = Interpreter::new();
-         let mut resolver: Resolver = Resolver::new(&mut interpreter);
+         let mut resolver: Resolver = Resolver::new(&mut interpreter, ConsoleErrorLogger{});
          resolver.resolve(&stmts[..]);
          let _ = interpreter.execute(&stmts[..]);
       },

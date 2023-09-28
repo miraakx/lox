@@ -1,16 +1,17 @@
 use std::collections::HashMap;
 
-use crate::{parser_stmt::Stmt, parser_expr::{Expr, ExprKind}, common::Stack, error::LoxError, interpreter::Interpreter};
+use crate::{parser_stmt::Stmt, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, interpreter::Interpreter};
 
 pub struct Resolver<'a> {
     interpreter: &'a mut Interpreter,
-    stack: Stack<HashMap<String, bool>>
+    stack: Stack<HashMap<String, bool>>,
+    error_logger: Box<dyn ErrorLogger>
 }
 
 impl <'a> Resolver<'a>
 {
-    pub fn new(interpreter: &'a mut Interpreter) -> Self {
-        Resolver { stack: Stack::new(), interpreter }
+    pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static) -> Self {
+        Resolver { stack: Stack::new(), interpreter, error_logger: Box::new(error_logger) }
     }
 
     pub fn resolve(&mut self, stmts: &[Stmt]) {
@@ -31,9 +32,14 @@ impl <'a> Resolver<'a>
             {
                 self.resolve_expr(expr);
             },
-            Stmt::Var(variable, _, opt_expr) =>
+            Stmt::Var(variable, position, opt_expr) =>
             {
-                self.declare(&variable);
+                match self.declare(variable) {
+                    Err(err_kind) => {
+                        self.error_logger.log(LoxError::resolver_error(err_kind, *position));
+                    },
+                    _ => {}
+                }
                 if let Some(expr) = opt_expr {
                     self.resolve_expr(&expr);
                 }
@@ -79,12 +85,23 @@ impl <'a> Resolver<'a>
             Stmt::Function(func_decl) =>
             {
                 let name = &func_decl.name.get_identifier();
-                self.declare(name);
+                match self.declare(name) {
+                    Err(err_kind) => {
+                        self.error_logger.log(LoxError::resolver_error(err_kind, func_decl.name.position));
+                    },
+                    _ => {}
+                }
                 self.define(name);
                 self.begin_scope();
                 for param in &func_decl.parameters {
-                    self.declare(&param.get_identifier());
-                    self.define(&param.get_identifier());
+                    let name = &param.get_identifier();
+                    match self.declare(name) {
+                        Err(err_kind) => {
+                            self.error_logger.log(LoxError::resolver_error(err_kind, param.position));
+                        },
+                        _ => {}
+                    }
+                    self.define(name);
                 }
                 self.resolve_stmt(&func_decl.body);
             },
@@ -169,21 +186,22 @@ impl <'a> Resolver<'a>
         self.stack.pop();
     }
 
-    fn declare(&mut self, token: &String)
+    fn declare(&mut self, token: &String) -> Result<(), ResolverErrorKind>
     {
         if let Some(variable) = self.stack.peek_mut()
         {
             if variable.contains_key(token) {
-                todo!()
+                return Err(ResolverErrorKind::VariableAlreadyExists(token.to_owned()));
             }
-            variable.insert(token.clone(), false);
+            variable.insert(token.to_owned(), false);
         }
+        return Ok(());
     }
 
     fn define(&mut self, token: &String)
     {
         if let Some(last) = self.stack.peek_mut() {
-            last.insert(token.clone(), true);
+            last.insert(token.to_owned(), true);
         }
     }
 

@@ -54,8 +54,8 @@ impl fmt::Display for LoxErrorKind
             LoxErrorKind::InterpreterErrorKind(error) => {
                 write!(f, "Runtime error: {}", error)
             },
-            LoxErrorKind::ResolverErrorKind(_) => {
-                todo!();
+            LoxErrorKind::ResolverErrorKind(error) => {
+                write!(f, "Resolver error: {}", error)
             },
         }
     }
@@ -64,7 +64,8 @@ impl fmt::Display for LoxErrorKind
 #[derive(Clone, Debug, PartialEq)]
 pub enum ResolverErrorKind
 {
-    LocalVariableNotFound(String)
+    LocalVariableNotFound(String),
+    VariableAlreadyExists(String)
 }
 
 impl fmt::Display for ResolverErrorKind
@@ -73,6 +74,7 @@ impl fmt::Display for ResolverErrorKind
     {
         match self {
             ResolverErrorKind::LocalVariableNotFound(name) => write!(f, "Can't read local variable {} in its own initializer", name),
+            ResolverErrorKind::VariableAlreadyExists(name) => write!(f, "Already a variable with name '{}' in this scope", name),
         }
     }
 }
