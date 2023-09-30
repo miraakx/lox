@@ -174,6 +174,13 @@ impl <'a> Resolver<'a>
                     }
                 }
             },
+            ExprKind::Get(expr, _) => {
+                self.resolve_expr(expr);
+            },
+            ExprKind::Set(object, _, value) => {
+                self.resolve_expr(object);
+                self.resolve_expr(value);
+            },
         }
     }
 

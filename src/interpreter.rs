@@ -1,4 +1,4 @@
-use std::{fmt::Debug, rc::Rc, cell::RefCell};
+use std::{fmt::Debug, rc::Rc, cell::RefCell, collections::HashMap};
 
 use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}};
 
@@ -453,6 +453,37 @@ impl Interpreter
                     }
                 }
             },
+            ExprKind::Get(get_expr, property) => {
+                let value = self.evaluate(get_expr)?;
+                match value {
+                    Value::ClassInstance(_, attributes) => {
+                        match attributes.borrow().get(&property.get_identifier()) {
+                            Some(value) => {
+                                return Ok(value.clone());
+                            },
+                            None => {
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(property.get_identifier()), property.position));
+                            },
+                        }
+                    },
+                    _ => {
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPropertyAccess, property.position));
+                    }
+                }
+            },
+            ExprKind::Set(object, name, value) => {
+                let object = self.evaluate(object)?;
+                match object {
+                    Value::ClassInstance(_, attributes) => {
+                        let value = self.evaluate(value)?;
+                        attributes.borrow_mut().insert(name.get_identifier(), value.clone());
+                        return Ok(value);
+                    },
+                    _ => {
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPropertyAccess, name.position));
+                    }
+                }
+            },
         }
     }
 
@@ -508,7 +539,9 @@ impl Callable
             },
             /* Call on class name construnct a new instance of the given class (there is no 'new' keyword in Lox) */
             Callable::Class(declaration, _) => {
-                Ok(Value::ClassInstance(declaration.clone()))
+                Ok(Value::ClassInstance(
+                    declaration.clone(), Rc::new(RefCell::new(HashMap::new()))
+                ))
             },
         }
     }

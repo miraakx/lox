@@ -129,19 +129,10 @@ impl Scope
     #[inline]
     pub fn get_variable(&self, variable: &str) -> Option<Value>
     {
-        if let Some(value) = self.map.get(variable)
-        {
-            return match value
-            {
-                Value::String(rc_str) => Some(Value::String(rc_str.clone())),
-                Value::Number(num) => Some(Value::Number(*num)),
-                Value::Bool(boolean) => Some(Value::Bool(*boolean)),
-                Value::Nil => Some(Value::Nil),
-                Value::Callable(rc_function) => { Some(Value::Callable(rc_function.clone())) },
-                Value::ClassInstance(rc_class) => { Some(Value::ClassInstance(rc_class.clone())) },
-            };
+        match self.map.get(variable) {
+            Some(value) => Some(value.clone()),
+            None => { None },
         }
-        return None;
     }
 
     #[inline]

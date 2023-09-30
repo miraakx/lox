@@ -1,10 +1,10 @@
-use std::{rc::Rc, fmt::Display};
+use std::{rc::Rc, fmt::Display, collections::HashMap, cell::RefCell};
 
 use crate::{interpreter::Callable, parser_stmt::ClassDeclaration};
 
 #[derive(Clone, Debug)]
 pub enum Value {
-    String(Rc<String>), Number(f64), Bool(bool), Nil, Callable(Rc<Callable>), ClassInstance(Rc<ClassDeclaration>)
+    String(Rc<String>), Number(f64), Bool(bool), Nil, Callable(Rc<Callable>), ClassInstance(Rc<ClassDeclaration>, Rc<RefCell<HashMap<String, Value>>>)
 }
 
 impl Display for Value
@@ -18,7 +18,7 @@ impl Display for Value
             Value::Bool(bool) => { write!(f, "{}", bool) },
             Value::Nil => { write!(f, "nil") },
             Value::Callable(_) => { write!(f, "callable()") },
-            Value::ClassInstance(declaration) => { write!(f, "{}", declaration.get_name()) },
+            Value::ClassInstance(class_declaration, _) => { write!(f, "{}", class_declaration.get_name()) },
         }
     }
 }
@@ -46,6 +46,6 @@ pub fn is_truthy(value: &Value) -> bool
         Value::Bool(boolean) => *boolean,
         Value::Nil                 => false,
         Value::Callable(_)         => true,
-        Value::ClassInstance(_)    => true,
+        Value::ClassInstance(_, _)    => true,
     }
 }

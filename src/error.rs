@@ -88,6 +88,8 @@ pub enum InterpreterErrorKind
     NotCallable,
     WrongArity(u32, u32),
     NativeClockSysTimeError,
+    InvalidPropertyAccess,
+    UdefinedProperty(String)
 }
 
 impl fmt::Display for InterpreterErrorKind
@@ -101,6 +103,8 @@ impl fmt::Display for InterpreterErrorKind
             InterpreterErrorKind::NotCallable                               => write!(f, "Not a callable expression"),
             InterpreterErrorKind::WrongArity(expected, found)   => write!(f, "Expected {} arguments, found {}", expected, found),
             InterpreterErrorKind::NativeClockSysTimeError                   => write!(f, "System time error calling clock()"),
+            InterpreterErrorKind::InvalidPropertyAccess                     => write!(f, "Only instances have properties"),
+            InterpreterErrorKind::UdefinedProperty(property)       => write!(f, "Undefined properties '{}'", property),
         }
     }
 }

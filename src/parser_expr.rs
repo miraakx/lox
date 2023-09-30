@@ -28,6 +28,8 @@ pub enum ExprKind
     Assign(String, Box<Expr>, Position),
     Logical(Box<Expr>, Token, Box<Expr>),
     Call(Box<Expr>, Option<Vec<Expr>>, Token),
+    Get(Box<Expr>, Token),
+    Set(Box<Expr>, Token, Box<Expr>)
 }
 
 #[inline(always)]
@@ -56,6 +58,10 @@ fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError>
                 ExprKind::Variable(name, pos) => {
                     return Ok(Expr::new(ExprKind::Assign(name, Box::new(value), pos)));
                 },
+                //Assign a value expression to an instance property
+                ExprKind::Get(expr, token) => {
+                    return Ok(Expr::new(ExprKind::Set(expr, token, Box::new(value))));
+                }
                 _ => {
                     return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position));
                 }
@@ -215,26 +221,34 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
 {
     let mut expr = primary(token_source)?;
     loop {
-        if !check(token_source, TokenKind::LeftParen) {
+        if !check(token_source, TokenKind::LeftParen) && !check(token_source, TokenKind::Dot) {
             return Ok(expr);
         }
-        let left_paren = token_source.next().unwrap();
-        if consume_if(token_source, TokenKind::RightParen) {
-            expr = Expr::new(ExprKind::Call(Box::new(expr), None, left_paren));
-            continue;
-        }
-        let mut args: Vec<Expr> = Vec::new();
-        loop {
-            args.push(expression(token_source)?);
-            if !consume_if(token_source, TokenKind::Comma) {
-               break;
+        if check(token_source, TokenKind::LeftParen)
+        {
+            let left_paren = token_source.next().unwrap();
+            if consume_if(token_source, TokenKind::RightParen) {
+                expr = Expr::new(ExprKind::Call(Box::new(expr), None, left_paren));
+                continue;
             }
+            let mut args: Vec<Expr> = Vec::new();
+            loop {
+                args.push(expression(token_source)?);
+                if !consume_if(token_source, TokenKind::Comma) {
+                break;
+                }
+            }
+            consume(token_source, TokenKind::RightParen)?;
+            if args.len() >= 255 {
+                todo!("Segnalare errore se più di 255 argomenti");
+            }
+            expr = Expr::new(ExprKind::Call(Box::new(expr), Some(args), left_paren));
         }
-        consume(token_source, TokenKind::RightParen)?;
-        if args.len() >= 255 {
-            todo!("Segnalare errore se più di 255 argomenti");
+        else if consume_if(token_source, TokenKind::Dot)
+        {
+            let identifier = consume(token_source, TokenKind::Identifier)?;
+            expr = Expr::new(ExprKind::Get(Box::new(expr), identifier));
         }
-        expr = Expr::new(ExprKind::Call(Box::new(expr), Some(args), left_paren));
     }
 }
 
