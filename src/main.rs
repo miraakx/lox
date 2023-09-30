@@ -21,6 +21,7 @@ mod tokens;
 mod environment;
 mod native;
 mod resolver;
+mod value;
 
 fn main()
 {

@@ -82,7 +82,7 @@ impl <'a> Resolver<'a>
             },
             Stmt::Break     => { /*do nothing*/ },
             Stmt::Continue  => { /*do nothing*/ },
-            Stmt::Function(func_decl) =>
+            Stmt::FunctionDeclaration(func_decl) =>
             {
                 let name = &func_decl.name.get_identifier();
                 match self.declare(name) {
@@ -110,6 +110,16 @@ impl <'a> Resolver<'a>
                 if let Some(expr) = opt_expr {
                     self.resolve_expr(expr);
                 }
+            },
+            Stmt::ClassDeclaration(class_decl) => {
+
+                match self.declare(&class_decl.name.get_identifier()) {
+                    Err(err_kind) => {
+                        self.error_logger.log(LoxError::resolver_error(err_kind, class_decl.name.position));
+                    },
+                    _ => {}
+                }
+                self.define(&class_decl.name.get_identifier());
             },
         }
     }

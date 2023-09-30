@@ -1,4 +1,5 @@
 use std::rc::Rc;
+
 use crate::{common::Scanner, tokens::*, error::*};
 
 pub struct Lexer<'a>

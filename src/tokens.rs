@@ -3,27 +3,37 @@ use std::{fmt, rc::Rc};
 
 use crate::{common::Peekable, error::{ParserErrorKind, LoxError}};
 
-pub const SPACE:           char = ' ';
-pub const TAB:             char = '\t';
-pub const CARRIAGE_RETURN: char = '\r';
-pub const LINE_FEED:       char = '\n';
-pub const LEFT_PAREN:      char = '(';
-pub const RIGHT_PAREN:     char = ')';
-pub const LEFT_BRACE:      char = '{';
-pub const RIGHT_BRACE:     char = '}';
-pub const COMMA:           char = ',';
-pub const DOT:             char = '.';
-pub const SEMICOLON:       char = ';';
-pub const MINUS:           char = '-';
-pub const PLUS:            char = '+';
-pub const STAR:            char = '*';
-pub const BANG:            char = '!';
-pub const EQUAL:           char = '=';
-pub const LESS:            char = '<';
-pub const GREATER:         char = '>';
-pub const SLASH:           char = '/';
-pub const BACK_SLASH:      char = '\\';
-pub const QUOTE:           char = '"';
+#[derive(Clone, Debug, PartialEq)]
+pub struct Token
+{
+    pub kind:     TokenKind,
+    pub value:    Option<LiteralValue>,
+    pub position: Position,
+    pub length:   u32,
+}
+
+impl Token
+{
+    #[inline]
+    pub fn get_identifier(&self) -> String
+    {
+        if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
+            return identifier.clone();
+        } else {
+            panic!("Internal error identifier not found inside token");
+        }
+    }
+
+    #[inline]
+    pub fn get_identifier_and_position(&self) -> (String, Position)
+    {
+        if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
+            return (identifier.clone(), self.position);
+        } else {
+            panic!("Internal error identifier not found inside token");
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TokenKind
@@ -76,47 +86,27 @@ impl fmt::Display for Position
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Token
-{
-    pub kind:     TokenKind,
-    pub value:    Option<LiteralValue>,
-    pub position: Position,
-    pub length:   u32,
-}
-
-impl Token
-{
-    #[inline]
-    pub fn get_identifier(&self) -> String
-    {
-        if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
-            return identifier.clone();
-        } else {
-            panic!("Internal error identifier not found inside token");
-        }
-    }
-
-    #[inline]
-    pub fn get_identifier_and_position(&self) -> (String, Position)
-    {
-        if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
-            return (identifier.clone(), self.position);
-        } else {
-            panic!("Internal error identifier not found inside token");
-        }
-    }
-}
-
-pub type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
-
-impl<'a> TokenSource<'a>
-{
-    #[inline(always)]
-    pub fn consume(&mut self) {
-        self.next();
-    }
-}
+pub const SPACE:           char = ' ';
+pub const TAB:             char = '\t';
+pub const CARRIAGE_RETURN: char = '\r';
+pub const LINE_FEED:       char = '\n';
+pub const LEFT_PAREN:      char = '(';
+pub const RIGHT_PAREN:     char = ')';
+pub const LEFT_BRACE:      char = '{';
+pub const RIGHT_BRACE:     char = '}';
+pub const COMMA:           char = ',';
+pub const DOT:             char = '.';
+pub const SEMICOLON:       char = ';';
+pub const MINUS:           char = '-';
+pub const PLUS:            char = '+';
+pub const STAR:            char = '*';
+pub const BANG:            char = '!';
+pub const EQUAL:           char = '=';
+pub const LESS:            char = '<';
+pub const GREATER:         char = '>';
+pub const SLASH:           char = '/';
+pub const BACK_SLASH:      char = '\\';
+pub const QUOTE:           char = '"';
 
 const TRUE:     &str = "true";
 const FALSE:    &str = "false";
@@ -185,6 +175,16 @@ pub fn find_keyword(str: &str) -> Option<TokenKind>
         'w' => { compare(str, WHILE,  TokenKind::While ) },
         'b' => { compare(str, BREAK,  TokenKind::Break ) },
         _ => { None }
+    }
+}
+
+pub type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
+
+impl<'a> TokenSource<'a>
+{
+    #[inline(always)]
+    pub fn consume(&mut self) {
+        self.next();
     }
 }
 

@@ -30,8 +30,6 @@ pub enum ExprKind
     Call(Box<Expr>, Option<Vec<Expr>>, Token),
 }
 
-
-
 #[inline(always)]
 pub fn expression(token_source: &mut TokenSource) -> Result<Expr,LoxError>
 {

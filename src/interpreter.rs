@@ -1,76 +1,6 @@
-use std::{fmt::{Display, Debug}, rc::Rc, cell::RefCell};
+use std::{fmt::Debug, rc::Rc, cell::RefCell};
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock};
-
-#[derive(Clone, Debug)]
-pub enum Value {
-    String(Rc<String>), Number(f64), Bool(bool), Nil, Callable(Rc<Function>)
-}
-
-#[derive(Clone, Debug)]
-pub enum Function {
-    Lox(Rc<FunctionDeclaration>, Rc<RefCell<Environment>>),
-    Clock
-}
-
-impl Function
-{
-    fn arity(&self) -> u32 {
-        match self {
-            Function::Lox(declaration, _) => {
-                declaration.parameters.len() as u32
-            },
-            Function::Clock => 0,
-        }
-    }
-
-    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: Position) -> Result<Value, LoxError> {
-        match self
-        {
-            Function::Lox(declaration, environment) =>
-            {
-                let mut env = Environment::from(&environment.borrow());
-                for (index, param) in declaration.parameters.iter().enumerate()
-                {
-                    env.define_variable(param.get_identifier(), args.get(index).unwrap().clone());
-                }
-                let mut local_interpreter = Interpreter::from(Rc::new(RefCell::new(env)));
-                let state = local_interpreter.execute_stmt(&declaration.body)?;
-                match state {
-                    State::Return(value) => Ok(value),
-                    _                           => Ok(Value::Nil)
-                }
-            },
-            Function::Clock =>
-            {
-                return clock(interpreter, args, position);
-            },
-        }
-    }
-}
-
-
-impl Display for Value
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
-        match self
-        {
-            Value::String(str) => { write!(f, "{}", str ) },
-            Value::Number(num) => { write!(f, "{}", num ) },
-            Value::Bool(bool) => { write!(f, "{}", bool) },
-            Value::Nil => { write!(f, "nil") },
-            Value::Callable(_) => { write!(f, "callable()") },
-        }
-    }
-}
-
-pub enum State {
-    Normal,
-    Break,
-    Continue,
-    Return(Value)
-}
+use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}};
 
 pub struct Interpreter
 {
@@ -83,7 +13,7 @@ impl Interpreter
     pub fn new() -> Self
     {
         let mut env = Environment::new();
-        env.define_variable("clock".to_owned(), Value::Callable(Rc::new(Function::Clock)));
+        env.define_variable("clock".to_owned(), Value::Callable(Rc::new(Callable::Clock)));
         Interpreter {
             env: Rc::new(RefCell::new(env))
         }
@@ -248,14 +178,25 @@ impl Interpreter
 
                 return Ok(State::Normal);
             },
-            Stmt::Function(declaration) => {
-                let function = Function::Lox(declaration.clone(), self.env.clone());
+            Stmt::FunctionDeclaration(declaration) => {
+                let instance = Callable::Function(declaration.clone(), self.env.clone());
                 self.env
                     .as_ref()
                     .borrow_mut()
                     .define_variable(
                         declaration.name.get_identifier(),
-                        Value::Callable(Rc::new(function))
+                        Value::Callable(Rc::new(instance))
+                    );
+                return Ok(State::Normal);
+            },
+            Stmt::ClassDeclaration(declaration) => {
+                let instance = Callable::Class(declaration.clone(), self.env.clone());
+                self.env
+                    .as_ref()
+                    .borrow_mut()
+                    .define_variable(
+                        declaration.name.get_identifier(),
+                        Value::Callable(Rc::new(instance))
                     );
                 return Ok(State::Normal);
             },
@@ -517,30 +458,58 @@ impl Interpreter
 
 }
 
-
-
-#[inline]
-fn is_equal(val_left: Value, val_right: Value) -> bool
-{
-    match (val_left, val_right)
-    {
-        (Value::Bool(left),         Value::Bool(right))         => left == right,
-        (Value::Number(left),        Value::Number(right))        => left == right,
-        (Value::String(left), Value::String(right)) => left == right,
-        (Value::Nil,                      Value::Nil)                       => true,
-        _                                                                   => false
-    }
+pub enum State {
+    Normal,
+    Break,
+    Continue,
+    Return(Value)
 }
 
-#[inline]
-fn is_truthy(value: &Value) -> bool
+
+#[derive(Clone, Debug)]
+pub enum Callable {
+    Function(Rc<FunctionDeclaration>, Rc<RefCell<Environment>>),
+    Clock,
+    Class(Rc<ClassDeclaration>, Rc<RefCell<Environment>>)
+}
+
+impl Callable
 {
-    match value
-    {
-        Value::String(_)           => true,
-        Value::Number(_)           => true,
-        Value::Bool(boolean) => *boolean,
-        Value::Nil                 => false,
-        Value::Callable(_)         => true,
+    fn arity(&self) -> u32 {
+        match self {
+            Callable::Function(declaration, _) => {
+                declaration.parameters.len() as u32
+            },
+            Callable::Clock => 0,
+            Callable::Class(_, _) => 0,
+        }
+    }
+
+    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: Position) -> Result<Value, LoxError> {
+        match self
+        {
+            Callable::Clock =>
+            {
+                return clock(interpreter, args, position);
+            },
+            Callable::Function(declaration, environment) =>
+            {
+                let mut env = Environment::from(&environment.borrow());
+                for (index, param) in declaration.parameters.iter().enumerate()
+                {
+                    env.define_variable(param.get_identifier(), args.get(index).unwrap().clone());
+                }
+                let mut local_interpreter = Interpreter::from(Rc::new(RefCell::new(env)));
+                let state = local_interpreter.execute_stmt(&declaration.body)?;
+                match state {
+                    State::Return(value) => Ok(value),
+                    _                           => Ok(Value::Nil)
+                }
+            },
+            /* Call on class name construnct a new instance of the given class (there is no 'new' keyword in Lox) */
+            Callable::Class(declaration, _) => {
+                Ok(Value::ClassInstance(declaration.clone()))
+            },
+        }
     }
 }

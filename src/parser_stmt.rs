@@ -17,15 +17,9 @@ pub enum Stmt
     While(Expr, Box<Stmt>),
     For(Box<Option<Stmt>>, Option<Expr>, Option<Expr>, Box<Stmt>),
     Break, Continue,
-    Function(Rc::<FunctionDeclaration>),
-    Return(Token, Option<Expr>)
-}
-
-#[derive(Clone, Debug)]
-pub struct FunctionDeclaration {
-    pub name: Token,
-    pub parameters: Vec<Token>,
-    pub body: Stmt
+    FunctionDeclaration(Rc::<FunctionDeclaration>),
+    Return(Token, Option<Expr>),
+    ClassDeclaration(Rc<ClassDeclaration>)
 }
 
 pub struct Parser {
@@ -94,13 +88,33 @@ impl Parser {
         {
             self.fun_declaration(token_source)
         }
+        else if consume_if(token_source, TokenKind::Class)
+        {
+            self.class_declaration(token_source)
+        }
         else
         {
             self.statement(token_source)
         }
     }
 
+    fn class_declaration(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
+        let name = consume(token_source, TokenKind::Identifier)?;
+        consume(token_source, TokenKind::LeftBrace)?;
+        let mut methods = vec!();
+        while !check(token_source, TokenKind::RightBrace) && !is_at_end(token_source) {
+            methods.push(self.create_fun_declaration(token_source)?);
+        }
+        consume(token_source, TokenKind::RightBrace)?;
+        return Ok(Stmt::ClassDeclaration(Rc::new(ClassDeclaration{ name, methods })));
+    }
+
     fn fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
+    {
+        return Ok(Stmt::FunctionDeclaration(Rc::new(self.create_fun_declaration(token_source)?)));
+    }
+
+    fn create_fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<FunctionDeclaration, LoxError>
     {
         let identifier = consume(token_source, TokenKind::Identifier)?;
         consume(token_source, TokenKind::LeftParen)?;
@@ -117,7 +131,7 @@ impl Parser {
         consume(token_source, TokenKind::LeftBrace)?;
         let body = self.block_statement(token_source)?;
         let declaration = FunctionDeclaration { name: identifier, parameters: args, body: body };
-        return Ok(Stmt::Function(Rc::new(declaration)));
+        return Ok(declaration);
     }
 
     fn var_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
@@ -297,5 +311,24 @@ impl Parser {
         let expr = expression(token_source)?;
         consume(token_source, TokenKind::Semicolon)?;
         return Ok(Stmt::ExprStmt(expr));
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FunctionDeclaration {
+    pub name: Token,
+    pub parameters: Vec<Token>,
+    pub body: Stmt
+}
+
+#[derive(Clone, Debug)]
+pub struct ClassDeclaration {
+    pub name: Token,
+    pub methods: Vec<FunctionDeclaration>,
+}
+
+impl ClassDeclaration {
+    pub fn get_name(&self) -> String {
+        self.name.get_identifier()
     }
 }

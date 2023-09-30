@@ -1,61 +1,6 @@
 use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
-use crate::interpreter::Value;
-
-#[derive(Clone, Debug)]
-struct Scope {
-    map: HashMap<String, Value>
-}
-
-impl Scope
-{
-    #[inline]
-    pub fn new() -> Self
-    {
-        Scope { map: HashMap::new() }
-    }
-
-    #[inline]
-    pub fn define_variable(&mut self, variable: String, var_value: Value)
-    {
-        self.map.insert(variable, var_value);
-    }
-
-    #[inline]
-    pub fn get_variable(&self, variable: &str) -> Option<Value>
-    {
-        if let Some(value) = self.map.get(variable)
-        {
-            return match value
-            {
-                Value::String(rc_str) => Some(Value::String(rc_str.clone())),
-                Value::Number(num) => Some(Value::Number(*num)),
-                Value::Bool(boolean) => Some(Value::Bool(*boolean)),
-                Value::Nil => Some(Value::Nil),
-                Value::Callable(rc_function) => { Some(Value::Callable(rc_function.clone())) },
-            };
-        }
-        return None;
-    }
-
-    #[inline]
-    pub fn assign_variable(&mut self, variable: String, var_value: Value) -> Value
-    {
-        if self.map.contains_key(&variable)
-        {
-            self.map.insert(variable, var_value.clone());
-            return var_value;
-        }
-        panic!("Variable not found");
-    }
-
-    #[inline]
-    pub fn contains_variable(&self, variable: &String) -> bool
-    {
-        self.map.contains_key(variable)
-    }
-
-}
+use crate::value::Value;
 
 #[derive(Clone, Debug)]
 pub struct Environment
@@ -158,6 +103,62 @@ impl Environment
     #[inline]
     pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize) {
         self.side_table.insert(expr_id, depth);
+    }
+
+}
+
+#[derive(Clone, Debug)]
+struct Scope {
+    map: HashMap<String, Value>
+}
+
+impl Scope
+{
+    #[inline]
+    pub fn new() -> Self
+    {
+        Scope { map: HashMap::new() }
+    }
+
+    #[inline]
+    pub fn define_variable(&mut self, variable: String, var_value: Value)
+    {
+        self.map.insert(variable, var_value);
+    }
+
+    #[inline]
+    pub fn get_variable(&self, variable: &str) -> Option<Value>
+    {
+        if let Some(value) = self.map.get(variable)
+        {
+            return match value
+            {
+                Value::String(rc_str) => Some(Value::String(rc_str.clone())),
+                Value::Number(num) => Some(Value::Number(*num)),
+                Value::Bool(boolean) => Some(Value::Bool(*boolean)),
+                Value::Nil => Some(Value::Nil),
+                Value::Callable(rc_function) => { Some(Value::Callable(rc_function.clone())) },
+                Value::ClassInstance(rc_class) => { Some(Value::ClassInstance(rc_class.clone())) },
+            };
+        }
+        return None;
+    }
+
+    #[inline]
+    pub fn assign_variable(&mut self, variable: String, var_value: Value) -> Value
+    {
+        if self.map.contains_key(&variable)
+        {
+            self.map.insert(variable, var_value.clone());
+            return var_value;
+        }
+        panic!("Variable not found");
+    }
+
+    #[inline]
+    pub fn contains_variable(&self, variable: &String) -> bool
+    {
+        self.map.contains_key(variable)
     }
 
 }

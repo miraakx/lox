@@ -1,6 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{interpreter::{Value, Interpreter}, error::{LoxError, InterpreterErrorKind}, tokens::Position};
+use crate::{interpreter::Interpreter, error::{LoxError, InterpreterErrorKind}, tokens::Position, value::Value};
 
 pub fn clock(_: &Interpreter, _: &[Value], position: Position) -> Result<Value, LoxError>
 {
