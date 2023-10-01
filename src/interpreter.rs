@@ -13,7 +13,7 @@ impl Interpreter
     pub fn new() -> Self
     {
         let mut env = Environment::new();
-        env.define_variable("clock".to_owned(), Value::Callable(Rc::new(Callable::Clock)));
+        env.define_variable("clock".to_owned(), Value::Callable(Callable::Clock));
         Interpreter {
             env: Rc::new(RefCell::new(env))
         }
@@ -179,24 +179,25 @@ impl Interpreter
                 return Ok(State::Normal);
             },
             Stmt::FunctionDeclaration(declaration) => {
-                let instance = Callable::Function(declaration.clone(), self.env.clone());
+                let function = Callable::Function(declaration.clone(), self.env.clone());
                 self.env
                     .as_ref()
                     .borrow_mut()
                     .define_variable(
                         declaration.name.get_identifier(),
-                        Value::Callable(Rc::new(instance))
+                        Value::Callable(function)
                     );
                 return Ok(State::Normal);
             },
-            Stmt::ClassDeclaration(declaration) => {
-                let instance = Callable::Class(declaration.clone(), self.env.clone());
+            Stmt::ClassDeclaration(class_declaration) => {
+                //class is callable to construct a new instance. The new instance must have its own class template.
+                let callable = Callable::Class(class_declaration.clone(), self.env.clone());
                 self.env
                     .as_ref()
                     .borrow_mut()
                     .define_variable(
-                        declaration.name.get_identifier(),
-                        Value::Callable(Rc::new(instance))
+                        class_declaration.name.get_identifier(),
+                        Value::Callable(callable)
                     );
                 return Ok(State::Normal);
             },
@@ -408,9 +409,11 @@ impl Interpreter
                             .borrow_mut()
                             .assign_variable(name.to_owned(), value, expr.id));
             },
-            ExprKind::Logical(left, token, right) => {
+            ExprKind::Logical(left, token, right) =>
+            {
                 let val_left:  Value = self.evaluate(left.as_ref())?;
-                match token.kind {
+                match token.kind
+                {
                     TokenKind::Or => {
                         if is_truthy(&val_left) {
                             return Ok(val_left);
@@ -433,16 +436,22 @@ impl Interpreter
             ExprKind::Call(callee_expr, opt_args_expr, token) => {
                 let callee = self.evaluate(callee_expr)?;
                 let mut args: Vec<Value>;
-                if let Some(args_expr) = opt_args_expr {
+                if let Some(args_expr) = opt_args_expr
+                {
                     args = Vec::with_capacity(args_expr.len());
-                    for arg_expr in args_expr {
+                    for arg_expr in args_expr
+                    {
                         args.push(self.evaluate(arg_expr)?);
                     }
-                } else {
+                }
+                else
+                {
                     args = vec!();
                 }
-                match callee {
-                    Value::Callable(function) => {
+                match callee
+                {
+                    Value::Callable(function) =>
+                    {
                         if function.arity() != args.len() as u32 {
                             return Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(), args.len() as u32), token.position));
                         }
@@ -453,28 +462,37 @@ impl Interpreter
                     }
                 }
             },
-            ExprKind::Get(get_expr, property) => {
+            ExprKind::Get(get_expr, property) =>
+            {
                 let value = self.evaluate(get_expr)?;
-                match value {
-                    Value::ClassInstance(_, attributes) => {
-                        match attributes.borrow().get(&property.get_identifier()) {
-                            Some(value) => {
-                                return Ok(value.clone());
-                            },
-                            None => {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(property.get_identifier()), property.position));
-                            },
+                match value
+                {
+                    Value::ClassInstance(class, attributes) =>
+                    {
+                        let attributes = attributes.borrow();
+                        let opt_value = attributes.get(&property.get_identifier());
+                        if let Some(value) = opt_value {
+                            return Ok(value.clone());
                         }
+                        let opt_method = class.methods.get(&property.get_identifier());
+                        if let Some(method) = opt_method {
+                            return Ok(Value::Callable(Callable::Function(method.clone(), self.env.clone())));
+                        }
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(property.get_identifier()), property.position));
                     },
-                    _ => {
+                    _ =>
+                    {
                         return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPropertyAccess, property.position));
                     }
                 }
             },
-            ExprKind::Set(object, name, value) => {
+            ExprKind::Set(object, name, value) =>
+            {
                 let object = self.evaluate(object)?;
-                match object {
-                    Value::ClassInstance(_, attributes) => {
+                match object
+                {
+                    Value::ClassInstance(_, attributes) =>
+                    {
                         let value = self.evaluate(value)?;
                         attributes.borrow_mut().insert(name.get_identifier(), value.clone());
                         return Ok(value);
@@ -500,8 +518,8 @@ pub enum State {
 #[derive(Clone, Debug)]
 pub enum Callable {
     Function(Rc<FunctionDeclaration>, Rc<RefCell<Environment>>),
-    Clock,
-    Class(Rc<ClassDeclaration>, Rc<RefCell<Environment>>)
+    Class(Rc<ClassDeclaration>, Rc<RefCell<Environment>>),
+    Clock
 }
 
 impl Callable

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::error::{LoxError, ParserErrorKind, ErrorLogger};
@@ -100,13 +101,15 @@ impl Parser {
 
     fn class_declaration(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
         let name = consume(token_source, TokenKind::Identifier)?;
+        let mut class_declaration = ClassDeclaration::new(name);
         consume(token_source, TokenKind::LeftBrace)?;
-        let mut methods = vec!();
+
         while !check(token_source, TokenKind::RightBrace) && !is_at_end(token_source) {
-            methods.push(self.create_fun_declaration(token_source)?);
+            let method_declaration = self.create_fun_declaration(token_source)?;
+            class_declaration.insert_method(method_declaration.name.get_identifier(), method_declaration);
         }
         consume(token_source, TokenKind::RightBrace)?;
-        return Ok(Stmt::ClassDeclaration(Rc::new(ClassDeclaration{ name, methods })));
+        return Ok(Stmt::ClassDeclaration(Rc::new(class_declaration)));
     }
 
     fn fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
@@ -324,11 +327,15 @@ pub struct FunctionDeclaration {
 #[derive(Clone, Debug)]
 pub struct ClassDeclaration {
     pub name: Token,
-    pub methods: Vec<FunctionDeclaration>,
+    pub methods: HashMap<String, Rc<FunctionDeclaration>>
 }
 
 impl ClassDeclaration {
-    pub fn get_name(&self) -> String {
-        self.name.get_identifier()
+    fn new(name: Token) -> Self {
+        ClassDeclaration {name, methods: HashMap::new()}
+    }
+
+    fn insert_method(&mut self, name: String, method_declaration: FunctionDeclaration) {
+        self.methods.insert(name, Rc::new(method_declaration));
     }
 }

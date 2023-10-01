@@ -111,15 +111,15 @@ impl <'a> Resolver<'a>
                     self.resolve_expr(expr);
                 }
             },
-            Stmt::ClassDeclaration(class_decl) => {
+            Stmt::ClassDeclaration(class_declaration) => {
 
-                match self.declare(&class_decl.name.get_identifier()) {
+                match self.declare(&class_declaration.name.get_identifier()) {
                     Err(err_kind) => {
-                        self.error_logger.log(LoxError::resolver_error(err_kind, class_decl.name.position));
+                        self.error_logger.log(LoxError::resolver_error(err_kind, class_declaration.name.position));
                     },
                     _ => {}
                 }
-                self.define(&class_decl.name.get_identifier());
+                self.define(&class_declaration.name.get_identifier());
             },
         }
     }
