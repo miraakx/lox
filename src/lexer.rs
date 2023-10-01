@@ -1,4 +1,6 @@
-use std::rc::Rc;
+use std::{rc::Rc, cell::RefCell};
+
+use string_interner::{StringInterner, symbol::SymbolU32};
 
 use crate::{common::Scanner, tokens::*, error::*};
 
@@ -6,18 +8,20 @@ pub struct Lexer<'a>
 {
     scanner:       Scanner<'a>,
     error_logger:  Box<dyn ErrorLogger>,
-    end_of_file:   bool
+    end_of_file:   bool,
+    string_interner: Rc<RefCell<StringInterner>>
 }
 
 impl<'a> Lexer<'a>
 {
-    pub fn new(code: &'a str, error_logger: impl ErrorLogger + 'static) -> Self
+    pub fn new(code: &'a str, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self
     {
         Lexer
         {
            scanner:       Scanner::from_str(code, 2),
            error_logger:  Box::new(error_logger),
-           end_of_file:   false
+           end_of_file:   false,
+           string_interner
         }
     }
 }
@@ -183,8 +187,8 @@ impl<'a> Iterator for Lexer<'a>
                                     }
                                 )
                             );
-                            opt_token_kind = Some(TokenKind::String);
-                            opt_token_value = Some(LiteralValue::String(Rc::new(string)));
+                          //  opt_token_kind = Some(TokenKind::String);
+                          //  opt_token_value = Some(LiteralValue::String(Rc::new(string)));
                             break;
                         }
                         let ch = value.unwrap();
@@ -225,7 +229,8 @@ impl<'a> Iterator for Lexer<'a>
                             },
                             '"' => {
                                 opt_token_kind = Some(TokenKind::String);
-                                opt_token_value = Some(LiteralValue::String(Rc::new(string)));
+                                let symbol: SymbolU32 = self.string_interner.borrow_mut().get_or_intern(string);
+                                opt_token_value = Some(LiteralValue::String(symbol));
                                 break;
                             },
                             _ => {
@@ -298,7 +303,8 @@ impl<'a> Iterator for Lexer<'a>
 
                     } else {
                         opt_token_kind  = Some(TokenKind::Identifier);
-                        opt_token_value = Some(LiteralValue::Identifier(identifier));
+                        let symbol = self.string_interner.borrow_mut().get_or_intern(identifier);
+                        opt_token_value = Some(LiteralValue::Identifier(symbol));
                     }
                 },
                 _ =>
@@ -332,10 +338,12 @@ fn is_identifier_char_allowed(ch: char) -> bool
     ch.is_ascii_alphabetic() || ch == '_' || ch.is_ascii_digit()
 }
 
+/*
+
 #[inline(always)]
 fn tokenize(code: &str) -> Vec<Token>
 {
-    Lexer::new(code, ConsoleErrorLogger{}).collect()
+    Lexer::new(code, ConsoleErrorLogger{}, Rc::new(RefCell::new(StringInterner::new()))).collect()
 }
 
 #[test]
@@ -480,3 +488,4 @@ fn test_construct()
     index = index + 1;
     assert_eq!(tokens.get(index).unwrap().kind, TokenKind::RightBrace);
 }
+*/

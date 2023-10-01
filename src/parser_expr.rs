@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use unique_id::{sequence::SequenceGenerator, Generator};
 
-use crate::{tokens::{Token, Position, TokenKind, TokenSource, consume_if, consume, check}, error::{LoxError, ParserErrorKind}};
+use crate::{tokens::{Token, Position, TokenKind, TokenSource, consume_if, consume, check}, error::{LoxError, ParserErrorKind}, alias::Identifier};
 
 static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(||SequenceGenerator::default());
 
@@ -24,8 +24,8 @@ pub enum ExprKind
     Grouping(Box<Expr>),
     Unary(Token, Box<Expr>),
     Literal(Token),
-    Variable(String, Position),
-    Assign(String, Box<Expr>, Position),
+    Variable(Identifier, Position),
+    Assign(Identifier, Box<Expr>, Position),
     Logical(Box<Expr>, Token, Box<Expr>),
     Call(Box<Expr>, Option<Vec<Expr>>, Token),
     Get(Box<Expr>, Token),

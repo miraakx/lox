@@ -1,6 +1,6 @@
 use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
-use crate::value::Value;
+use crate::{value::Value, alias::Identifier};
 
 #[derive(Clone, Debug)]
 pub struct Environment
@@ -30,7 +30,7 @@ impl Environment
     }
 
     #[inline]
-    pub fn define_variable(&mut self, variable: String, var_value: Value)
+    pub fn define_variable(&mut self, variable: Identifier, var_value: Value)
     {
         let inner = self.locals_scope.last();
         match inner {
@@ -44,7 +44,7 @@ impl Environment
     }
 
     #[inline]
-    pub fn lookup_variable(&self, name: &String, expr_id: i64) -> Value
+    pub fn lookup_variable(&self, name: Identifier, expr_id: i64) -> Value
     {
         let opt_index = self.side_table.get(&expr_id);
         if let Some(index) = opt_index {
@@ -54,7 +54,7 @@ impl Environment
         }
     }
 
-    pub fn assign_variable(&mut self, variable: String, var_value: Value, expr_id: i64) -> Value
+    pub fn assign_variable(&mut self, variable: Identifier, var_value: Value, expr_id: i64) -> Value
     {
         let opt_index = self.side_table.get(&expr_id);
         if let Some(index) = opt_index {
@@ -65,25 +65,25 @@ impl Environment
     }
 
     #[inline]
-    fn get_variable_from_local_at(&self, index: usize, name: &str) -> Value
+    fn get_variable_from_local_at(&self, index: usize, name: Identifier) -> Value
     {
         return self.locals_scope[index].borrow().get_variable(name).unwrap();
     }
 
     #[inline]
-    fn get_variable_from_global(&self, name: &str) -> Value
+    fn get_variable_from_global(&self, name: Identifier) -> Value
     {
         return self.global_scope.borrow().get_variable(name).unwrap();
     }
 
     #[inline]
-    fn assign_variable_to_local_at(&mut self, index: usize, variable: String, var_value: Value) -> Value
+    fn assign_variable_to_local_at(&mut self, index: usize, variable: Identifier, var_value: Value) -> Value
     {
         return self.locals_scope[index].borrow_mut().assign_variable(variable, var_value);
     }
 
     #[inline]
-    fn assign_variable_to_global(&mut self, variable: String, var_value: Value) -> Value
+    fn assign_variable_to_global(&mut self, variable: Identifier, var_value: Value) -> Value
     {
         return self.global_scope.borrow_mut().assign_variable(variable, var_value);
     }
@@ -109,7 +109,7 @@ impl Environment
 
 #[derive(Clone, Debug)]
 struct Scope {
-    map: HashMap<String, Value>
+    map: HashMap<Identifier, Value>
 }
 
 impl Scope
@@ -121,22 +121,22 @@ impl Scope
     }
 
     #[inline]
-    pub fn define_variable(&mut self, variable: String, var_value: Value)
+    pub fn define_variable(&mut self, variable: Identifier, var_value: Value)
     {
         self.map.insert(variable, var_value);
     }
 
     #[inline]
-    pub fn get_variable(&self, variable: &str) -> Option<Value>
+    pub fn get_variable(&self, variable: Identifier) -> Option<Value>
     {
-        match self.map.get(variable) {
+        match self.map.get(&variable) {
             Some(value) => Some(value.clone()),
             None => { None },
         }
     }
 
     #[inline]
-    pub fn assign_variable(&mut self, variable: String, var_value: Value) -> Value
+    pub fn assign_variable(&mut self, variable: Identifier, var_value: Value) -> Value
     {
         if self.map.contains_key(&variable)
         {
@@ -147,9 +147,9 @@ impl Scope
     }
 
     #[inline]
-    pub fn contains_variable(&self, variable: &String) -> bool
+    pub fn contains_variable(&self, variable: Identifier) -> bool
     {
-        self.map.contains_key(variable)
+        self.map.contains_key(&variable)
     }
 
 }

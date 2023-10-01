@@ -1,29 +1,35 @@
 use std::{fmt::Debug, rc::Rc, cell::RefCell, collections::HashMap};
 
+use string_interner::StringInterner;
+
 use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}};
 
 pub struct Interpreter
 {
-    env: Rc<RefCell<Environment>>
+    env: Rc<RefCell<Environment>>,
+    string_interner: Rc<RefCell<StringInterner>>
 }
 
 impl Interpreter
 {
     #[inline]
-    pub fn new() -> Self
+    pub fn new(string_interner: Rc<RefCell<StringInterner>>) -> Self
     {
         let mut env = Environment::new();
-        env.define_variable("clock".to_owned(), Value::Callable(Callable::Clock));
+        let symbol = string_interner.borrow_mut().get_or_intern_static("clock");
+        env.define_variable(symbol, Value::Callable(Callable::Clock));
         Interpreter {
-            env: Rc::new(RefCell::new(env))
+            env: Rc::new(RefCell::new(env)),
+            string_interner
         }
     }
 
     #[inline]
-    pub fn from(environment: Rc<RefCell<Environment>>) -> Self
+    pub fn from(environment: Rc<RefCell<Environment>>, string_interner: Rc<RefCell<StringInterner>>) -> Self
     {
         Interpreter {
-            env: environment
+            env: environment,
+            string_interner
         }
     }
 
@@ -233,7 +239,7 @@ impl Interpreter
                     match value {
                         LiteralValue::String(val) =>
                         {
-                            return Ok(Value::String(val.clone()));
+                            return Ok(Value::String(Rc::new(self.string_interner.borrow().resolve(*val).unwrap().to_owned())));
                         }
                         LiteralValue::Number(val) =>
                         {
@@ -400,7 +406,7 @@ impl Interpreter
             }
             ExprKind::Variable(name, _) =>
             {
-                Ok(self.env.borrow().lookup_variable(name, expr.id))
+                Ok(self.env.borrow().lookup_variable(*name, expr.id))
             },
             ExprKind::Assign(name, expr, _) =>
             {
@@ -455,7 +461,7 @@ impl Interpreter
                         if function.arity() != args.len() as u32 {
                             return Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(), args.len() as u32), token.position));
                         }
-                        return function.call(self, &args, token.position);
+                        return function.call(self, &args, token.position, self.string_interner.clone());
                     },
                     _ => {
                         return Err(LoxError::interpreter_error(InterpreterErrorKind::NotCallable, token.position));
@@ -478,7 +484,7 @@ impl Interpreter
                         if let Some(method) = opt_method {
                             return Ok(Value::Callable(Callable::Function(method.clone(), self.env.clone())));
                         }
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(property.get_identifier()), property.position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(property.get_identifier(), self.string_interner.clone()), property.position));
                     },
                     _ =>
                     {
@@ -534,7 +540,7 @@ impl Callable
         }
     }
 
-    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: Position) -> Result<Value, LoxError> {
+    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: Position, string_interner: Rc<RefCell<StringInterner>>) -> Result<Value, LoxError> {
         match self
         {
             Callable::Clock =>
@@ -548,7 +554,7 @@ impl Callable
                 {
                     env.define_variable(param.get_identifier(), args.get(index).unwrap().clone());
                 }
-                let mut local_interpreter = Interpreter::from(Rc::new(RefCell::new(env)));
+                let mut local_interpreter = Interpreter::from(Rc::new(RefCell::new(env)), string_interner.clone());
                 let state = local_interpreter.execute_stmt(&declaration.body)?;
                 match state {
                     State::Return(value) => Ok(value),

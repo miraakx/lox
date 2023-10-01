@@ -1,17 +1,20 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
-use crate::{parser_stmt::Stmt, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, interpreter::Interpreter};
+use string_interner::StringInterner;
+
+use crate::{parser_stmt::Stmt, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, interpreter::Interpreter, alias::Identifier};
 
 pub struct Resolver<'a> {
     interpreter: &'a mut Interpreter,
-    stack: Stack<HashMap<String, bool>>,
-    error_logger: Box<dyn ErrorLogger>
+    stack: Stack<HashMap<Identifier, bool>>,
+    error_logger: Box<dyn ErrorLogger>,
+    string_interner: Rc<RefCell<StringInterner>>
 }
 
 impl <'a> Resolver<'a>
 {
-    pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static) -> Self {
-        Resolver { stack: Stack::new(), interpreter, error_logger: Box::new(error_logger) }
+    pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self {
+        Resolver { stack: Stack::new(), interpreter, error_logger: Box::new(error_logger), string_interner }
     }
 
     pub fn resolve(&mut self, stmts: &[Stmt]) {
@@ -34,7 +37,7 @@ impl <'a> Resolver<'a>
             },
             Stmt::Var(variable, position, opt_expr) =>
             {
-                match self.declare(variable) {
+                match self.declare(*variable) {
                     Err(err_kind) => {
                         self.error_logger.log(LoxError::resolver_error(err_kind, *position));
                     },
@@ -43,7 +46,7 @@ impl <'a> Resolver<'a>
                 if let Some(expr) = opt_expr {
                     self.resolve_expr(&expr);
                 }
-                self.define(&variable)
+                self.define(*variable)
             },
             Stmt::Block(stmt_list) =>
             {
@@ -85,23 +88,23 @@ impl <'a> Resolver<'a>
             Stmt::FunctionDeclaration(func_decl) =>
             {
                 let name = &func_decl.name.get_identifier();
-                match self.declare(name) {
+                match self.declare(*name) {
                     Err(err_kind) => {
                         self.error_logger.log(LoxError::resolver_error(err_kind, func_decl.name.position));
                     },
                     _ => {}
                 }
-                self.define(name);
+                self.define(*name);
                 self.begin_scope();
                 for param in &func_decl.parameters {
                     let name = &param.get_identifier();
-                    match self.declare(name) {
+                    match self.declare(*name) {
                         Err(err_kind) => {
                             self.error_logger.log(LoxError::resolver_error(err_kind, param.position));
                         },
                         _ => {}
                     }
-                    self.define(name);
+                    self.define(*name);
                 }
                 self.resolve_stmt(&func_decl.body);
             },
@@ -113,13 +116,13 @@ impl <'a> Resolver<'a>
             },
             Stmt::ClassDeclaration(class_declaration) => {
 
-                match self.declare(&class_declaration.name.get_identifier()) {
+                match self.declare(class_declaration.name.get_identifier()) {
                     Err(err_kind) => {
                         self.error_logger.log(LoxError::resolver_error(err_kind, class_declaration.name.position));
                     },
                     _ => {}
                 }
-                self.define(&class_declaration.name.get_identifier());
+                self.define(class_declaration.name.get_identifier());
             },
         }
     }
@@ -150,15 +153,15 @@ impl <'a> Resolver<'a>
                 if !self.stack.is_empty() {
                     let opt_bool =self.stack.peek().unwrap().get(name);
                     if opt_bool.is_none() || *opt_bool.unwrap() == false {
-                        LoxError::resolver_error(crate::error::ResolverErrorKind::LocalVariableNotFound(name.to_owned()), *pos);
+                        LoxError::resolver_error(crate::error::ResolverErrorKind::LocalVariableNotFound(*name, self.string_interner.clone()), *pos);
                     }
                 }
-                self.resolve_local(expr, name);
+                self.resolve_local(expr, *name);
             },
             ExprKind::Assign(name, expr, _) =>
             {
                 self.resolve_expr(expr);
-                self.resolve_local(expr, name);
+                self.resolve_local(expr, *name);
             },
             ExprKind::Logical(expr_left, _, expr_right) =>
             {
@@ -203,29 +206,29 @@ impl <'a> Resolver<'a>
         self.stack.pop();
     }
 
-    fn declare(&mut self, token: &String) -> Result<(), ResolverErrorKind>
+    fn declare(&mut self, identifier: Identifier) -> Result<(), ResolverErrorKind>
     {
-        if let Some(variable) = self.stack.peek_mut()
+        if let Some(scope) = self.stack.peek_mut()
         {
-            if variable.contains_key(token) {
-                return Err(ResolverErrorKind::VariableAlreadyExists(token.to_owned()));
+            if scope.contains_key(&identifier) {
+                return Err(ResolverErrorKind::VariableAlreadyExists(identifier, self.string_interner.clone()));
             }
-            variable.insert(token.to_owned(), false);
+            scope.insert(identifier, false);
         }
         return Ok(());
     }
 
-    fn define(&mut self, token: &String)
+    fn define(&mut self, identifier: Identifier)
     {
         if let Some(last) = self.stack.peek_mut() {
-            last.insert(token.to_owned(), true);
+            last.insert(identifier, true);
         }
     }
 
-    fn resolve_local(&mut self, expr: &Expr, name: &String)
+    fn resolve_local(&mut self, expr: &Expr, identifier: Identifier)
     {
         for (index, scope) in self.stack.iter().enumerate().rev() {
-            if scope.contains_key(name) {
+            if scope.contains_key(&identifier) {
                 self.interpreter.resolve(expr.id, index);
             }
         }

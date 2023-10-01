@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::alias::Identifier;
 use crate::error::{LoxError, ParserErrorKind, ErrorLogger};
 use crate::common::Peekable;
 use crate::parser_expr::{Expr, expression};
@@ -11,7 +12,7 @@ pub enum Stmt
 {
     Print(Expr),
     ExprStmt(Expr),
-    Var(String, Position, Option<Expr>),
+    Var(Identifier, Position, Option<Expr>),
     Block(Vec<Stmt>),
     If(Expr, Box<Stmt>),
     IfElse(Expr, Box<Stmt>, Box<Stmt>),
@@ -327,7 +328,7 @@ pub struct FunctionDeclaration {
 #[derive(Clone, Debug)]
 pub struct ClassDeclaration {
     pub name: Token,
-    pub methods: HashMap<String, Rc<FunctionDeclaration>>
+    pub methods: HashMap<Identifier, Rc<FunctionDeclaration>>
 }
 
 impl ClassDeclaration {
@@ -335,7 +336,7 @@ impl ClassDeclaration {
         ClassDeclaration {name, methods: HashMap::new()}
     }
 
-    fn insert_method(&mut self, name: String, method_declaration: FunctionDeclaration) {
+    fn insert_method(&mut self, name: Identifier, method_declaration: FunctionDeclaration) {
         self.methods.insert(name, Rc::new(method_declaration));
     }
 }

@@ -1,15 +1,18 @@
 #![allow(dead_code)]
 
+use std::cell::RefCell;
 use std::env;
 use std::error::Error;
 use std::fs;
 use std::io;
+use std::rc::Rc;
 
 use error::ConsoleErrorLogger;
 use interpreter::Interpreter;
 use lexer::Lexer;
 use parser_stmt::Parser;
 use resolver::Resolver;
+use string_interner::StringInterner;
 
 mod common;
 mod error;
@@ -22,12 +25,13 @@ mod environment;
 mod native;
 mod resolver;
 mod value;
+mod alias;
 
 fn main()
 {
    //let code = "fun ciao() { return \"ciao\"; } fun stampa(fn) { print fn(); } stampa(ciao);";
    //let code = "var a = \"global\"; { fun showA() {print a;} showA(); var a = \"block\"; showA(); }";
-   let code = "class Car { start() { print \"engine on\"; } } var panda = Car(); panda.start();";
+   let code = "class Car { start() { print \"engine on\"; } } var panda = Car(); panda.start(); var m = panda.start; m();";
    run(code);
 }
 
@@ -70,14 +74,15 @@ fn run_prompt() -> Result<(), Box<dyn Error>>
 
 fn run(code: &str)
 {
-   let mut lexer = Lexer::new(code, ConsoleErrorLogger{});
+   let interner = Rc::new(RefCell::new(StringInterner::default()));
+   let mut lexer = Lexer::new(code, ConsoleErrorLogger{}, interner.clone());
    let mut parser: Parser = Parser::new(ConsoleErrorLogger{});
    let r_stmts  = parser.parse(&mut lexer);
    match r_stmts
    {
       Ok(stmts) => {
-         let mut interpreter = Interpreter::new();
-         let mut resolver: Resolver = Resolver::new(&mut interpreter, ConsoleErrorLogger{});
+         let mut interpreter = Interpreter::new(interner.clone());
+         let mut resolver: Resolver = Resolver::new(&mut interpreter, ConsoleErrorLogger{}, interner.clone());
          resolver.resolve(&stmts[..]);
          let _ = interpreter.execute(&stmts[..]);
       },

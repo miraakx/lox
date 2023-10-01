@@ -1,7 +1,10 @@
-use std::error::Error;
+use std::cell::RefCell;
+use std::{error::Error, rc::Rc};
 use std::fmt;
 
-use crate::tokens::{Position, TokenKind};
+use string_interner::StringInterner;
+
+use crate::{tokens::{Position, TokenKind}, alias::Identifier};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LoxError
@@ -64,8 +67,8 @@ impl fmt::Display for LoxErrorKind
 #[derive(Clone, Debug, PartialEq)]
 pub enum ResolverErrorKind
 {
-    LocalVariableNotFound(String),
-    VariableAlreadyExists(String)
+    LocalVariableNotFound(Identifier, Rc<RefCell<StringInterner>>),
+    VariableAlreadyExists(Identifier, Rc<RefCell<StringInterner>>)
 }
 
 impl fmt::Display for ResolverErrorKind
@@ -73,8 +76,8 @@ impl fmt::Display for ResolverErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match self {
-            ResolverErrorKind::LocalVariableNotFound(name) => write!(f, "Can't read local variable {} in its own initializer", name),
-            ResolverErrorKind::VariableAlreadyExists(name) => write!(f, "Already a variable with name '{}' in this scope", name),
+            ResolverErrorKind::LocalVariableNotFound(identifier, interner) => write!(f, "Can't read local variable {} in its own initializer", interner.borrow().resolve(*identifier).unwrap()),
+            ResolverErrorKind::VariableAlreadyExists(identifier, interner) => write!(f, "Already a variable with name '{}' in this scope", interner.borrow().resolve(*identifier).unwrap()),
         }
     }
 }
@@ -89,7 +92,7 @@ pub enum InterpreterErrorKind
     WrongArity(u32, u32),
     NativeClockSysTimeError,
     InvalidPropertyAccess,
-    UdefinedProperty(String)
+    UdefinedProperty(Identifier, Rc<RefCell<StringInterner>>)
 }
 
 impl fmt::Display for InterpreterErrorKind
@@ -104,7 +107,7 @@ impl fmt::Display for InterpreterErrorKind
             InterpreterErrorKind::WrongArity(expected, found)   => write!(f, "Expected {} arguments, found {}", expected, found),
             InterpreterErrorKind::NativeClockSysTimeError                   => write!(f, "System time error calling clock()"),
             InterpreterErrorKind::InvalidPropertyAccess                     => write!(f, "Only instances have properties"),
-            InterpreterErrorKind::UdefinedProperty(property)       => write!(f, "Undefined properties '{}'", property),
+            InterpreterErrorKind::UdefinedProperty(identifier, interner)       => write!(f, "Undefined properties '{}'", interner.borrow().resolve(*identifier).unwrap()),
         }
     }
 }

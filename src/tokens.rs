@@ -1,9 +1,11 @@
 
-use std::{fmt, rc::Rc};
+use std::fmt;
 
-use crate::{common::Peekable, error::{ParserErrorKind, LoxError}};
+use string_interner::symbol::SymbolU32;
 
-#[derive(Clone, Debug, PartialEq)]
+use crate::{common::Peekable, error::{ParserErrorKind, LoxError}, alias::Identifier};
+
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub struct Token
 {
     pub kind:     TokenKind,
@@ -15,20 +17,20 @@ pub struct Token
 impl Token
 {
     #[inline]
-    pub fn get_identifier(&self) -> String
+    pub fn get_identifier(&self) -> Identifier
     {
         if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
-            return identifier.clone();
+            return *identifier;
         } else {
             panic!("Internal error identifier not found inside token");
         }
     }
 
     #[inline]
-    pub fn get_identifier_and_position(&self) -> (String, Position)
+    pub fn get_identifier_and_position(&self) -> (Identifier, Position)
     {
         if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
-            return (identifier.clone(), self.position);
+            return (*identifier, self.position);
         } else {
             panic!("Internal error identifier not found inside token");
         }
@@ -61,14 +63,14 @@ pub enum TokenKind
     EOF
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum LiteralValue
 {
-    String(Rc<String>),
+    String(SymbolU32),
     Number(f64),
     Bool(bool),
     Nil,
-    Identifier(String)
+    Identifier(Identifier)
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
