@@ -31,7 +31,7 @@ fn main()
 {
    //let code = "fun ciao() { return \"ciao\"; } fun stampa(fn) { print fn(); } stampa(ciao);";
    //let code = "var a = \"global\"; { fun showA() {print a;} showA(); var a = \"block\"; showA(); }";
-   let code = "class Car { start() { print \"engine on\"; } } var panda = Car(); panda.start(); var m = panda.start; m();";
+   let code = "class Car { start() { print \"engine on\"; } } var panda = Car(); panda.start(); var m = panda.start; m(); print print;";
    run(code);
 }
 

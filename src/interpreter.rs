@@ -64,7 +64,21 @@ impl Interpreter
             Stmt::Print(expr) =>
             {
                 let value = self.evaluate(expr)?;
-                println!("{}", value);
+                match value {
+                    Value::InternedString(symbol) => println!("{}", self.string_interner.borrow().resolve(symbol).unwrap()),
+                    Value::String(string) => println!("{}", string),
+                    Value::Number(number) =>  println!("{}", number),
+                    Value::Bool(boolean) =>  println!("{}", boolean),
+                    Value::Nil => println!("{}", "nil"),
+                    Value::Callable(callable) => {
+                        match callable {
+                            Callable::Function(fun_decl, _) =>  println!("Function: '{}()'", self.string_interner.borrow().resolve(fun_decl.name.get_identifier()).unwrap()),
+                            Callable::Class(class_decl, _) => println!("Class: '{}'", self.string_interner.borrow().resolve(class_decl.name.get_identifier()).unwrap()),
+                            Callable::Clock =>  println!("Native function: clock()"),
+                        }
+                    },
+                    Value::ClassInstance(class_decl, _) => println!("Instance of class: '{}'", self.string_interner.borrow().resolve(class_decl.name.get_identifier()).unwrap()),
+                }
                 return Ok(State::Normal);
             },
             Stmt::ExprStmt(expr) =>
@@ -239,7 +253,7 @@ impl Interpreter
                     match value {
                         LiteralValue::String(val) =>
                         {
-                            return Ok(Value::String(Rc::new(self.string_interner.borrow().resolve(*val).unwrap().to_owned())));
+                            return Ok(Value::InternedString(*val));
                         }
                         LiteralValue::Number(val) =>
                         {
@@ -317,9 +331,29 @@ impl Interpreter
                                 return Ok(Value::Number(num_left + num_right));
                             },
                             (Value::String(str_left), Value::String(str_right)) => {
-                                let mut result = (*str_left).clone();
+                                let mut result = (*str_left).to_owned();
                                 result.push_str(&str_right);
                                 return Ok(Value::String(Rc::new(result)));
+                            },
+                            (Value::String(str_left), Value::InternedString(sym_right)) => {
+                                let interner = self.string_interner.borrow();
+                                let mut result = (*str_left).to_owned();
+                                result.push_str(interner.resolve(sym_right).unwrap());
+                                return Ok(Value::String(Rc::new(result)));
+                            },
+                            (Value::InternedString(sym_left), Value::String(str_right)) => {
+                                let interner = self.string_interner.borrow();
+                                let mut result = interner.resolve(sym_left).unwrap().to_owned();
+                                result.push_str(str_right.as_str());
+                                return Ok(Value::String(Rc::new(result)));
+                            },
+                            (Value::InternedString(sym_left), Value::InternedString(sym_right)) => {
+                                let mut interner = self.string_interner.borrow_mut();
+                                let mut result = interner.resolve(sym_left).unwrap().to_owned();
+                                let str_right    = interner.resolve(sym_right).unwrap();
+                                result.push_str(str_right);
+                                let sym_result = interner.get_or_intern(result);
+                                return Ok(Value::InternedString(sym_result));
                             },
                             _ => {
                                 return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
@@ -393,11 +427,11 @@ impl Interpreter
                     },
                     TokenKind::EqualEqual =>
                     {
-                        return Ok(Value::Bool(is_equal(val_left, val_right)));
+                        return Ok(Value::Bool(is_equal(val_left, val_right, self.string_interner.as_ref())));
                     },
                     TokenKind::BangEqual =>
                     {
-                        return Ok(Value::Bool(!is_equal(val_left, val_right)));
+                        return Ok(Value::Bool(!is_equal(val_left, val_right, self.string_interner.as_ref())));
                     },
                     _ => {
                         return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidBinaryType, token.position));
