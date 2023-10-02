@@ -54,6 +54,7 @@ impl Environment
         }
     }
 
+    #[inline]
     pub fn assign_variable(&mut self, variable: Identifier, var_value: Value, expr_id: i64) -> Value
     {
         let opt_index = self.side_table.get(&expr_id);

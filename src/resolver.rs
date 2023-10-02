@@ -13,10 +13,12 @@ pub struct Resolver<'a> {
 
 impl <'a> Resolver<'a>
 {
+    #[inline]
     pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self {
         Resolver { stack: Stack::new(), interpreter, error_logger: Box::new(error_logger), string_interner }
     }
 
+    #[inline]
     pub fn resolve(&mut self, stmts: &[Stmt]) {
         for stmt in stmts {
             self.resolve_stmt(stmt);

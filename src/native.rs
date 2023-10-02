@@ -2,6 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{interpreter::Interpreter, error::{LoxError, InterpreterErrorKind}, tokens::Position, value::Value};
 
+#[inline]
 pub fn clock(_: &Interpreter, _: &[Value], position: Position) -> Result<Value, LoxError>
 {
     let result = SystemTime::now().duration_since(UNIX_EPOCH);

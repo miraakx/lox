@@ -1,4 +1,4 @@
-use std::{rc::Rc, fmt::Display, collections::HashMap, cell::RefCell};
+use std::{rc::Rc, collections::HashMap, cell::RefCell};
 
 use string_interner::StringInterner;
 
@@ -6,24 +6,13 @@ use crate::{interpreter::Callable, parser_stmt::ClassDeclaration, alias::{Identi
 
 #[derive(Clone, Debug)]
 pub enum Value {
-    InternedString(InternedString), String(Rc<String>), Number(f64), Bool(bool), Nil, Callable(Callable), ClassInstance(Rc<ClassDeclaration>, Rc<RefCell<HashMap<Identifier, Value>>>)
-}
-
-impl Display for Value
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
-        match self
-        {
-            Value::String(str)  => { write!(f, "{}", str ) },
-            Value::Number(num)         => { write!(f, "{}", num ) },
-            Value::Bool(bool)         => { write!(f, "{}", bool) },
-            Value::Nil                       => { write!(f, "nil") },
-            Value::Callable(_)               => { write!(f, "callable()") },
-            Value::ClassInstance(_, _)       => { write!(f, "class") },
-            Value::InternedString(_)         => { write!(f, "interned string") },
-        }
-    }
+    InternedString(InternedString),
+    String(Rc<String>),
+    Number(f64),
+    Bool(bool),
+    Nil,
+    Callable(Callable),
+    ClassInstance(Rc<ClassDeclaration>, Rc<RefCell<HashMap<Identifier, Value>>>)
 }
 
 #[inline]

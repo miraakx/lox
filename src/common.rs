@@ -11,6 +11,7 @@ struct CircularBuffer<T: Clone>
 
 impl<T: Clone> CircularBuffer<T>
 {
+    #[inline]
     fn new(capacity: usize) -> Self
     {
         CircularBuffer
@@ -35,6 +36,7 @@ impl<T: Clone> CircularBuffer<T>
         self.size == self.capacity
     }
 
+    #[inline]
     pub fn enqueue(&mut self, item: T)
     {
         if self.is_full() {
@@ -45,6 +47,7 @@ impl<T: Clone> CircularBuffer<T>
         self.size = self.size + 1;
     }
 
+    #[inline]
     pub fn dequeue(&mut self) -> Option<T>
     {
         if self.is_empty() {
@@ -74,6 +77,7 @@ impl<T: Clone> CircularBuffer<T>
         self.tail = (self.tail + 1) % self.capacity;
     }
 
+    #[inline]
     pub fn tail(&self) -> Option<&T>
     {
         //If necessario perche' self.tail e self.capacity sono usize
@@ -84,6 +88,7 @@ impl<T: Clone> CircularBuffer<T>
         }
     }
 
+    #[inline]
     pub fn head(&self) -> Option<&T>
     {
         self.buffer[self.head].as_ref()
@@ -104,6 +109,7 @@ pub struct NthPeekable<I, T: Clone> where I: Iterator<Item = T>,
 
 impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
 {
+    #[inline]
     pub fn new(iter: I, size: usize) -> Self
     {
         NthPeekable
@@ -113,6 +119,7 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
         }
     }
 
+    #[inline]
     pub fn peek(&mut self) -> Option<&T>
     {
         if self.buffer.is_empty()
@@ -124,6 +131,7 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
         self.buffer.peek(0)
     }
 
+    #[inline]
     pub fn peek_nth(&mut self, index: usize) -> Option<&T>
     {
         if self.buffer.size() > index {
@@ -143,6 +151,7 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
         }
     }
 
+    #[inline]
     pub fn next(&mut self) -> Option<T>
     {
         if self.buffer.is_empty() {
@@ -151,6 +160,7 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
         self.buffer.dequeue()
     }
 
+    #[inline]
     pub fn is_last(&mut self) -> bool
     {
         self.peek().is_none()
@@ -166,11 +176,13 @@ pub struct Peekable<I, T: Clone> where I: Iterator<Item = T>,
 
 impl<I, T: Clone> Peekable<I, T> where I: Iterator<Item = T>,
 {
+    #[inline]
     pub fn new(iter: I) -> Self
     {
         Peekable { iter, item: None }
     }
 
+    #[inline]
     pub fn peek(&mut self) -> Option<&T>
     {
         if self.item.is_none() {
@@ -179,6 +191,7 @@ impl<I, T: Clone> Peekable<I, T> where I: Iterator<Item = T>,
         self.item.as_ref()
     }
 
+    #[inline]
     pub fn next(&mut self) -> Option<T>
     {
         if self.item.is_none() {
@@ -215,6 +228,7 @@ impl <'a> Scanner<'a>
         }
     }
 
+    #[inline]
     pub fn next(&mut self) -> Option<char>
     {
         self.column = self.column + 1;
@@ -235,6 +249,7 @@ impl <'a> Scanner<'a>
         self.iter.peek().cloned()
     }
 
+    #[inline]
     pub fn peek_nth(&mut self, index: usize) -> Option<char>
     {
         self.iter.peek_nth(index).cloned()
@@ -301,6 +316,7 @@ impl <T> Stack<T>
         self.vec.is_empty()
     }
 
+    #[inline]
     pub fn peek_mut(&mut self) -> Option<&mut T> {
         let len = self.vec.len();
         if len == 0 {
@@ -309,6 +325,7 @@ impl <T> Stack<T>
         Some(&mut self.vec[len-1])
     }
 
+    #[inline]
     pub fn peek(&self) -> Option<&T> {
         let len = self.vec.len();
         if len == 0 {
@@ -317,10 +334,12 @@ impl <T> Stack<T>
         Some(&self.vec[len-1])
     }
 
+    #[inline]
     pub fn iter(&self) -> Iter<T> {
         return self.vec.iter();
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.vec.len()
     }
