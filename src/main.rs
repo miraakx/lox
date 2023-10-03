@@ -31,8 +31,9 @@ fn main()
 {
    //let code = "fun ciao() { return \"ciao\"; } fun stampa(fn) { print fn(); } stampa(ciao);";
    //let code = "var a = \"global\"; { fun showA() {print a;} showA(); var a = \"block\"; showA(); }";
-   let code = "class Car { start() { print \"engine on\"; } } var panda = Car(); panda.start(); var m = panda.start; m(); print print;";
+   let code = "class Car { start() { print \"engine on\"; } stop() { print \"engine off\" } } var panda = Car(); panda.start(); print panda.stop();";
    run(code);
+   todo!("stop() {{ print \"engine off\"; }} senza punto e virgola panica!");
 }
 
 fn _main()
