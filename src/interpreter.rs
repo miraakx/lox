@@ -64,7 +64,20 @@ impl Interpreter
             Stmt::Print(expr) =>
             {
                 let value = self.evaluate(expr)?;
-                println!("{}", value);
+                match value {
+                    Value::String(string) => println!("{}", string),
+                    Value::Number(number) =>  println!("{}", number),
+                    Value::Bool(boolean) =>  println!("{}", boolean),
+                    Value::Nil => println!("{}", "nil"),
+                    Value::Callable(callable) => {
+                        match callable {
+                            Callable::Function(fun_decl, _) =>  println!("Function: '{}()'", self.string_interner.borrow().resolve(fun_decl.name.get_identifier()).unwrap()),
+                            Callable::Class(class_decl, _) => println!("Class: '{}'", self.string_interner.borrow().resolve(class_decl.name.get_identifier()).unwrap()),
+                            Callable::Clock =>  println!("Native function: clock()"),
+                        }
+                    },
+                    Value::ClassInstance(class_decl, _) => println!("Instance of class: '{}'", self.string_interner.borrow().resolve(class_decl.name.get_identifier()).unwrap()),
+                }
                 return Ok(State::Normal);
             },
             Stmt::ExprStmt(expr) =>
@@ -239,8 +252,8 @@ impl Interpreter
                     match value {
                         LiteralValue::String(val) =>
                         {
-                            return Ok(Value::String(Rc::new(self.string_interner.borrow().resolve(*val).unwrap().to_owned())));
-                        }
+                            return Ok(Value::String(val.clone()));
+                        },
                         LiteralValue::Number(val) =>
                         {
                             return Ok(Value::Number(*val));
@@ -317,9 +330,7 @@ impl Interpreter
                                 return Ok(Value::Number(num_left + num_right));
                             },
                             (Value::String(str_left), Value::String(str_right)) => {
-                                let mut result = (*str_left).clone();
-                                result.push_str(&str_right);
-                                return Ok(Value::String(Rc::new(result)));
+                                return Ok(Value::String(Rc::new(format!("{}{}", str_left, str_right))));
                             },
                             _ => {
                                 return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));

@@ -1,11 +1,9 @@
 
-use std::fmt;
-
-use string_interner::symbol::SymbolU32;
+use std::{fmt, rc::Rc};
 
 use crate::{common::Peekable, error::{ParserErrorKind, LoxError}, alias::Identifier};
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Token
 {
     pub kind:     TokenKind,
@@ -63,10 +61,10 @@ pub enum TokenKind
     EOF
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum LiteralValue
 {
-    String(SymbolU32),
+    String(Rc<String>),
     Number(f64),
     Bool(bool),
     Nil,

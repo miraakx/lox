@@ -1,6 +1,6 @@
 use std::{rc::Rc, cell::RefCell};
 
-use string_interner::{StringInterner, symbol::SymbolU32};
+use string_interner::StringInterner;
 
 use crate::{common::Scanner, tokens::*, error::*};
 
@@ -229,8 +229,7 @@ impl<'a> Iterator for Lexer<'a>
                             },
                             '"' => {
                                 opt_token_kind = Some(TokenKind::String);
-                                let symbol: SymbolU32 = self.string_interner.borrow_mut().get_or_intern(string);
-                                opt_token_value = Some(LiteralValue::String(symbol));
+                                opt_token_value = Some(LiteralValue::String(Rc::new(string)));
                                 break;
                             },
                             _ => {

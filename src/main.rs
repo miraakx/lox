@@ -31,9 +31,10 @@ fn main()
 {
    //let code = "fun ciao() { return \"ciao\"; } fun stampa(fn) { print fn(); } stampa(ciao);";
    //let code = "var a = \"global\"; { fun showA() {print a;} showA(); var a = \"block\"; showA(); }";
-   let code = "class Car { start() { print \"engine on\"; } stop() { print \"engine off\" } } var panda = Car(); panda.start(); print panda.stop();";
+   //let code = "class Car { start() { print \"engine on\"; } stop() { print \"engine off\"; } } var panda = Car(); panda.start(); print panda.stop();";
+   let code = "fun ciao() { var a = 1; var a = 2;}";
    run(code);
-   todo!("stop() {{ print \"engine off\"; }} senza punto e virgola panica!");
+   //todo!("stop() {{ print \"engine off\"; }} senza punto e virgola panica!");
 }
 
 fn _main()
@@ -76,19 +77,30 @@ fn run_prompt() -> Result<(), Box<dyn Error>>
 fn run(code: &str)
 {
    let interner = Rc::new(RefCell::new(StringInterner::default()));
-   let mut lexer = Lexer::new(code, ConsoleErrorLogger{}, interner.clone());
-   let mut parser: Parser = Parser::new(ConsoleErrorLogger{});
-   let r_stmts  = parser.parse(&mut lexer);
-   match r_stmts
+   let r_stmts;
    {
-      Ok(stmts) => {
-         let mut interpreter = Interpreter::new(interner.clone());
-         let mut resolver: Resolver = Resolver::new(&mut interpreter, ConsoleErrorLogger{}, interner.clone());
-         resolver.resolve(&stmts[..]);
-         let _ = interpreter.execute(&stmts[..]);
-      },
-      Err(err) => {
-         println!("{}", err);
+      let mut lexer = Lexer::new(code, ConsoleErrorLogger{}, interner.clone());
+      let mut parser: Parser = Parser::new(ConsoleErrorLogger{});
+      r_stmts  = parser.parse(&mut lexer);
+   }
+   if r_stmts.is_err() {
+      println!("\nCompile time error(s) detected. See above.\n");
+      return;
+   }
+   let stmts = &r_stmts.unwrap()[..];
+   let mut interpreter = Interpreter::new(interner.clone());
+   {
+      let mut resolver: Resolver = Resolver::new(&mut interpreter, ConsoleErrorLogger{}, interner.clone());
+      let result = resolver.resolve(stmts);
+      if result.is_err() {
+         println!("\nCompile time error(s) detected. See above.\n");
+         return;
       }
    }
+   let result = interpreter.execute(stmts);
+   if result.is_err() {
+      println!("\nProgram terminated with errors. See above.\n");
+      return;
+   }
+   println!("\nProgram terminated successfully.\n");
 }

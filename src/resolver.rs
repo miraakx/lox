@@ -2,26 +2,37 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::Stmt, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, interpreter::Interpreter, alias::Identifier};
+use crate::{parser_stmt::Stmt, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, interpreter::Interpreter, alias::Identifier, tokens::Position};
 
 pub struct Resolver<'a> {
     interpreter: &'a mut Interpreter,
     stack: Stack<HashMap<Identifier, bool>>,
     error_logger: Box<dyn ErrorLogger>,
-    string_interner: Rc<RefCell<StringInterner>>
+    string_interner: Rc<RefCell<StringInterner>>,
+    has_error: bool
 }
 
 impl <'a> Resolver<'a>
 {
     #[inline]
     pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self {
-        Resolver { stack: Stack::new(), interpreter, error_logger: Box::new(error_logger), string_interner }
+        Resolver { stack: Stack::new(), interpreter, error_logger: Box::new(error_logger), string_interner, has_error: false }
+    }
+
+    fn error(&mut self, err_kind: ResolverErrorKind, position: &Position) {
+        self.error_logger.log(LoxError::resolver_error(err_kind, *position));
+        self.has_error = true;
     }
 
     #[inline]
-    pub fn resolve(&mut self, stmts: &[Stmt]) {
+    pub fn resolve(&mut self, stmts: &[Stmt]) -> Result<(),()>{
         for stmt in stmts {
             self.resolve_stmt(stmt);
+        }
+        if self.has_error {
+            Err(())
+        } else {
+            Ok(())
         }
     }
 
@@ -41,7 +52,7 @@ impl <'a> Resolver<'a>
             {
                 match self.declare(*variable) {
                     Err(err_kind) => {
-                        self.error_logger.log(LoxError::resolver_error(err_kind, *position));
+                        self.error(err_kind, position);
                     },
                     _ => {}
                 }
@@ -92,7 +103,7 @@ impl <'a> Resolver<'a>
                 let name = &func_decl.name.get_identifier();
                 match self.declare(*name) {
                     Err(err_kind) => {
-                        self.error_logger.log(LoxError::resolver_error(err_kind, func_decl.name.position));
+                        self.error(err_kind, &func_decl.name.position);
                     },
                     _ => {}
                 }
@@ -102,7 +113,7 @@ impl <'a> Resolver<'a>
                     let name = &param.get_identifier();
                     match self.declare(*name) {
                         Err(err_kind) => {
-                            self.error_logger.log(LoxError::resolver_error(err_kind, param.position));
+                            self.error(err_kind, &param.position);
                         },
                         _ => {}
                     }
@@ -120,7 +131,7 @@ impl <'a> Resolver<'a>
 
                 match self.declare(class_declaration.name.get_identifier()) {
                     Err(err_kind) => {
-                        self.error_logger.log(LoxError::resolver_error(err_kind, class_declaration.name.position));
+                        self.error(err_kind, &class_declaration.name.position);
                     },
                     _ => {}
                 }

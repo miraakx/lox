@@ -19,7 +19,7 @@ pub fn is_equal(val_left: Value, val_right: Value) -> bool
     {
         (Value::Bool(left),         Value::Bool(right))         => left == right,
         (Value::Number(left),        Value::Number(right))        => left == right,
-        (Value::String(left), Value::String(right)) => left == right,
+        (Value::String(left), Value::String(right)) => { Rc::ptr_eq(&left, &right) || *left == *right  }
         (Value::Nil,                      Value::Nil)                       => true,
         _                                                                   => false
     }

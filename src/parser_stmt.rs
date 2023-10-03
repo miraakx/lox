@@ -59,13 +59,14 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self, token_iter: &mut dyn Iterator<Item=Token>) -> Result<Vec<Stmt>, LoxError>
+    pub fn parse(&mut self, token_iter: &mut dyn Iterator<Item=Token>) -> Result<Vec<Stmt>, ()>
     {
         let token_source: &mut TokenSource = &mut Peekable::new(token_iter);
         let mut statements: Vec<Stmt> = vec!();
+        let mut is_error = false;
         loop {
             if is_at_end(token_source) {
-                return Ok(statements);
+                if is_error { return Err(()); } else { return Ok(statements); }
             }
             let result = self.declaration(token_source);
             match result {
@@ -73,6 +74,7 @@ impl Parser {
                     statements.push(stmt);
                 }
                 Err(err) => {
+                    is_error = true;
                     self.error_logger.log(err);
                     self.synchronize(token_source);
                 }
