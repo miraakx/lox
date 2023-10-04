@@ -9,14 +9,15 @@ pub struct Resolver<'a> {
     stack: Stack<HashMap<Identifier, bool>>,
     error_logger: Box<dyn ErrorLogger>,
     string_interner: Rc<RefCell<StringInterner>>,
-    has_error: bool
+    has_error: bool,
+    current_function: FunctionType
 }
 
 impl <'a> Resolver<'a>
 {
     #[inline]
     pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self {
-        Resolver { stack: Stack::new(), interpreter, error_logger: Box::new(error_logger), string_interner, has_error: false }
+        Resolver { stack: Stack::new(), interpreter, error_logger: Box::new(error_logger), string_interner, has_error: false, current_function: FunctionType::None }
     }
 
     fn error(&mut self, err_kind: ResolverErrorKind, position: &Position) {
@@ -27,7 +28,7 @@ impl <'a> Resolver<'a>
     #[inline]
     pub fn resolve(&mut self, stmts: &[Stmt]) -> Result<(),()>{
         for stmt in stmts {
-            self.resolve_stmt(stmt);
+            self.resolve_stmt(stmt, self.current_function);
         }
         if self.has_error {
             Err(())
@@ -36,8 +37,12 @@ impl <'a> Resolver<'a>
         }
     }
 
-    fn resolve_stmt(&mut self, stmt: &Stmt)
+    fn resolve_stmt(&mut self, stmt: &Stmt, function_type: FunctionType)
     {
+        let enclosing_function = self.current_function;
+        //> set-current-function
+        self.current_function = function_type;
+        //< set-current-function
         match stmt
         {
             Stmt::Print(print_expr) =>
@@ -64,29 +69,31 @@ impl <'a> Resolver<'a>
             Stmt::Block(stmt_list) =>
             {
                 self.begin_scope();
-                self.resolve_block(stmt_list);
+                for stmt in stmt_list {
+                    self.resolve_stmt(stmt, self.current_function);
+                }
                 self.end_scope();
             },
             Stmt::If(expr, then_stmt) =>
             {
                 self.resolve_expr(expr);
-                self.resolve_stmt(then_stmt);
+                self.resolve_stmt(then_stmt, self.current_function);
             },
             Stmt::IfElse(expr, then_stmt, else_stmt) =>
             {
                 self.resolve_expr(expr);
-                self.resolve_stmt(&then_stmt);
-                self.resolve_stmt(&else_stmt);
+                self.resolve_stmt(&then_stmt, self.current_function);
+                self.resolve_stmt(&else_stmt, self.current_function);
             },
             Stmt::While(condition, body) =>
             {
                 self.resolve_expr(condition);
-                self.resolve_stmt(body);
+                self.resolve_stmt(body, self.current_function);
             },
             Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
             {
                 if let Some(initializer) = opt_initializer.as_ref() {
-                    self.resolve_stmt(initializer);
+                    self.resolve_stmt(initializer, self.current_function);
                 }
                 if let Some(condition) = opt_condition {
                     self.resolve_expr(condition);
@@ -94,7 +101,7 @@ impl <'a> Resolver<'a>
                 if let Some(increment) = opt_increment {
                     self.resolve_expr(increment);
                 }
-                self.resolve_stmt(body);
+                self.resolve_stmt(body, self.current_function);
             },
             Stmt::Break     => { /*do nothing*/ },
             Stmt::Continue  => { /*do nothing*/ },
@@ -119,10 +126,18 @@ impl <'a> Resolver<'a>
                     }
                     self.define(*name);
                 }
-                self.resolve_stmt(&func_decl.body);
+                //>Inside a function stmt set current function to FunctionType::Function
+                self.resolve_stmt(&func_decl.body, FunctionType::Function);
+                //<Inside a function stmt set current function to FunctionType::Function
             },
-            Stmt::Return(_, opt_expr) =>
+            Stmt::Return(return_token, opt_expr) =>
             {
+                match self.current_function {
+                    FunctionType::None => {
+                        self.error(ResolverErrorKind::ReturnFromTopLevelCode, &return_token.position)
+                    },
+                    _ => {}
+                }
                 if let Some(expr) = opt_expr {
                     self.resolve_expr(expr);
                 }
@@ -138,6 +153,9 @@ impl <'a> Resolver<'a>
                 self.define(class_declaration.name.get_identifier());
             },
         }
+        //> restore-current-function
+        self.current_function = enclosing_function;
+        //< restore-current-function
     }
 
     fn resolve_expr(&mut self, expr: &Expr)
@@ -200,13 +218,6 @@ impl <'a> Resolver<'a>
         }
     }
 
-    fn resolve_block(&mut self, stmt_list: &Vec<Stmt>)
-    {
-        for stmt in stmt_list {
-            self.resolve_stmt(stmt);
-        }
-    }
-
     #[inline]
     fn begin_scope(&mut self)
     {
@@ -246,4 +257,9 @@ impl <'a> Resolver<'a>
             }
         }
     }
+}
+
+#[derive(Clone, Debug, Copy)]
+enum FunctionType {
+    None, Function, Class
 }

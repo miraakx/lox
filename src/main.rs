@@ -32,7 +32,7 @@ fn main()
    //let code = "fun ciao() { return \"ciao\"; } fun stampa(fn) { print fn(); } stampa(ciao);";
    //let code = "var a = \"global\"; { fun showA() {print a;} showA(); var a = \"block\"; showA(); }";
    //let code = "class Car { start() { print \"engine on\"; } stop() { print \"engine off\"; } } var panda = Car(); panda.start(); print panda.stop();";
-   let code = "fun ciao() { var a = 1; var a = 2;}";
+   let code = "var a = 2; print b;";
    run(code);
    //todo!("stop() {{ print \"engine off\"; }} senza punto e virgola panica!");
 }

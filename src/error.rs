@@ -68,7 +68,8 @@ impl fmt::Display for LoxErrorKind
 pub enum ResolverErrorKind
 {
     LocalVariableNotFound(Identifier, Rc<RefCell<StringInterner>>),
-    VariableAlreadyExists(Identifier, Rc<RefCell<StringInterner>>)
+    VariableAlreadyExists(Identifier, Rc<RefCell<StringInterner>>),
+    ReturnFromTopLevelCode
 }
 
 impl fmt::Display for ResolverErrorKind
@@ -78,6 +79,7 @@ impl fmt::Display for ResolverErrorKind
         match self {
             ResolverErrorKind::LocalVariableNotFound(identifier, interner) => write!(f, "Can't read local variable {} in its own initializer", interner.borrow().resolve(*identifier).unwrap()),
             ResolverErrorKind::VariableAlreadyExists(identifier, interner) => write!(f, "Already a variable with name '{}' in this scope", interner.borrow().resolve(*identifier).unwrap()),
+            ResolverErrorKind::ReturnFromTopLevelCode => write!(f, "Can't return from top-level code"),
         }
     }
 }
@@ -92,7 +94,8 @@ pub enum InterpreterErrorKind
     WrongArity(u32, u32),
     NativeClockSysTimeError,
     InvalidPropertyAccess,
-    UdefinedProperty(Identifier, Rc<RefCell<StringInterner>>)
+    UdefinedProperty(Identifier, Rc<RefCell<StringInterner>>),
+    UdefinedVariable(Identifier, Rc<RefCell<StringInterner>>)
 }
 
 impl fmt::Display for InterpreterErrorKind
@@ -107,7 +110,8 @@ impl fmt::Display for InterpreterErrorKind
             InterpreterErrorKind::WrongArity(expected, found)   => write!(f, "Expected {} arguments, found {}", expected, found),
             InterpreterErrorKind::NativeClockSysTimeError                   => write!(f, "System time error calling clock()"),
             InterpreterErrorKind::InvalidPropertyAccess                     => write!(f, "Only instances have properties"),
-            InterpreterErrorKind::UdefinedProperty(identifier, interner)       => write!(f, "Undefined properties '{}'", interner.borrow().resolve(*identifier).unwrap()),
+            InterpreterErrorKind::UdefinedProperty(identifier, interner)       => write!(f, "Undefined property '{}'", interner.borrow().resolve(*identifier).unwrap()),
+            InterpreterErrorKind::UdefinedVariable(identifier, interner)       => write!(f, "Undefined variable '{}'", interner.borrow().resolve(*identifier).unwrap()),
         }
     }
 }

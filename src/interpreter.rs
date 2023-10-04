@@ -415,9 +415,16 @@ impl Interpreter
                     }
                 }
             }
-            ExprKind::Variable(name, _) =>
+            ExprKind::Variable(name, position) =>
             {
-                Ok(self.env.borrow().lookup_variable(*name, expr.id))
+                match self.env.borrow().lookup_variable(*name, expr.id) {
+                    Some(variable) => {
+                        return Ok(variable);
+                    },
+                    None => {
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariable(*name, self.string_interner.clone()), *position));
+                    },
+                }
             },
             ExprKind::Assign(name, expr, _) =>
             {

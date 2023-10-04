@@ -44,7 +44,7 @@ impl Environment
     }
 
     #[inline]
-    pub fn lookup_variable(&self, name: Identifier, expr_id: i64) -> Value
+    pub fn lookup_variable(&self, name: Identifier, expr_id: i64) -> Option<Value>
     {
         let opt_index = self.side_table.get(&expr_id);
         if let Some(index) = opt_index {
@@ -66,15 +66,15 @@ impl Environment
     }
 
     #[inline]
-    fn get_variable_from_local_at(&self, index: usize, name: Identifier) -> Value
+    fn get_variable_from_local_at(&self, index: usize, name: Identifier) -> Option<Value>
     {
-        return self.locals_scope[index].borrow().get_variable(name).unwrap();
+        return self.locals_scope[index].borrow().get_variable(name);
     }
 
     #[inline]
-    fn get_variable_from_global(&self, name: Identifier) -> Value
+    fn get_variable_from_global(&self, name: Identifier) -> Option<Value>
     {
-        return self.global_scope.borrow().get_variable(name).unwrap();
+        return self.global_scope.borrow().get_variable(name);
     }
 
     #[inline]
