@@ -55,7 +55,7 @@ impl Environment
     }
 
     #[inline]
-    pub fn assign_variable(&mut self, variable: Identifier, var_value: Value, expr_id: i64) -> Value
+    pub fn assign_variable(&mut self, variable: Identifier, var_value: Value, expr_id: i64) -> Result<Value, ()>
     {
         let opt_index = self.side_table.get(&expr_id);
         if let Some(index) = opt_index {
@@ -78,13 +78,13 @@ impl Environment
     }
 
     #[inline]
-    fn assign_variable_to_local_at(&mut self, index: usize, variable: Identifier, var_value: Value) -> Value
+    fn assign_variable_to_local_at(&mut self, index: usize, variable: Identifier, var_value: Value) -> Result<Value, ()>
     {
         return self.locals_scope[index].borrow_mut().assign_variable(variable, var_value);
     }
 
     #[inline]
-    fn assign_variable_to_global(&mut self, variable: Identifier, var_value: Value) -> Value
+    fn assign_variable_to_global(&mut self, variable: Identifier, var_value: Value) -> Result<Value, ()>
     {
         return self.global_scope.borrow_mut().assign_variable(variable, var_value);
     }
@@ -137,14 +137,14 @@ impl Scope
     }
 
     #[inline]
-    pub fn assign_variable(&mut self, variable: Identifier, var_value: Value) -> Value
+    pub fn assign_variable(&mut self, variable: Identifier, var_value: Value) -> Result<Value, ()>
     {
         if self.map.contains_key(&variable)
         {
             self.map.insert(variable, var_value.clone());
-            return var_value;
+            return Ok(var_value);
         }
-        panic!("Variable not found");
+        Err(())
     }
 
     #[inline]

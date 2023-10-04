@@ -422,16 +422,23 @@ impl Interpreter
                         return Ok(variable);
                     },
                     None => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariable(*name, self.string_interner.clone()), *position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(*name, self.string_interner.clone()), *position));
                     },
                 }
             },
-            ExprKind::Assign(name, expr, _) =>
+            ExprKind::Assign(name, expr, position) =>
             {
                 let value: Value = self.evaluate(expr.as_ref())?;
-                return Ok(self.env
-                            .borrow_mut()
-                            .assign_variable(name.to_owned(), value, expr.id));
+                let result =
+                    self.env
+                    .borrow_mut()
+                    .assign_variable(name.to_owned(), value, expr.id);
+                match result {
+                    Ok(value) => { return Ok(value); },
+                    Err(_) => {
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableAssignment(*name, self.string_interner.clone()), *position));
+                    },
+                }
             },
             ExprKind::Logical(left, token, right) =>
             {

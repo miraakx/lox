@@ -95,7 +95,8 @@ pub enum InterpreterErrorKind
     NativeClockSysTimeError,
     InvalidPropertyAccess,
     UdefinedProperty(Identifier, Rc<RefCell<StringInterner>>),
-    UdefinedVariable(Identifier, Rc<RefCell<StringInterner>>)
+    UdefinedVariableUsage(Identifier, Rc<RefCell<StringInterner>>),
+    UdefinedVariableAssignment(Identifier, Rc<RefCell<StringInterner>>)
 }
 
 impl fmt::Display for InterpreterErrorKind
@@ -111,7 +112,8 @@ impl fmt::Display for InterpreterErrorKind
             InterpreterErrorKind::NativeClockSysTimeError                   => write!(f, "System time error calling clock()"),
             InterpreterErrorKind::InvalidPropertyAccess                     => write!(f, "Only instances have properties"),
             InterpreterErrorKind::UdefinedProperty(identifier, interner)       => write!(f, "Undefined property '{}'", interner.borrow().resolve(*identifier).unwrap()),
-            InterpreterErrorKind::UdefinedVariable(identifier, interner)       => write!(f, "Undefined variable '{}'", interner.borrow().resolve(*identifier).unwrap()),
+            InterpreterErrorKind::UdefinedVariableUsage(identifier, interner)       => write!(f, "Undefined variable. Tryng to evaluate undefined variable'{}'", interner.borrow().resolve(*identifier).unwrap()),
+            InterpreterErrorKind::UdefinedVariableAssignment(identifier, interner)  => write!(f, "Undefined variable. Tryng to assign to undefined variable '{}'", interner.borrow().resolve(*identifier).unwrap()),
         }
     }
 }
