@@ -1,13 +1,15 @@
-use std::{fmt::Debug, rc::Rc, cell::RefCell, collections::HashMap};
+use std::{fmt::Debug, rc::Rc, cell::RefCell, collections::HashMap, clone};
 
-use string_interner::StringInterner;
+use string_interner::{StringInterner, Symbol};
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::Environment, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}, alias::{Identifier, ExprId}};
 
 pub struct Interpreter
 {
-    env: Rc<RefCell<Environment>>,
-    string_interner: Rc<RefCell<StringInterner>>
+    environment_stack: Rc<RefCell<Environment>>,
+    string_interner: Rc<RefCell<StringInterner>>,
+    side_table: Rc<RefCell<HashMap<i64, usize>>>,
+    global_scope: Rc<RefCell<Scope>>,
 }
 
 impl Interpreter
@@ -15,27 +17,37 @@ impl Interpreter
     #[inline]
     pub fn new(string_interner: Rc<RefCell<StringInterner>>) -> Self
     {
-        let mut env = Environment::new();
+        let env = Environment::new();
         let symbol = string_interner.borrow_mut().get_or_intern_static("clock");
-        env.define_variable(symbol, Value::Callable(Callable::Clock));
+        let mut interpreter = Interpreter {
+            environment_stack: Rc::new(RefCell::new(env)),
+            string_interner,
+            side_table:  Rc::new(RefCell::new(HashMap::new())),
+            global_scope: Rc::new(RefCell::new(Scope::new())),
+        };
+        interpreter.define_variable(symbol, Value::Callable(Callable::Clock));
+        return interpreter;
+    }
+
+    #[inline]
+    pub fn from(environment_stack: Rc<RefCell<Environment>>, intrepreter: &Interpreter) -> Self
+    {
         Interpreter {
-            env: Rc::new(RefCell::new(env)),
-            string_interner
+            environment_stack: environment_stack,
+            string_interner: Rc::clone(&intrepreter.string_interner),
+            side_table: Rc::clone(&intrepreter.side_table),
+            global_scope: Rc::clone(&intrepreter.global_scope)
         }
     }
 
     #[inline]
-    pub fn from(environment: Rc<RefCell<Environment>>, string_interner: Rc<RefCell<StringInterner>>) -> Self
-    {
-        Interpreter {
-            env: environment,
-            string_interner
-        }
+    pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize) {
+        self.side_table.borrow_mut().insert(expr_id, depth);
     }
 
     #[inline]
     pub fn resolve(&mut self, expr_id: i64, depth: usize) {
-        self.env.borrow_mut().insert_into_side_table(expr_id, depth);
+        self.insert_into_side_table(expr_id, depth);
     }
 
     #[inline]
@@ -92,18 +104,18 @@ impl Interpreter
                     Some(expr) =>
                     {
                         let value = self.evaluate(expr)?;
-                        self.env.borrow_mut().define_variable(variable.to_owned(), value);
+                        self.define_variable(variable.to_owned(), value);
                     },
                     None =>
                     {
-                        self.env.borrow_mut().define_variable(variable.to_owned(), Value::Nil);
+                        self.define_variable(variable.to_owned(), Value::Nil);
                     },
                 }
                 return Ok(State::Normal);
             }
             Stmt::Block(statements) =>
             {
-                self.env.borrow_mut().new_local_scope();
+                self.environment_stack.borrow_mut().new_local_scope();
                 for stmt in statements
                 {
                     let state = self.execute_stmt(stmt)?;
@@ -120,7 +132,7 @@ impl Interpreter
                         State::Return(_) => return Ok(state),
                     };
                 }
-                self.env.borrow_mut().remove_loval_scope();
+                self.environment_stack.borrow_mut().remove_loval_scope();
                 return Ok(State::Normal);
             },
             Stmt::If(condition, then_stmt) =>
@@ -169,7 +181,7 @@ impl Interpreter
             },
             Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
             {
-                self.env.borrow_mut().new_local_scope();
+                self.environment_stack.borrow_mut().new_local_scope();
 
                 if let Some(initializer) = opt_initializer.as_ref() {
                     self.execute_stmt(initializer)?;
@@ -193,16 +205,14 @@ impl Interpreter
                     }
                 }
 
-                self.env.borrow_mut().remove_loval_scope();
+                self.environment_stack.borrow_mut().remove_loval_scope();
 
                 return Ok(State::Normal);
             },
             Stmt::FunctionDeclaration(declaration) => {
-                let function = Callable::Function(declaration.clone(), self.env.clone());
-                self.env
-                    .as_ref()
-                    .borrow_mut()
-                    .define_variable(
+                let cloned_environment = Environment::from(&self.environment_stack.borrow());
+                let function = Callable::Function(Rc::clone(&declaration), Rc::new(RefCell::new(cloned_environment)));
+                self.define_variable(
                         declaration.name.get_identifier(),
                         Value::Callable(function)
                     );
@@ -210,14 +220,11 @@ impl Interpreter
             },
             Stmt::ClassDeclaration(class_declaration) => {
                 //class is callable to construct a new instance. The new instance must have its own class template.
-                let callable = Callable::Class(class_declaration.clone(), self.env.clone());
-                self.env
-                    .as_ref()
-                    .borrow_mut()
-                    .define_variable(
-                        class_declaration.name.get_identifier(),
-                        Value::Callable(callable)
-                    );
+                let callable = Callable::Class(Rc::clone(class_declaration), Rc::clone(&self.environment_stack));
+                self.define_variable(
+                    class_declaration.name.get_identifier(),
+                    Value::Callable(callable)
+                );
                 return Ok(State::Normal);
             },
             Stmt::Return(_, opt_expr) => {
@@ -252,7 +259,7 @@ impl Interpreter
                     match value {
                         LiteralValue::String(val) =>
                         {
-                            return Ok(Value::String(val.clone()));
+                            return Ok(Value::String(Rc::clone(&val)));
                         },
                         LiteralValue::Number(val) =>
                         {
@@ -417,26 +424,24 @@ impl Interpreter
             }
             ExprKind::Variable(name, position) =>
             {
-                match self.env.borrow().lookup_variable(*name, expr.id) {
+                println!("looking up variable: {} ({})", self.string_interner.borrow().resolve(*name).unwrap(), name.to_usize());
+                match self.lookup_variable(*name, expr.id) {
                     Some(variable) => {
                         return Ok(variable);
                     },
                     None => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(*name, self.string_interner.clone()), *position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(*name, Rc::clone(&self.string_interner)), *position));
                     },
                 }
             },
             ExprKind::Assign(name, expr, position) =>
             {
                 let value: Value = self.evaluate(expr.as_ref())?;
-                let result =
-                    self.env
-                    .borrow_mut()
-                    .assign_variable(name.to_owned(), value, expr.id);
+                let result: Result<Value, ()> = self.assign_variable(*name, value, expr.id);
                 match result {
                     Ok(value) => { return Ok(value); },
                     Err(_) => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableAssignment(*name, self.string_interner.clone()), *position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableAssignment(*name, Rc::clone(&self.string_interner)), *position));
                     },
                 }
             },
@@ -486,7 +491,7 @@ impl Interpreter
                         if function.arity() != args.len() as u32 {
                             return Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(), args.len() as u32), token.position));
                         }
-                        return function.call(self, &args, token.position, self.string_interner.clone());
+                        return function.call(self, &args, token.position);
                     },
                     _ => {
                         return Err(LoxError::interpreter_error(InterpreterErrorKind::NotCallable, token.position));
@@ -500,16 +505,22 @@ impl Interpreter
                 {
                     Value::ClassInstance(class, attributes) =>
                     {
-                        let attributes = attributes.borrow();
-                        let opt_value = attributes.get(&property.get_identifier());
-                        if let Some(value) = opt_value {
-                            return Ok(value.clone());
+                        {
+                            let attributes = attributes.borrow();
+                            let opt_value = attributes.get(&property.get_identifier());
+                            if let Some(value) = opt_value {
+                                return Ok(value.clone());
+                            }
                         }
-                        let opt_method = class.methods.get(&property.get_identifier());
-                        if let Some(method) = opt_method {
-                            return Ok(Value::Callable(Callable::Function(method.clone(), self.env.clone())));
+                        {
+                            let opt_method = class.methods.get(&property.get_identifier());
+                            if let Some(method) = opt_method {
+                                let cloned_envoronment = Environment::from(&self.environment_stack.borrow());
+
+                                return Ok(Value::Callable(Callable::Function(Rc::clone(&method), Rc::new(RefCell::new(cloned_envoronment)))));
+                            }
                         }
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(property.get_identifier(), self.string_interner.clone()), property.position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(property.get_identifier(), Rc::clone(&self.string_interner)), property.position));
                     },
                     _ =>
                     {
@@ -533,8 +544,57 @@ impl Interpreter
                     }
                 }
             },
+            ExprKind::This(_) => todo!(),
         }
     }
+
+    #[inline]
+    pub fn lookup_variable(&self, name: Identifier, expr_id: ExprId) -> Option<Value>
+    {
+        {
+            let borrowed_table = self.side_table.borrow();
+            let opt_index = borrowed_table.get(&expr_id);
+            if let Some(index) = opt_index {
+                println!("searching variable '{}' ad index '{}' of {}", self.string_interner.borrow().resolve(name).unwrap(), *index, borrowed_table.len() - 1);
+                return self.environment_stack.borrow().get_variable_from_local_at(*index, name);
+            }
+        }
+        return self.global_scope.borrow().get_variable(name);
+    }
+
+    #[inline]
+    pub fn assign_variable(&mut self, variable: Identifier, var_value: Value, expr_id: i64) -> Result<Value, ()>
+    {
+        {
+            let borrowed_table = self.side_table.borrow_mut();
+            let opt_index = borrowed_table.get(&expr_id);
+            if let Some(index) = opt_index {
+                return self.environment_stack.borrow_mut().assign_variable_to_local_at(*index, variable, var_value);
+            }
+        }
+        return self.global_scope.borrow_mut().assign_variable(variable, var_value);
+
+    }
+
+    #[inline]
+    pub fn define_variable(&mut self, variable: Identifier, var_value: Value)
+    {
+
+        {
+            let borrowed_env = self.environment_stack.borrow_mut();
+            let last_scope = borrowed_env.last_scope();
+            if let Some(scope) = last_scope {
+                println!("defining variable '{}' in local scope", self.string_interner.borrow().resolve(variable).unwrap());
+                scope.borrow_mut().define_variable(variable, var_value);
+                return;
+            }
+        }
+        println!("defining variable '{}' in global scope", self.string_interner.borrow().resolve(variable).unwrap());
+        self.global_scope.borrow_mut().define_variable(variable, var_value);
+        return;
+    }
+
+
 
 }
 
@@ -548,7 +608,7 @@ pub enum State {
 
 #[derive(Clone, Debug)]
 pub enum Callable {
-    Function(Rc<FunctionDeclaration>, Rc<RefCell<Environment>>),
+    Function(Rc<FunctionDeclaration>, Rc<RefCell<Environment>>/* Deep clone of the original environment */),
     Class(Rc<ClassDeclaration>, Rc<RefCell<Environment>>),
     Clock
 }
@@ -565,31 +625,37 @@ impl Callable
         }
     }
 
-    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: Position, string_interner: Rc<RefCell<StringInterner>>) -> Result<Value, LoxError> {
+    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: Position) -> Result<Value, LoxError> {
         match self
         {
             Callable::Clock =>
             {
-                return clock(interpreter, args, position);
+                match clock() {
+                    Ok(value) => Ok(value),
+                    Err(error) => Err(LoxError::interpreter_error(error, position))
+                }
             },
             Callable::Function(declaration, environment) =>
             {
-                let mut env = Environment::from(&environment.borrow());
+                let mut local_interpreter = Interpreter::from(Rc::clone(environment), interpreter);
+                local_interpreter.environment_stack.borrow_mut().new_local_scope();
                 for (index, param) in declaration.parameters.iter().enumerate()
                 {
-                    env.define_variable(param.get_identifier(), args.get(index).unwrap().clone());
+                    local_interpreter.define_variable(param.get_identifier(), args.get(index).unwrap().clone());
                 }
-                let mut local_interpreter = Interpreter::from(Rc::new(RefCell::new(env)), string_interner.clone());
+
                 let state = local_interpreter.execute_stmt(&declaration.body)?;
+                local_interpreter.environment_stack.borrow_mut().remove_loval_scope();
                 match state {
                     State::Return(value) => Ok(value),
                     _                           => Ok(Value::Nil)
                 }
+
             },
             /* Call on class name construnct a new instance of the given class (there is no 'new' keyword in Lox) */
             Callable::Class(declaration, _) => {
                 Ok(Value::ClassInstance(
-                    declaration.clone(), Rc::new(RefCell::new(HashMap::new()))
+                    Rc::clone(&declaration), Rc::new(RefCell::new(HashMap::new()))
                 ))
             },
         }

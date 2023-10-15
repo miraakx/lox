@@ -5,9 +5,7 @@ use crate::{value::Value, alias::Identifier};
 #[derive(Clone, Debug)]
 pub struct Environment
 {
-    global_scope: Rc<RefCell<Scope>>,
     locals_scope: Vec<Rc<RefCell<Scope>>>,
-    side_table: HashMap<i64, usize>
 }
 
 impl Environment
@@ -17,9 +15,7 @@ impl Environment
     {
         Environment
         {
-            global_scope: Rc::new(RefCell::new(Scope::new())),
-            locals_scope: Vec::new(),
-            side_table: HashMap::new()
+            locals_scope: Vec::new()
         }
     }
 
@@ -30,63 +26,15 @@ impl Environment
     }
 
     #[inline]
-    pub fn define_variable(&mut self, variable: Identifier, var_value: Value)
-    {
-        let inner = self.locals_scope.last();
-        match inner {
-            Some(scope) => {
-                scope.borrow_mut().define_variable(variable, var_value);
-            },
-            None => {
-                self.global_scope.borrow_mut().define_variable(variable, var_value);
-            },
-        }
-    }
-
-    #[inline]
-    pub fn lookup_variable(&self, name: Identifier, expr_id: i64) -> Option<Value>
-    {
-        let opt_index = self.side_table.get(&expr_id);
-        if let Some(index) = opt_index {
-            return self.get_variable_from_local_at(*index, name);
-        } else {
-            return self.get_variable_from_global(name);
-        }
-    }
-
-    #[inline]
-    pub fn assign_variable(&mut self, variable: Identifier, var_value: Value, expr_id: i64) -> Result<Value, ()>
-    {
-        let opt_index = self.side_table.get(&expr_id);
-        if let Some(index) = opt_index {
-            return self.assign_variable_to_local_at(*index, variable, var_value);
-        } else {
-            return self.assign_variable_to_global(variable, var_value);
-        }
-    }
-
-    #[inline]
-    fn get_variable_from_local_at(&self, index: usize, name: Identifier) -> Option<Value>
+    pub fn get_variable_from_local_at(&self, index: usize, name: Identifier) -> Option<Value>
     {
         return self.locals_scope[index].borrow().get_variable(name);
     }
 
     #[inline]
-    fn get_variable_from_global(&self, name: Identifier) -> Option<Value>
-    {
-        return self.global_scope.borrow().get_variable(name);
-    }
-
-    #[inline]
-    fn assign_variable_to_local_at(&mut self, index: usize, variable: Identifier, var_value: Value) -> Result<Value, ()>
+    pub fn assign_variable_to_local_at(&mut self, index: usize, variable: Identifier, var_value: Value) -> Result<Value, ()>
     {
         return self.locals_scope[index].borrow_mut().assign_variable(variable, var_value);
-    }
-
-    #[inline]
-    fn assign_variable_to_global(&mut self, variable: Identifier, var_value: Value) -> Result<Value, ()>
-    {
-        return self.global_scope.borrow_mut().assign_variable(variable, var_value);
     }
 
     #[inline]
@@ -102,14 +50,15 @@ impl Environment
     }
 
     #[inline]
-    pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize) {
-        self.side_table.insert(expr_id, depth);
+    pub fn last_scope(&self) -> Option<&Rc<RefCell<Scope>>>
+    {
+        self.locals_scope.last()
     }
 
 }
 
 #[derive(Clone, Debug)]
-struct Scope {
+pub struct Scope {
     map: HashMap<Identifier, Value>
 }
 

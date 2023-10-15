@@ -2,7 +2,7 @@ use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::Stmt, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, interpreter::Interpreter, alias::Identifier, tokens::Position};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, interpreter::Interpreter, alias::Identifier, tokens::{Position, THIS}};
 
 pub struct Resolver<'a> {
     interpreter: &'a mut Interpreter,
@@ -107,28 +107,7 @@ impl <'a> Resolver<'a>
             Stmt::Continue  => { /*do nothing*/ },
             Stmt::FunctionDeclaration(func_decl) =>
             {
-                let name = &func_decl.name.get_identifier();
-                match self.declare(*name) {
-                    Err(err_kind) => {
-                        self.error(err_kind, &func_decl.name.position);
-                    },
-                    _ => {}
-                }
-                self.define(*name);
-                self.begin_scope();
-                for param in &func_decl.parameters {
-                    let name = &param.get_identifier();
-                    match self.declare(*name) {
-                        Err(err_kind) => {
-                            self.error(err_kind, &param.position);
-                        },
-                        _ => {}
-                    }
-                    self.define(*name);
-                }
-                //>Inside a function stmt set current function to FunctionType::Function
-                self.resolve_stmt(&func_decl.body, FunctionType::Function);
-                //<Inside a function stmt set current function to FunctionType::Function
+                self.resolve_function(func_decl, FunctionType::Function);
             },
             Stmt::Return(return_token, opt_expr) =>
             {
@@ -142,8 +121,9 @@ impl <'a> Resolver<'a>
                     self.resolve_expr(expr);
                 }
             },
-            Stmt::ClassDeclaration(class_declaration) => {
-
+            Stmt::ClassDeclaration(class_declaration) =>
+            {
+                //resolve class name
                 match self.declare(class_declaration.name.get_identifier()) {
                     Err(err_kind) => {
                         self.error(err_kind, &class_declaration.name.position);
@@ -151,11 +131,54 @@ impl <'a> Resolver<'a>
                     _ => {}
                 }
                 self.define(class_declaration.name.get_identifier());
+
+                //this scope
+                self.begin_scope();
+
+                let scope = self.stack.peek_mut().unwrap();
+                let this = self.string_interner.borrow_mut().get_or_intern_static(THIS);
+                scope.insert(this, true);
+
+                self.end_scope();
+
+               // scope.insert(THIS,  true);
+                //resolve methods
+                let methods = &class_declaration.methods;
+                for (_, rc_method) in methods.into_iter() {
+                    self.resolve_function(rc_method, FunctionType::Method);
+                }
+
             },
         }
         //> restore-current-function
         self.current_function = enclosing_function;
         //< restore-current-function
+    }
+
+    fn resolve_function(&mut self, func_decl: &Rc<FunctionDeclaration>, function_type: FunctionType) {
+        let name = &func_decl.name.get_identifier();
+        match self.declare(*name) {
+            Err(err_kind) => {
+                self.error(err_kind, &func_decl.name.position);
+            },
+            _ => {}
+        }
+        self.define(*name);
+        self.begin_scope();
+        for param in &func_decl.parameters {
+            let name = &param.get_identifier();
+            match self.declare(*name) {
+                Err(err_kind) => {
+                    self.error(err_kind, &param.position);
+                },
+                _ => {}
+            }
+            self.define(*name);
+        }
+        //>Inside a function stmt set current function to FunctionType::Function
+        self.resolve_stmt(&func_decl.body, function_type);
+        //<Inside a function stmt set current function to FunctionType::Function
+        self.end_scope();
     }
 
     fn resolve_expr(&mut self, expr: &Expr)
@@ -184,7 +207,7 @@ impl <'a> Resolver<'a>
                 if !self.stack.is_empty() {
                     let opt_bool =self.stack.peek().unwrap().get(name);
                     if opt_bool.is_none() || *opt_bool.unwrap() == false {
-                        LoxError::resolver_error(crate::error::ResolverErrorKind::LocalVariableNotFound(*name, self.string_interner.clone()), *pos);
+                        LoxError::resolver_error(crate::error::ResolverErrorKind::LocalVariableNotFound(*name, Rc::clone(&self.string_interner)), *pos);
                     }
                 }
                 self.resolve_local(expr, *name);
@@ -215,6 +238,9 @@ impl <'a> Resolver<'a>
                 self.resolve_expr(object);
                 self.resolve_expr(value);
             },
+            ExprKind::This(token) => {
+                self.resolve_local(expr, token.get_identifier());
+            },
         }
     }
 
@@ -235,7 +261,7 @@ impl <'a> Resolver<'a>
         if let Some(scope) = self.stack.peek_mut()
         {
             if scope.contains_key(&identifier) {
-                return Err(ResolverErrorKind::VariableAlreadyExists(identifier, self.string_interner.clone()));
+                return Err(ResolverErrorKind::VariableAlreadyExists(identifier, Rc::clone(&self.string_interner)));
             }
             scope.insert(identifier, false);
         }
@@ -261,5 +287,5 @@ impl <'a> Resolver<'a>
 
 #[derive(Clone, Debug, Copy)]
 enum FunctionType {
-    None, Function, Class
+    None, Function, Class, Method
 }

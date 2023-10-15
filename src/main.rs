@@ -32,7 +32,26 @@ fn main()
    //let code = "fun ciao() { return \"ciao\"; } fun stampa(fn) { print fn(); } stampa(ciao);";
    //let code = "var a = \"global\"; { fun showA() {print a;} showA(); var a = \"block\"; showA(); }";
    //let code = "class Car { start() { print \"engine on\"; } stop() { print \"engine off\"; } } var panda = Car(); panda.start(); print panda.stop();";
-   let code = "a = 3;";
+   let code =
+   /*"
+      {
+         var closure = 5;
+         fun prova() {
+            var inner = closure;
+         }
+      }
+      prova();
+   ";*/
+   "
+   class Prova {
+      ciao(){
+         print \"ciao!\";
+      }
+   }
+   var h = Prova();
+   var ciao = h.ciao;
+   ciao();
+   ";
    run(code);
    //todo!("stop() {{ print \"engine off\"; }} senza punto e virgola panica!");
 }
@@ -79,7 +98,7 @@ fn run(code: &str)
    let interner = Rc::new(RefCell::new(StringInterner::default()));
    let r_stmts;
    {
-      let mut lexer = Lexer::new(code, ConsoleErrorLogger{}, interner.clone());
+      let mut lexer = Lexer::new(code, ConsoleErrorLogger{}, Rc::clone(&interner));
       let mut parser: Parser = Parser::new(ConsoleErrorLogger{});
       r_stmts  = parser.parse(&mut lexer);
    }
@@ -88,9 +107,9 @@ fn run(code: &str)
       return;
    }
    let stmts = &r_stmts.unwrap()[..];
-   let mut interpreter = Interpreter::new(interner.clone());
+   let mut interpreter = Interpreter::new(Rc::clone(&interner));
    {
-      let mut resolver: Resolver = Resolver::new(&mut interpreter, ConsoleErrorLogger{}, interner.clone());
+      let mut resolver: Resolver = Resolver::new(&mut interpreter, ConsoleErrorLogger{}, Rc::clone(&interner));
       let result = resolver.resolve(stmts);
       if result.is_err() {
          println!("\nCompile time error(s) detected. See above.\n");

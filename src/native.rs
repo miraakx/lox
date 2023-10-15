@@ -1,9 +1,9 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{interpreter::Interpreter, error::{LoxError, InterpreterErrorKind}, tokens::Position, value::Value};
+use crate::{error::InterpreterErrorKind, value::Value};
 
 #[inline]
-pub fn clock(_: &Interpreter, _: &[Value], position: Position) -> Result<Value, LoxError>
+pub fn clock() -> Result<Value, InterpreterErrorKind>
 {
     let result = SystemTime::now().duration_since(UNIX_EPOCH);
     match result
@@ -12,7 +12,8 @@ pub fn clock(_: &Interpreter, _: &[Value], position: Position) -> Result<Value, 
             Ok(Value::Number(value.as_secs_f64()))
         },
         Err(_) => {
-            Err(LoxError::interpreter_error(InterpreterErrorKind::NativeClockSysTimeError, position))
+            Err(InterpreterErrorKind::NativeClockSysTimeError)
+//            Err(LoxError::interpreter_error(InterpreterErrorKind::NativeClockSysTimeError, position))
         },
     }
 }

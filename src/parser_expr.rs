@@ -29,7 +29,8 @@ pub enum ExprKind
     Logical(Box<Expr>, Token, Box<Expr>),
     Call(Box<Expr>, Option<Vec<Expr>>, Token),
     Get(Box<Expr>, Token),
-    Set(Box<Expr>, Token, Box<Expr>)
+    Set(Box<Expr>, Token, Box<Expr>),
+    This(Token)
 }
 
 #[inline(always)]
@@ -284,6 +285,10 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
                 }
             }
             return Ok(Expr::new(ExprKind::Grouping(Box::new(expr))));
+        },
+        TokenKind::This => {
+            let token = token_source.next().unwrap();
+            Ok(Expr::new(ExprKind::This(token)))
         },
         found => {
             Err(LoxError::parser_error(ParserErrorKind::LiteralExpected(*found), position))
