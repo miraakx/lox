@@ -296,6 +296,10 @@ impl<'a> Iterator for Lexer<'a>
                             TokenKind::True  => Some(LiteralValue::Bool(true)),
                             TokenKind::False => Some(LiteralValue::Bool(false)),
                             TokenKind::Nil   => Some(LiteralValue::Nil),
+                            TokenKind::This  => {
+                                let this_symbol = self.string_interner.borrow_mut().get_or_intern_static(THIS);
+                                Some(LiteralValue::Identifier(this_symbol))
+                            }
                             _ => None
                         };
                         opt_token_kind = Some(keyword_token);
@@ -313,7 +317,17 @@ impl<'a> Iterator for Lexer<'a>
                 }
             }
             if let Some(token_kind) = opt_token_kind {
-                return Some(Token{ kind: token_kind, value: opt_token_value, position: Position { line: line_start, column: column_start }, length: self.scanner.index() - index_start });
+                return Some(
+                    Token{
+                        kind: token_kind,
+                        value: opt_token_value,
+                        position: Position {
+                            line: line_start,
+                            column: column_start
+                        },
+                        length: self.scanner.index() - index_start
+                    }
+                );
             }
         }
     }

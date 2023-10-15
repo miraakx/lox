@@ -1,4 +1,4 @@
-use std::{fmt::Debug, rc::Rc, cell::RefCell, collections::HashMap, clone};
+use std::{fmt::Debug, rc::Rc, cell::RefCell, collections::HashMap};
 
 use string_interner::{StringInterner, Symbol};
 
@@ -10,6 +10,7 @@ pub struct Interpreter
     string_interner: Rc<RefCell<StringInterner>>,
     side_table: Rc<RefCell<HashMap<i64, usize>>>,
     global_scope: Rc<RefCell<Scope>>,
+    this_symbol: Identifier
 }
 
 impl Interpreter
@@ -18,14 +19,18 @@ impl Interpreter
     pub fn new(string_interner: Rc<RefCell<StringInterner>>) -> Self
     {
         let env = Environment::new();
-        let symbol = string_interner.borrow_mut().get_or_intern_static("clock");
+        let this_symbol = string_interner.borrow_mut().get_or_intern_static("this");
+        let clock_symbol = string_interner.borrow_mut().get_or_intern_static("clock");
         let mut interpreter = Interpreter {
             environment_stack: Rc::new(RefCell::new(env)),
             string_interner,
             side_table:  Rc::new(RefCell::new(HashMap::new())),
             global_scope: Rc::new(RefCell::new(Scope::new())),
+            this_symbol
         };
-        interpreter.define_variable(symbol, Value::Callable(Callable::Clock));
+        //>define native functions
+        interpreter.define_variable(clock_symbol, Value::Callable(Callable::Clock));
+        //<define native functions
         return interpreter;
     }
 
@@ -36,7 +41,8 @@ impl Interpreter
             environment_stack: environment_stack,
             string_interner: Rc::clone(&intrepreter.string_interner),
             side_table: Rc::clone(&intrepreter.side_table),
-            global_scope: Rc::clone(&intrepreter.global_scope)
+            global_scope: Rc::clone(&intrepreter.global_scope),
+            this_symbol: intrepreter.this_symbol
         }
     }
 
@@ -500,8 +506,8 @@ impl Interpreter
             },
             ExprKind::Get(get_expr, property) =>
             {
-                let value = self.evaluate(get_expr)?;
-                match value
+                let value: Value = self.evaluate(get_expr)?;
+                match &value
                 {
                     Value::ClassInstance(class, attributes) =>
                     {
@@ -515,8 +521,14 @@ impl Interpreter
                         {
                             let opt_method = class.methods.get(&property.get_identifier());
                             if let Some(method) = opt_method {
-                                let cloned_envoronment = Environment::from(&self.environment_stack.borrow());
-
+                                //>define new closure for the current method
+                                let mut cloned_envoronment = Environment::from(&self.environment_stack.borrow());
+                                {
+                                    //create new scope for the THIS keyword and bind it to the current class instance
+                                    let scope: Rc<RefCell<Scope>> = cloned_envoronment.new_local_scope();
+                                    let class_instance = value.clone();
+                                    scope.borrow_mut().define_variable(self.this_symbol, class_instance);
+                                }
                                 return Ok(Value::Callable(Callable::Function(Rc::clone(&method), Rc::new(RefCell::new(cloned_envoronment)))));
                             }
                         }
@@ -544,7 +556,17 @@ impl Interpreter
                     }
                 }
             },
-            ExprKind::This(_) => todo!(),
+            ExprKind::This(this_token) => {
+                println!("looking up variable: {}", "this");
+                match self.lookup_variable(self.this_symbol, expr.id) {
+                    Some(variable) => {
+                        return Ok(variable);
+                    },
+                    None => {
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(self.this_symbol, Rc::clone(&self.string_interner)), this_token.position));
+                    },
+                }
+            },
         }
     }
 

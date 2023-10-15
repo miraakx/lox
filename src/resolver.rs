@@ -10,14 +10,24 @@ pub struct Resolver<'a> {
     error_logger: Box<dyn ErrorLogger>,
     string_interner: Rc<RefCell<StringInterner>>,
     has_error: bool,
-    current_function: FunctionType
+    current_function: FunctionType,
+    this_symbol: Identifier
 }
 
 impl <'a> Resolver<'a>
 {
     #[inline]
     pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self {
-        Resolver { stack: Stack::new(), interpreter, error_logger: Box::new(error_logger), string_interner, has_error: false, current_function: FunctionType::None }
+        let this_symbol = string_interner.borrow_mut().get_or_intern_static(THIS);
+        Resolver {
+            stack: Stack::new(),
+            interpreter,
+            error_logger: Box::new(error_logger),
+            string_interner,
+            has_error: false,
+            current_function: FunctionType::None,
+            this_symbol
+        }
     }
 
     fn error(&mut self, err_kind: ResolverErrorKind, position: &Position) {
@@ -132,21 +142,20 @@ impl <'a> Resolver<'a>
                 }
                 self.define(class_declaration.name.get_identifier());
 
-                //this scope
+                //>start THIS scope wrapping around methods declarations
                 self.begin_scope();
 
-                let scope = self.stack.peek_mut().unwrap();
-                let this = self.string_interner.borrow_mut().get_or_intern_static(THIS);
-                scope.insert(this, true);
+                self.define(self.this_symbol);
 
-                self.end_scope();
-
-               // scope.insert(THIS,  true);
-                //resolve methods
+                //>resolve methods
                 let methods = &class_declaration.methods;
                 for (_, rc_method) in methods.into_iter() {
                     self.resolve_function(rc_method, FunctionType::Method);
                 }
+                //<resolve methods
+
+                self.end_scope();
+                //<end THIS scope wrapping around methods declarations
 
             },
         }
@@ -238,8 +247,8 @@ impl <'a> Resolver<'a>
                 self.resolve_expr(object);
                 self.resolve_expr(value);
             },
-            ExprKind::This(token) => {
-                self.resolve_local(expr, token.get_identifier());
+            ExprKind::This(_) => {
+                self.resolve_local(expr, self.this_symbol);
             },
         }
     }
