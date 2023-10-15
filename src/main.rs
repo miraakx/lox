@@ -51,6 +51,7 @@ fn main()
    var parrot = Parrot();
    parrot.word = \"ciao\";
    parrot.speak();
+   //this.word;
    ";
    run(code);
    //todo!("stop() {{ print \"engine off\"; }} senza punto e virgola panica!");

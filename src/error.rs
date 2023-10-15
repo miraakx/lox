@@ -69,7 +69,8 @@ pub enum ResolverErrorKind
 {
     LocalVariableNotFound(Identifier, Rc<RefCell<StringInterner>>),
     VariableAlreadyExists(Identifier, Rc<RefCell<StringInterner>>),
-    ReturnFromTopLevelCode
+    ReturnFromTopLevelCode,
+    InvalidThisUsage
 }
 
 impl fmt::Display for ResolverErrorKind
@@ -80,6 +81,7 @@ impl fmt::Display for ResolverErrorKind
             ResolverErrorKind::LocalVariableNotFound(identifier, interner) => write!(f, "Can't read local variable {} in its own initializer", interner.borrow().resolve(*identifier).unwrap()),
             ResolverErrorKind::VariableAlreadyExists(identifier, interner) => write!(f, "Already a variable with name '{}' in this scope", interner.borrow().resolve(*identifier).unwrap()),
             ResolverErrorKind::ReturnFromTopLevelCode => write!(f, "Can't return from top-level code"),
+            ResolverErrorKind::InvalidThisUsage => write!(f, "Can't use 'this' keyword outside of a class"),
         }
     }
 }
