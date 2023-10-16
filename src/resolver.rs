@@ -12,7 +12,8 @@ pub struct Resolver<'a> {
     has_error: bool,
     current_function: FunctionType,
     current_class: ClassType,
-    this_symbol: Identifier
+    this_symbol: Identifier,
+    init_symbol: Identifier
 }
 
 impl <'a> Resolver<'a>
@@ -20,6 +21,7 @@ impl <'a> Resolver<'a>
     #[inline]
     pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self {
         let this_symbol = string_interner.borrow_mut().get_or_intern_static(THIS);
+        let init_symbol = string_interner.borrow_mut().get_or_intern_static("init");
         Resolver {
             stack: Stack::new(),
             interpreter,
@@ -28,7 +30,8 @@ impl <'a> Resolver<'a>
             has_error: false,
             current_function: FunctionType::None,
             current_class: ClassType::None,
-            this_symbol
+            this_symbol,
+            init_symbol
         }
     }
 
@@ -129,6 +132,11 @@ impl <'a> Resolver<'a>
                     FunctionType::None => {
                         self.error(ResolverErrorKind::ReturnFromTopLevelCode, &return_token.position)
                     },
+                    FunctionType::Initializer => {
+                        if opt_expr.is_some() {
+                            self.error(ResolverErrorKind::ReturnFromInitializer, &return_token.position)
+                        }
+                    },
                     _ => {
                         if let Some(expr) = opt_expr {
                             self.resolve_expr(expr);
@@ -155,7 +163,13 @@ impl <'a> Resolver<'a>
                 //>resolve methods
                 let methods = &class_declaration.methods;
                 for (_, rc_method) in methods.into_iter() {
-                    self.resolve_function(rc_method, FunctionType::Method, ClassType::Class);
+                    let function_type;
+                    if rc_method.name.get_identifier() == self.init_symbol {
+                        function_type = FunctionType::Initializer;
+                    } else {
+                        function_type = FunctionType::Method;
+                    }
+                    self.resolve_function(rc_method, function_type, ClassType::Class);
                 }
                 //<resolve methods
 
@@ -309,7 +323,7 @@ impl <'a> Resolver<'a>
 
 #[derive(Clone, Debug, Copy)]
 enum FunctionType {
-    None, Function, Method
+    None, Function, Method, Initializer
 }
 
 #[derive(Clone, Debug, Copy)]

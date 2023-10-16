@@ -43,15 +43,22 @@ fn main()
       prova();
    ";*/
    "
-   class Parrot {
-      speak(){
-         print this.word;
+
+   var speak = nil;
+   {
+      class Parrot {
+         init() {
+            this.word = \"squeak\";
+            return;
+         }
+         speak(){
+            print this.word;
+         }
       }
+      var parrot = Parrot();
+      speak = parrot.speak;
    }
-   var parrot = Parrot();
-   parrot.word = \"ciao\";
-   parrot.speak();
-   //this.word;
+   speak();
    ";
    run(code);
    //todo!("stop() {{ print \"engine off\"; }} senza punto e virgola panica!");
