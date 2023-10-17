@@ -14,7 +14,7 @@ pub enum Value {
     ClassInstance(Rc<ClassDeclaration>, Rc<RefCell<FxHashMap<Identifier, Value>>>)
 }
 
-#[inline(always)]
+#[inline]
 pub fn is_equal(val_left: Value, val_right: Value) -> bool
 {
     match (val_left, val_right)
@@ -27,7 +27,7 @@ pub fn is_equal(val_left: Value, val_right: Value) -> bool
     }
 }
 
-#[inline(always)]
+#[inline]
 pub fn is_truthy(value: &Value) -> bool
 {
     match value

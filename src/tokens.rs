@@ -14,7 +14,7 @@ pub struct Token
 
 impl Token
 {
-    #[inline(always)]
+    #[inline]
     pub fn get_identifier(&self) -> Identifier
     {
         if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
@@ -24,7 +24,7 @@ impl Token
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn get_identifier_and_position(&self) -> (Identifier, Position)
     {
         if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
@@ -182,13 +182,13 @@ pub type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
 
 impl<'a> TokenSource<'a>
 {
-    #[inline(always)]
+    #[inline]
     pub fn consume(&mut self) {
         self.next();
     }
 }
 
-#[inline(always)]
+#[inline]
 fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind> {
     if str.len() == keyword.len() && str.eq(keyword) {
         Some(token_kind)
@@ -197,7 +197,7 @@ fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
     }
 }
 
-#[inline(always)]
+#[inline]
 pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<Token,LoxError>
 {
     let token = token_source.next().unwrap();
@@ -210,17 +210,17 @@ pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<
     }
 }
 
-#[inline(always)]
+#[inline]
 pub fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
     token_source.peek().unwrap().kind == token_kind
 }
 
-#[inline(always)]
+#[inline]
 pub fn is_at_end(token_source: &mut TokenSource) -> bool {
     check(token_source, TokenKind::EOF)
 }
 
-#[inline(always)]
+#[inline]
 pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
     let token = token_source.peek().unwrap();
     if token_kind == token.kind {
@@ -230,7 +230,7 @@ pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool
     return false;
 }
 
-#[inline(always)]
+#[inline]
 pub fn check_end_of_file(token_source: &mut TokenSource) -> Result<(),LoxError> {
     let peek = token_source.peek().unwrap();
     if peek.kind == TokenKind::EOF {

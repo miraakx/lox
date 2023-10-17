@@ -51,17 +51,17 @@ impl Interpreter
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize) {
         self.side_table.borrow_mut().insert(expr_id, depth);
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn resolve(&mut self, expr_id: i64, depth: usize) {
         self.insert_into_side_table(expr_id, depth);
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
     {
         for stmt in stmts
@@ -498,8 +498,8 @@ impl Interpreter
                 {
                     Value::Callable(function) =>
                     {
-                        if function.arity(self.init_symbol) != args.len() as u32 {
-                            return Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(self.init_symbol), args.len() as u32), token.position));
+                        if function.arity(self.init_symbol) != args.len() {
+                            return Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(self.init_symbol), args.len()), token.position));
                         }
                         return function.call(self, &args, token.position);
                     },
@@ -635,16 +635,16 @@ pub enum Callable {
 impl Callable
 {
     #[inline]
-    fn arity(&self, init_symbol: Identifier) -> u32 {
+    fn arity(&self, init_symbol: Identifier) -> usize {
         match self {
             Callable::Function(declaration, _, _) => {
-                declaration.parameters.len() as u32
+                declaration.parameters.len()
             },
             Callable::Class(rc_declaration, _) => {
                 //>If class has an initializer determine the number of parameters of the initializer to be passed to the class contructor
                 if let Some(init) = rc_declaration.methods.get(&init_symbol)
                 {
-                    return init.parameters.len() as u32;
+                    return init.parameters.len();
                 }
                 return 0;
             },

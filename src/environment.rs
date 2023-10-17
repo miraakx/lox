@@ -12,7 +12,7 @@ pub struct Environment
 
 impl Environment
 {
-    #[inline(always)]
+    #[inline]
     pub fn new() -> Self
     {
         Environment
@@ -21,25 +21,25 @@ impl Environment
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn from(environment: &Environment) -> Self
     {
         environment.clone()
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn get_variable_from_local_at(&self, index: usize, name: Identifier) -> Option<Value>
     {
         return self.locals_scope[index].borrow().get_variable(name);
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn assign_variable_to_local_at(&mut self, index: usize, variable: Identifier, var_value: Value) -> Result<Value, ()>
     {
         return self.locals_scope[index].borrow_mut().assign_variable(variable, var_value);
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn new_local_scope(&mut self) -> Rc<RefCell<Scope>>
     {
         let rc_scope: Rc<RefCell<Scope>> = Rc::new(RefCell::new(Scope::new()));
@@ -47,13 +47,13 @@ impl Environment
         return rc_scope;
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn remove_loval_scope(&mut self)
     {
         self.locals_scope.pop();
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn last_scope(&self) -> Option<&Rc<RefCell<Scope>>>
     {
         self.locals_scope.last()
@@ -68,19 +68,19 @@ pub struct Scope {
 
 impl Scope
 {
-    #[inline(always)]
+    #[inline]
     pub fn new() -> Self
     {
         Scope { map: FxHashMap::default() }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn define_variable(&mut self, variable: Identifier, var_value: Value)
     {
         self.map.insert(variable, var_value);
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn get_variable(&self, variable: Identifier) -> Option<Value>
     {
         match self.map.get(&variable) {
@@ -89,7 +89,7 @@ impl Scope
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn assign_variable(&mut self, variable: Identifier, var_value: Value) -> Result<Value, ()>
     {
         if self.map.contains_key(&variable)
@@ -100,7 +100,7 @@ impl Scope
         Err(())
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn contains_variable(&self, variable: Identifier) -> bool
     {
         self.map.contains_key(&variable)

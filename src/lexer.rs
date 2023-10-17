@@ -333,19 +333,19 @@ impl<'a> Iterator for Lexer<'a>
     }
 }
 
-#[inline(always)]
+#[inline]
 fn is_identifier(ch: char) -> bool
 {
     ch.is_ascii_alphabetic() || ch == '_'
 }
 
-#[inline(always)]
+#[inline]
 fn is_number(ch: char) -> bool
 {
     ch.is_ascii_digit()
 }
 
-#[inline(always)]
+#[inline]
 fn is_identifier_char_allowed(ch: char) -> bool
 {
     ch.is_ascii_alphabetic() || ch == '_' || ch.is_ascii_digit()
@@ -353,7 +353,7 @@ fn is_identifier_char_allowed(ch: char) -> bool
 
 /*
 
-#[inline(always)]
+#[inline]
 fn tokenize(code: &str) -> Vec<Token>
 {
     Lexer::new(code, ConsoleErrorLogger{}, Rc::new(RefCell::new(StringInterner::new()))).collect()

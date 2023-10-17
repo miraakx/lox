@@ -95,7 +95,7 @@ pub enum InterpreterErrorKind
     InvalidUnaryType,
     InvalidBinaryType,
     NotCallable,
-    WrongArity(u32, u32),
+    WrongArity(usize, usize),
     NativeClockSysTimeError,
     InvalidPropertyAccess,
     UdefinedProperty(Identifier, Rc<RefCell<StringInterner>>),
