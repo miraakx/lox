@@ -1,4 +1,6 @@
-use std::{collections::HashMap, cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+
+use rustc_hash::FxHashMap;
 
 use crate::{value::Value, alias::Identifier};
 
@@ -10,7 +12,7 @@ pub struct Environment
 
 impl Environment
 {
-    #[inline]
+    #[inline(always)]
     pub fn new() -> Self
     {
         Environment
@@ -19,25 +21,25 @@ impl Environment
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn from(environment: &Environment) -> Self
     {
         environment.clone()
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_variable_from_local_at(&self, index: usize, name: Identifier) -> Option<Value>
     {
         return self.locals_scope[index].borrow().get_variable(name);
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn assign_variable_to_local_at(&mut self, index: usize, variable: Identifier, var_value: Value) -> Result<Value, ()>
     {
         return self.locals_scope[index].borrow_mut().assign_variable(variable, var_value);
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn new_local_scope(&mut self) -> Rc<RefCell<Scope>>
     {
         let rc_scope: Rc<RefCell<Scope>> = Rc::new(RefCell::new(Scope::new()));
@@ -45,13 +47,13 @@ impl Environment
         return rc_scope;
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn remove_loval_scope(&mut self)
     {
         self.locals_scope.pop();
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn last_scope(&self) -> Option<&Rc<RefCell<Scope>>>
     {
         self.locals_scope.last()
@@ -61,24 +63,24 @@ impl Environment
 
 #[derive(Clone, Debug)]
 pub struct Scope {
-    map: HashMap<Identifier, Value>
+    map: FxHashMap<Identifier, Value>
 }
 
 impl Scope
 {
-    #[inline]
+    #[inline(always)]
     pub fn new() -> Self
     {
-        Scope { map: HashMap::new() }
+        Scope { map: FxHashMap::default() }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn define_variable(&mut self, variable: Identifier, var_value: Value)
     {
         self.map.insert(variable, var_value);
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_variable(&self, variable: Identifier) -> Option<Value>
     {
         match self.map.get(&variable) {
@@ -87,7 +89,7 @@ impl Scope
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn assign_variable(&mut self, variable: Identifier, var_value: Value) -> Result<Value, ()>
     {
         if self.map.contains_key(&variable)
@@ -98,7 +100,7 @@ impl Scope
         Err(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn contains_variable(&self, variable: Identifier) -> bool
     {
         self.map.contains_key(&variable)

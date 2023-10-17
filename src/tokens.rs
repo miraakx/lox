@@ -14,7 +14,7 @@ pub struct Token
 
 impl Token
 {
-    #[inline]
+    #[inline(always)]
     pub fn get_identifier(&self) -> Identifier
     {
         if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
@@ -24,7 +24,7 @@ impl Token
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_identifier_and_position(&self) -> (Identifier, Position)
     {
         if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {

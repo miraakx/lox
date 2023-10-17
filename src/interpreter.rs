@@ -1,6 +1,7 @@
-use std::{fmt::Debug, rc::Rc, cell::RefCell, collections::HashMap};
+use std::{fmt::Debug, rc::Rc, cell::RefCell};
 
-use string_interner::{StringInterner, Symbol};
+use rustc_hash::FxHashMap;
+use string_interner::StringInterner;
 
 use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{TokenKind, LiteralValue, Position}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}, alias::{Identifier, ExprId}};
 
@@ -8,7 +9,7 @@ pub struct Interpreter
 {
     environment_stack: Environment,
     string_interner: Rc<RefCell<StringInterner>>,
-    side_table: Rc<RefCell<HashMap<i64, usize>>>,
+    side_table: Rc<RefCell<FxHashMap<i64, usize>>>,
     global_scope: Rc<RefCell<Scope>>,
     this_symbol: Identifier,
     init_symbol: Identifier
@@ -26,7 +27,7 @@ impl Interpreter
         let mut interpreter = Interpreter {
             environment_stack: environment,
             string_interner,
-            side_table:  Rc::new(RefCell::new(HashMap::new())),
+            side_table:  Rc::new(RefCell::new(FxHashMap::default())),
             global_scope: Rc::new(RefCell::new(Scope::new())),
             this_symbol,
             init_symbol
@@ -50,23 +51,22 @@ impl Interpreter
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize) {
         self.side_table.borrow_mut().insert(expr_id, depth);
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn resolve(&mut self, expr_id: i64, depth: usize) {
         self.insert_into_side_table(expr_id, depth);
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
     {
         for stmt in stmts
         {
-            let result = self.execute_stmt(stmt);
-            match result
+            match self.execute_stmt(stmt)
             {
                 Ok(_) => {}
                 Err(err) => {
@@ -85,8 +85,7 @@ impl Interpreter
         {
             Stmt::Print(expr) =>
             {
-                let value = self.evaluate(expr)?;
-                match value {
+                match self.evaluate(expr)? {
                     Value::String(string) => println!("{}", string),
                     Value::Number(number) =>  println!("{}", number),
                     Value::Bool(boolean) =>  println!("{}", boolean),
@@ -261,6 +260,7 @@ impl Interpreter
         };
     }
 
+    #[inline]
     fn evaluate(&mut self, expr: &Expr) -> Result<Value, LoxError>
     {
         match &expr.kind {
@@ -435,7 +435,7 @@ impl Interpreter
             }
             ExprKind::Variable(name, position) =>
             {
-                println!("looking up variable: {} ({})", self.string_interner.borrow().resolve(*name).unwrap(), name.to_usize());
+                //println!("looking up variable: {} ({})", self.string_interner.borrow().resolve(*name).unwrap(), name.to_usize());
                 match self.lookup_variable(*name, expr.id) {
                     Some(variable) => {
                         return Ok(variable);
@@ -448,8 +448,8 @@ impl Interpreter
             ExprKind::Assign(name, expr, position) =>
             {
                 let value: Value = self.evaluate(expr.as_ref())?;
-                let result: Result<Value, ()> = self.assign_variable(*name, value, expr.id);
-                match result {
+                match self.assign_variable(*name, value, expr.id)
+                {
                     Ok(value) => { return Ok(value); },
                     Err(_) => {
                         return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableAssignment(*name, Rc::clone(&self.string_interner)), *position));
@@ -481,7 +481,6 @@ impl Interpreter
                 }
             },
             ExprKind::Call(callee_expr, opt_args_expr, token) => {
-                let callee = self.evaluate(callee_expr)?;
                 let mut args: Vec<Value>;
                 if let Some(args_expr) = opt_args_expr
                 {
@@ -495,7 +494,7 @@ impl Interpreter
                 {
                     args = vec!();
                 }
-                match callee
+                match self.evaluate(callee_expr)?
                 {
                     Value::Callable(function) =>
                     {
@@ -517,15 +516,12 @@ impl Interpreter
                     Value::ClassInstance(class, attributes) =>
                     {
                         {
-                            let attributes = attributes.borrow();
-                            let opt_value = attributes.get(&property.get_identifier());
-                            if let Some(value) = opt_value {
+                            if let Some(value) = attributes.borrow().get(&property.get_identifier()) {
                                 return Ok(value.clone());
                             }
                         }
                         {
-                            let opt_method = class.methods.get(&property.get_identifier());
-                            if let Some(method) = opt_method {
+                            if let Some(method) = class.methods.get(&property.get_identifier()) {
                                 //>define new closure for the current method
                                 let mut environment_clone = self.environment_stack.clone();
                                 let scope: Rc<RefCell<Scope>> = environment_clone.new_local_scope();
@@ -545,8 +541,7 @@ impl Interpreter
             },
             ExprKind::Set(object, name, value) =>
             {
-                let object = self.evaluate(object)?;
-                match object
+                match self.evaluate(object)?
                 {
                     Value::ClassInstance(_, attributes) =>
                     {
@@ -560,8 +555,9 @@ impl Interpreter
                 }
             },
             ExprKind::This(this_token) => {
-                println!("looking up variable: {}", "this");
-                match self.lookup_variable(self.this_symbol, expr.id) {
+                //println!("looking up variable: {}", "this");
+                match self.lookup_variable(self.this_symbol, expr.id)
+                {
                     Some(variable) => {
                         return Ok(variable);
                     },
@@ -578,9 +574,9 @@ impl Interpreter
     {
         {
             let borrowed_table = self.side_table.borrow();
-            let opt_index = borrowed_table.get(&expr_id);
-            if let Some(index) = opt_index {
-                println!("searching variable '{}' ad index '{}' of {}", self.string_interner.borrow().resolve(name).unwrap(), *index, borrowed_table.len() - 1);
+            if let Some(index) = borrowed_table.get(&expr_id)
+            {
+                //println!("searching variable '{}' ad index '{}' of {}", self.string_interner.borrow().resolve(name).unwrap(), *index, borrowed_table.len() - 1);
                 return self.environment_stack.get_variable_from_local_at(*index, name);
             }
         }
@@ -592,8 +588,8 @@ impl Interpreter
     {
         {
             let borrowed_table = self.side_table.borrow_mut();
-            let opt_index = borrowed_table.get(&expr_id);
-            if let Some(index) = opt_index {
+            if let Some(index) = borrowed_table.get(&expr_id)
+            {
                 return self.environment_stack.assign_variable_to_local_at(*index, variable, var_value);
             }
         }
@@ -604,16 +600,15 @@ impl Interpreter
     #[inline]
     pub fn define_variable(&mut self, variable: Identifier, var_value: Value)
     {
-
         {
-            let last_scope = self.environment_stack.last_scope();
-            if let Some(scope) = last_scope {
-                println!("defining variable '{}' in local scope", self.string_interner.borrow().resolve(variable).unwrap());
+            if let Some(scope) = self.environment_stack.last_scope()
+            {
+                //println!("defining variable '{}' in local scope", self.string_interner.borrow().resolve(variable).unwrap());
                 scope.borrow_mut().define_variable(variable, var_value);
                 return;
             }
         }
-        println!("defining variable '{}' in global scope", self.string_interner.borrow().resolve(variable).unwrap());
+        //println!("defining variable '{}' in global scope", self.string_interner.borrow().resolve(variable).unwrap());
         self.global_scope.borrow_mut().define_variable(variable, var_value);
         return;
     }
@@ -639,6 +634,7 @@ pub enum Callable {
 
 impl Callable
 {
+    #[inline]
     fn arity(&self, init_symbol: Identifier) -> u32 {
         match self {
             Callable::Function(declaration, _, _) => {
@@ -656,6 +652,7 @@ impl Callable
         }
     }
 
+    #[inline]
     fn call(&self,  interpreter: &Interpreter, args: &[Value], position: Position) -> Result<Value, LoxError> {
         match self
         {
@@ -687,7 +684,7 @@ impl Callable
             Callable::Class(declaration, environment) =>
             {
                 let instance = Value::ClassInstance(
-                    Rc::clone(&declaration), Rc::new(RefCell::new(HashMap::new()))
+                    Rc::clone(&declaration), Rc::new(RefCell::new(FxHashMap::default()))
                 );
                 //>call init method (if it exists)
                 if let Some(init) = declaration.methods.get(&interpreter.init_symbol)

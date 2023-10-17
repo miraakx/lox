@@ -1,5 +1,6 @@
-use std::collections::HashMap;
 use std::rc::Rc;
+
+use rustc_hash::FxHashMap;
 
 use crate::alias::Identifier;
 use crate::error::{LoxError, ParserErrorKind, ErrorLogger};
@@ -330,12 +331,12 @@ pub struct FunctionDeclaration {
 #[derive(Clone, Debug)]
 pub struct ClassDeclaration {
     pub name: Token,
-    pub methods: HashMap<Identifier, Rc<FunctionDeclaration>>
+    pub methods: FxHashMap<Identifier, Rc<FunctionDeclaration>>
 }
 
 impl ClassDeclaration {
     fn new(name: Token) -> Self {
-        ClassDeclaration {name, methods: HashMap::new()}
+        ClassDeclaration {name, methods: FxHashMap::default()}
     }
 
     fn insert_method(&mut self, name: Identifier, method_declaration: FunctionDeclaration) {

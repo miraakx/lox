@@ -1,12 +1,13 @@
-use std::{collections::HashMap, cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
+use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
 use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, interpreter::Interpreter, alias::Identifier, tokens::{Position, THIS}};
 
 pub struct Resolver<'a> {
     interpreter: &'a mut Interpreter,
-    stack: Stack<HashMap<Identifier, bool>>,
+    stack: Stack<FxHashMap<Identifier, bool>>,
     error_logger: Box<dyn ErrorLogger>,
     string_interner: Rc<RefCell<StringInterner>>,
     has_error: bool,
@@ -283,7 +284,7 @@ impl <'a> Resolver<'a>
     #[inline]
     fn begin_scope(&mut self)
     {
-        self.stack.push(HashMap::new());
+        self.stack.push(FxHashMap::default());
     }
 
     #[inline]

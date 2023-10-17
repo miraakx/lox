@@ -1,4 +1,6 @@
-use std::{rc::Rc, collections::HashMap, cell::RefCell};
+use std::{rc::Rc, cell::RefCell};
+
+use rustc_hash::FxHashMap;
 
 use crate::{interpreter::Callable, parser_stmt::ClassDeclaration, alias::Identifier};
 
@@ -9,10 +11,10 @@ pub enum Value {
     Bool(bool),
     Nil,
     Callable(Callable),
-    ClassInstance(Rc<ClassDeclaration>, Rc<RefCell<HashMap<Identifier, Value>>>)
+    ClassInstance(Rc<ClassDeclaration>, Rc<RefCell<FxHashMap<Identifier, Value>>>)
 }
 
-#[inline]
+#[inline(always)]
 pub fn is_equal(val_left: Value, val_right: Value) -> bool
 {
     match (val_left, val_right)
@@ -25,7 +27,7 @@ pub fn is_equal(val_left: Value, val_right: Value) -> bool
     }
 }
 
-#[inline]
+#[inline(always)]
 pub fn is_truthy(value: &Value) -> bool
 {
     match value
