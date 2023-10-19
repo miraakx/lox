@@ -42,17 +42,17 @@ fn main()
       }
       prova();
    ";*/
-   "
-   fun fib(n) {
-   if (n < 2) return n;
-   return fib(n - 1) + fib(n - 2);
-   }
+      "
+      fun fib(n) {
+      if (n < 2) return n;
+      return fib(n - 1) + fib(n - 2);
+      }
 
-   var before = clock();
-   print fib(40);
-   var after = clock();
-   print after - before;
-   ";
+      var before = clock();
+      print fib(40);
+      var after = clock();
+      print after - before;
+      ";
    run(code);
    //todo!("stop() {{ print \"engine off\"; }} senza punto e virgola panica!");
 }

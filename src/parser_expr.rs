@@ -33,7 +33,7 @@ pub enum ExprKind
     This(Token)
 }
 
-#[inline]
+
 pub fn expression(token_source: &mut TokenSource) -> Result<Expr,LoxError>
 {
     assignment(token_source)

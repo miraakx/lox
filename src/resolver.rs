@@ -19,7 +19,7 @@ pub struct Resolver<'a> {
 
 impl <'a> Resolver<'a>
 {
-    #[inline]
+
     pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self {
         let this_symbol = string_interner.borrow_mut().get_or_intern_static(THIS);
         let init_symbol = string_interner.borrow_mut().get_or_intern_static("init");
@@ -41,7 +41,7 @@ impl <'a> Resolver<'a>
         self.has_error = true;
     }
 
-    #[inline]
+
     pub fn resolve(&mut self, stmts: &[Stmt]) -> Result<(),()>{
         for stmt in stmts {
             self.resolve_stmt(stmt, self.current_function, self.current_class);
@@ -281,13 +281,13 @@ impl <'a> Resolver<'a>
         }
     }
 
-    #[inline]
+
     fn begin_scope(&mut self)
     {
         self.stack.push(FxHashMap::default());
     }
 
-    #[inline]
+
     fn end_scope(&mut self)
     {
         self.stack.pop();

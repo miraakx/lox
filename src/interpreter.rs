@@ -17,7 +17,7 @@ pub struct Interpreter
 
 impl Interpreter
 {
-    #[inline]
+
     pub fn new(string_interner: Rc<RefCell<StringInterner>>) -> Self
     {
         let environment = Environment::new();
@@ -38,7 +38,7 @@ impl Interpreter
         return interpreter;
     }
 
-    #[inline]
+
     pub fn from(environment_stack: &Environment, intrepreter: &Interpreter) -> Self
     {
         Interpreter {
@@ -51,17 +51,17 @@ impl Interpreter
         }
     }
 
-    #[inline]
+
     pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize) {
         self.side_table.borrow_mut().insert(expr_id, depth);
     }
 
-    #[inline]
+
     pub fn resolve(&mut self, expr_id: i64, depth: usize) {
         self.insert_into_side_table(expr_id, depth);
     }
 
-    #[inline]
+
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
     {
         for stmt in stmts
@@ -78,7 +78,7 @@ impl Interpreter
         Ok(())
     }
 
-    #[inline]
+
     fn execute_stmt(&mut self, stmt: &Stmt) -> Result<State, LoxError>
     {
         match stmt
@@ -248,7 +248,7 @@ impl Interpreter
         }
     }
 
-    #[inline]
+
     fn evaluate_or(&mut self, opt_expr: &Option<Expr>, or_value: Value) ->  Result<Value, LoxError> {
         match opt_expr {
             Some(expr) => {
@@ -260,7 +260,7 @@ impl Interpreter
         };
     }
 
-    #[inline]
+
     fn evaluate(&mut self, expr: &Expr) -> Result<Value, LoxError>
     {
         match &expr.kind {
@@ -569,7 +569,7 @@ impl Interpreter
         }
     }
 
-    #[inline]
+
     pub fn lookup_variable(&self, name: Identifier, expr_id: ExprId) -> Option<Value>
     {
         {
@@ -583,7 +583,7 @@ impl Interpreter
         return self.global_scope.borrow().get_variable(name);
     }
 
-    #[inline]
+
     pub fn assign_variable(&mut self, variable: Identifier, var_value: Value, expr_id: i64) -> Result<Value, ()>
     {
         {
@@ -597,7 +597,7 @@ impl Interpreter
 
     }
 
-    #[inline]
+
     pub fn define_variable(&mut self, variable: Identifier, var_value: Value)
     {
         {
@@ -634,7 +634,7 @@ pub enum Callable {
 
 impl Callable
 {
-    #[inline]
+
     fn arity(&self, init_symbol: Identifier) -> usize {
         match self {
             Callable::Function(declaration, _, _) => {
@@ -652,7 +652,7 @@ impl Callable
         }
     }
 
-    #[inline]
+
     fn call(&self,  interpreter: &Interpreter, args: &[Value], position: Position) -> Result<Value, LoxError> {
         match self
         {
