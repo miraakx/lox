@@ -187,8 +187,8 @@ impl<'a> Iterator for Lexer<'a>
                                     }
                                 )
                             );
-                          //  opt_token_kind = Some(TokenKind::String);
-                          //  opt_token_value = Some(LiteralValue::String(Rc::new(string)));
+                            opt_token_kind = Some(TokenKind::String);
+                            opt_token_value = Some(LiteralValue::String(Rc::new(string)));
                             break;
                         }
                         let ch = value.unwrap();
@@ -333,18 +333,15 @@ impl<'a> Iterator for Lexer<'a>
     }
 }
 
-
 fn is_identifier(ch: char) -> bool
 {
     ch.is_ascii_alphabetic() || ch == '_'
 }
 
-
 fn is_number(ch: char) -> bool
 {
     ch.is_ascii_digit()
 }
-
 
 fn is_identifier_char_allowed(ch: char) -> bool
 {
@@ -352,8 +349,6 @@ fn is_identifier_char_allowed(ch: char) -> bool
 }
 
 /*
-
-
 fn tokenize(code: &str) -> Vec<Token>
 {
     Lexer::new(code, ConsoleErrorLogger{}, Rc::new(RefCell::new(StringInterner::new()))).collect()

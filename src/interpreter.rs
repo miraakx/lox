@@ -17,17 +17,16 @@ pub struct Interpreter
 
 impl Interpreter
 {
-
     pub fn new(string_interner: Rc<RefCell<StringInterner>>) -> Self
     {
         let environment = Environment::new();
-        let this_symbol = string_interner.borrow_mut().get_or_intern_static("this");
-        let init_symbol = string_interner.borrow_mut().get_or_intern_static("init");
+        let this_symbol  = string_interner.borrow_mut().get_or_intern_static("this");
+        let init_symbol  = string_interner.borrow_mut().get_or_intern_static("init");
         let clock_symbol = string_interner.borrow_mut().get_or_intern_static("clock");
         let mut interpreter = Interpreter {
             environment_stack: environment,
             string_interner,
-            side_table:  Rc::new(RefCell::new(FxHashMap::default())),
+            side_table:   Rc::new(RefCell::new(FxHashMap::default())),
             global_scope: Rc::new(RefCell::new(Scope::new())),
             this_symbol,
             init_symbol
@@ -37,7 +36,6 @@ impl Interpreter
         //<define native functions
         return interpreter;
     }
-
 
     pub fn from(environment_stack: &Environment, intrepreter: &Interpreter) -> Self
     {
@@ -51,7 +49,6 @@ impl Interpreter
         }
     }
 
-
     pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize) {
         self.side_table.borrow_mut().insert(expr_id, depth);
     }
@@ -60,7 +57,6 @@ impl Interpreter
     pub fn resolve(&mut self, expr_id: i64, depth: usize) {
         self.insert_into_side_table(expr_id, depth);
     }
-
 
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
     {
@@ -77,7 +73,6 @@ impl Interpreter
         }
         Ok(())
     }
-
 
     fn execute_stmt(&mut self, stmt: &Stmt) -> Result<State, LoxError>
     {
@@ -103,7 +98,7 @@ impl Interpreter
             },
             Stmt::ExprStmt(expr) =>
             {
-                let _ = self.evaluate(expr)?;
+                self.evaluate(expr)?;
                 return Ok(State::Normal);
             }
             Stmt::Var(variable, _, opt_expr) =>
@@ -213,9 +208,7 @@ impl Interpreter
                         State::Return(_) => return Ok(state),
                     }
                 }
-
                 self.environment_stack.remove_loval_scope();
-
                 return Ok(State::Normal);
             },
             Stmt::FunctionDeclaration(declaration) => {
@@ -248,7 +241,6 @@ impl Interpreter
         }
     }
 
-
     fn evaluate_or(&mut self, opt_expr: &Option<Expr>, or_value: Value) ->  Result<Value, LoxError> {
         match opt_expr {
             Some(expr) => {
@@ -259,7 +251,6 @@ impl Interpreter
             },
         };
     }
-
 
     fn evaluate(&mut self, expr: &Expr) -> Result<Value, LoxError>
     {
@@ -326,8 +317,8 @@ impl Interpreter
             },
             ExprKind::Binary(left, token, right) =>
             {
-                let val_left:  Value = self.evaluate(left.as_ref())?;
-                let val_right: Value = self.evaluate(right.as_ref())?;
+                let val_left  = self.evaluate(left.as_ref())?;
+                let val_right = self.evaluate(right.as_ref())?;
                 match token.kind {
                     TokenKind::Minus =>
                     {
@@ -447,7 +438,7 @@ impl Interpreter
             },
             ExprKind::Assign(name, expr, position) =>
             {
-                let value: Value = self.evaluate(expr.as_ref())?;
+                let value = self.evaluate(expr.as_ref())?;
                 match self.assign_variable(*name, value, expr.id)
                 {
                     Ok(value) => { return Ok(value); },
@@ -458,7 +449,7 @@ impl Interpreter
             },
             ExprKind::Logical(left, token, right) =>
             {
-                let val_left:  Value = self.evaluate(left.as_ref())?;
+                let val_left = self.evaluate(left.as_ref())?;
                 match token.kind
                 {
                     TokenKind::Or => {
@@ -501,7 +492,7 @@ impl Interpreter
                         if function.arity(self.init_symbol) != args.len() {
                             return Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(self.init_symbol), args.len()), token.position));
                         }
-                        return function.call(self, &args, token.position);
+                        return function.call(self, &args, &token.position);
                     },
                     _ => {
                         return Err(LoxError::interpreter_error(InterpreterErrorKind::NotCallable, token.position));
@@ -510,7 +501,7 @@ impl Interpreter
             },
             ExprKind::Get(get_expr, property) =>
             {
-                let instance: Value = self.evaluate(get_expr)?;
+                let instance = self.evaluate(get_expr)?;
                 match &instance
                 {
                     Value::ClassInstance(class, attributes) =>
@@ -526,8 +517,7 @@ impl Interpreter
                                 let mut environment_clone = self.environment_stack.clone();
                                 let scope: Rc<RefCell<Scope>> = environment_clone.new_local_scope();
                                 scope.borrow_mut().define_variable(self.this_symbol, instance.clone());
-
-                                let callable: Callable = Callable::Function(Rc::clone(method), environment_clone, method.name.get_identifier() == self.init_symbol);
+                                let callable = Callable::Function(Rc::clone(method), environment_clone, method.name.get_identifier() == self.init_symbol);
                                 return Ok(Value::Callable(callable));
                             }
                         }
@@ -569,7 +559,6 @@ impl Interpreter
         }
     }
 
-
     pub fn lookup_variable(&self, name: Identifier, expr_id: ExprId) -> Option<Value>
     {
         {
@@ -583,7 +572,6 @@ impl Interpreter
         return self.global_scope.borrow().get_variable(name);
     }
 
-
     pub fn assign_variable(&mut self, variable: Identifier, var_value: Value, expr_id: i64) -> Result<Value, ()>
     {
         {
@@ -594,9 +582,7 @@ impl Interpreter
             }
         }
         return self.global_scope.borrow_mut().assign_variable(variable, var_value);
-
     }
-
 
     pub fn define_variable(&mut self, variable: Identifier, var_value: Value)
     {
@@ -613,8 +599,6 @@ impl Interpreter
         return;
     }
 
-
-
 }
 
 pub enum State {
@@ -623,7 +607,6 @@ pub enum State {
     Continue,
     Return(Value)
 }
-
 
 #[derive(Clone, Debug)]
 pub enum Callable {
@@ -634,7 +617,6 @@ pub enum Callable {
 
 impl Callable
 {
-
     fn arity(&self, init_symbol: Identifier) -> usize {
         match self {
             Callable::Function(declaration, _, _) => {
@@ -652,8 +634,7 @@ impl Callable
         }
     }
 
-
-    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: Position) -> Result<Value, LoxError> {
+    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: &Position) -> Result<Value, LoxError> {
         match self
         {
             Callable::Function(declaration, environment, is_initializer) =>
@@ -693,7 +674,7 @@ impl Callable
                     let scope: Rc<RefCell<Scope>> = cloned_environment.new_local_scope();
                     scope.borrow_mut().define_variable(interpreter.this_symbol, instance.clone());
                     let callable: Callable = Callable::Function(Rc::clone(init), cloned_environment, true);
-                    callable.call(interpreter, args, declaration.name.position)?;
+                    callable.call(interpreter, args, &declaration.name.position)?;
                 }
                 Ok(instance)
             },
@@ -701,7 +682,7 @@ impl Callable
             {
                 match clock() {
                     Ok(value) => Ok(value),
-                    Err(error) => Err(LoxError::interpreter_error(error, position))
+                    Err(error) => Err(LoxError::interpreter_error(error, *position))
                 }
             },
         }

@@ -14,7 +14,6 @@ pub struct Token
 
 impl Token
 {
-
     pub fn get_identifier(&self) -> Identifier
     {
         if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
@@ -23,7 +22,6 @@ impl Token
             panic!("Internal error identifier not found inside token");
         }
     }
-
 
     pub fn get_identifier_and_position(&self) -> (Identifier, Position)
     {
@@ -188,7 +186,6 @@ impl<'a> TokenSource<'a>
     }
 }
 
-
 fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind> {
     if str.len() == keyword.len() && str.eq(keyword) {
         Some(token_kind)
@@ -196,7 +193,6 @@ fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
         None
     }
 }
-
 
 pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<Token,LoxError>
 {
@@ -210,16 +206,13 @@ pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<
     }
 }
 
-
 pub fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
     token_source.peek().unwrap().kind == token_kind
 }
 
-
 pub fn is_at_end(token_source: &mut TokenSource) -> bool {
     check(token_source, TokenKind::EOF)
 }
-
 
 pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
     let token = token_source.peek().unwrap();
@@ -229,7 +222,6 @@ pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool
     }
     return false;
 }
-
 
 pub fn check_end_of_file(token_source: &mut TokenSource) -> Result<(),LoxError> {
     let peek = token_source.peek().unwrap();

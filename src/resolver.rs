@@ -19,7 +19,6 @@ pub struct Resolver<'a> {
 
 impl <'a> Resolver<'a>
 {
-
     pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self {
         let this_symbol = string_interner.borrow_mut().get_or_intern_static(THIS);
         let init_symbol = string_interner.borrow_mut().get_or_intern_static("init");
@@ -40,7 +39,6 @@ impl <'a> Resolver<'a>
         self.error_logger.log(LoxError::resolver_error(err_kind, *position));
         self.has_error = true;
     }
-
 
     pub fn resolve(&mut self, stmts: &[Stmt]) -> Result<(),()>{
         for stmt in stmts {
@@ -281,12 +279,10 @@ impl <'a> Resolver<'a>
         }
     }
 
-
     fn begin_scope(&mut self)
     {
         self.stack.push(FxHashMap::default());
     }
-
 
     fn end_scope(&mut self)
     {

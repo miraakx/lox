@@ -11,7 +11,6 @@ struct CircularBuffer<T: Clone>
 
 impl<T: Clone> CircularBuffer<T>
 {
-
     fn new(capacity: usize) -> Self
     {
         CircularBuffer
@@ -24,18 +23,15 @@ impl<T: Clone> CircularBuffer<T>
         }
     }
 
-
     pub fn is_empty(&self) -> bool
     {
         self.size == 0
     }
 
-
     fn is_full(&self) -> bool
     {
         self.size == self.capacity
     }
-
 
     pub fn enqueue(&mut self, item: T)
     {
@@ -46,7 +42,6 @@ impl<T: Clone> CircularBuffer<T>
         self.move_tail();
         self.size = self.size + 1;
     }
-
 
     pub fn dequeue(&mut self) -> Option<T>
     {
@@ -59,24 +54,20 @@ impl<T: Clone> CircularBuffer<T>
         item
     }
 
-
     pub fn peek(&mut self, index: usize) -> Option<&T>
     {
         self.buffer[(self.head + index) % self.capacity].as_ref()
     }
-
 
     fn move_head(&mut self)
     {
         self.head = (self.head + 1) % self.capacity;
     }
 
-
     fn move_tail(&mut self)
     {
         self.tail = (self.tail + 1) % self.capacity;
     }
-
 
     pub fn tail(&self) -> Option<&T>
     {
@@ -88,12 +79,10 @@ impl<T: Clone> CircularBuffer<T>
         }
     }
 
-
     pub fn head(&self) -> Option<&T>
     {
         self.buffer[self.head].as_ref()
     }
-
 
     pub fn size(&self) -> usize
     {
@@ -109,7 +98,6 @@ pub struct NthPeekable<I, T: Clone> where I: Iterator<Item = T>,
 
 impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
 {
-
     pub fn new(iter: I, size: usize) -> Self
     {
         NthPeekable
@@ -118,7 +106,6 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
             buffer: CircularBuffer::new(size),
         }
     }
-
 
     pub fn peek(&mut self) -> Option<&T>
     {
@@ -130,7 +117,6 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
         }
         self.buffer.peek(0)
     }
-
 
     pub fn peek_nth(&mut self, index: usize) -> Option<&T>
     {
@@ -151,7 +137,6 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
         }
     }
 
-
     pub fn next(&mut self) -> Option<T>
     {
         if self.buffer.is_empty() {
@@ -159,7 +144,6 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
         }
         self.buffer.dequeue()
     }
-
 
     pub fn is_last(&mut self) -> bool
     {
@@ -176,12 +160,10 @@ pub struct Peekable<I, T: Clone> where I: Iterator<Item = T>,
 
 impl<I, T: Clone> Peekable<I, T> where I: Iterator<Item = T>,
 {
-
     pub fn new(iter: I) -> Self
     {
         Peekable { iter, item: None }
     }
-
 
     pub fn peek(&mut self) -> Option<&T>
     {
@@ -190,7 +172,6 @@ impl<I, T: Clone> Peekable<I, T> where I: Iterator<Item = T>,
         }
         self.item.as_ref()
     }
-
 
     pub fn next(&mut self) -> Option<T>
     {
@@ -216,7 +197,6 @@ pub struct Scanner<'a>
 
 impl <'a> Scanner<'a>
 {
-
     pub fn from_str(str: &'a str, peek_dept: usize) -> Self
     {
         Scanner
@@ -228,7 +208,6 @@ impl <'a> Scanner<'a>
         }
     }
 
-
     pub fn next(&mut self) -> Option<char>
     {
         self.column = self.column + 1;
@@ -236,31 +215,26 @@ impl <'a> Scanner<'a>
         self.iter.next()
     }
 
-
     pub fn new_line(&mut self)
     {
         self.column   = LINE_START;
         self.line = self.line + 1;
     }
 
-
     pub fn peek(&mut self) -> Option<char>
     {
         self.iter.peek().cloned()
     }
-
 
     pub fn peek_nth(&mut self, index: usize) -> Option<char>
     {
         self.iter.peek_nth(index).cloned()
     }
 
-
     pub fn is_peek(&mut self, ch: char) -> bool
     {
         self.peek().map_or(false, |v| v==ch)
     }
-
 
     pub fn consume_if_peek_is(&mut self, ch: char)
     {
@@ -271,18 +245,15 @@ impl <'a> Scanner<'a>
         }
     }
 
-
     pub fn line(&self) -> u32
     {
         self.line
     }
 
-
     pub fn column(&self) -> u32
     {
         self.column
     }
-
 
     pub fn index(&self) -> u32
     {
@@ -296,26 +267,21 @@ pub struct Stack<T> {
 
 impl <T> Stack<T>
 {
-
     pub fn new() -> Self {
         Stack { vec: Vec::new() }
     }
-
 
     pub fn push(&mut self, value: T) {
         self.vec.push(value);
     }
 
-
     pub fn pop(&mut self) -> Option<T> {
         self.vec.pop()
     }
 
-
     pub fn is_empty(&self) -> bool {
         self.vec.is_empty()
     }
-
 
     pub fn peek_mut(&mut self) -> Option<&mut T> {
         let len = self.vec.len();
@@ -325,7 +291,6 @@ impl <T> Stack<T>
         Some(&mut self.vec[len-1])
     }
 
-
     pub fn peek(&self) -> Option<&T> {
         let len = self.vec.len();
         if len == 0 {
@@ -334,17 +299,14 @@ impl <T> Stack<T>
         Some(&self.vec[len-1])
     }
 
-
     pub fn iter(&self) -> Iter<T> {
         return self.vec.iter();
     }
-
 
     pub fn len(&self) -> usize {
         self.vec.len()
     }
 }
-
 
 #[test]
 fn test_circular_buffer()
