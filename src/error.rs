@@ -93,7 +93,6 @@ pub enum InterpreterErrorKind
 {
     IncompatibleBinaryOpTypes,
     InvalidUnaryType,
-    InvalidBinaryType,
     NotCallable,
     WrongArity(usize, usize),
     NativeClockSysTimeError,
@@ -110,7 +109,6 @@ impl fmt::Display for InterpreterErrorKind
         match self {
             InterpreterErrorKind::IncompatibleBinaryOpTypes                 => write!(f, "Both expressions side are not of the same type"),
             InterpreterErrorKind::InvalidUnaryType                          => write!(f, "Invalid unary type"),
-            InterpreterErrorKind::InvalidBinaryType                         => write!(f, "Invalid binary type"),
             InterpreterErrorKind::NotCallable                               => write!(f, "Not a callable expression"),
             InterpreterErrorKind::WrongArity(expected, found)   => write!(f, "Expected {} arguments, found {}", expected, found),
             InterpreterErrorKind::NativeClockSysTimeError                   => write!(f, "System time error calling clock()"),
@@ -129,14 +127,10 @@ pub enum ParserErrorKind
     ParseFloatError(String),
     UnterminatedString,
     InvalidEscapeCharacter,
-    UnexpectedToken2(String),
     UnexpectedEndOfFile,
     MissingClosingParenthesis,
     LiteralExpected,
-    MissingSemicolon,
-    VariableNameExpected,
     ExpectedToken,
-    UdefinedVariable(String),
     BreakOutsideLoop,
 }
 
@@ -149,14 +143,10 @@ impl fmt::Display for ParserErrorKind
             ParserErrorKind::ParseFloatError(value)  => write!(f, "Cannot parse float '{}'", value),
             ParserErrorKind::UnterminatedString               => write!(f, "Unterminated string"),
             ParserErrorKind::InvalidEscapeCharacter           => write!(f, "Invalid escape character"),
-            ParserErrorKind::UnexpectedToken2(ch)    => write!(f, "Unexpected token '{}'", ch),
             ParserErrorKind::UnexpectedEndOfFile              => write!(f, "Unexpected end of file"),
             ParserErrorKind::MissingClosingParenthesis        => write!(f, "Missing closing parenthesis ')'"),
-            ParserErrorKind::LiteralExpected=> write!(f, "Expected literal, found '?'"),
-            ParserErrorKind::MissingSemicolon                 => write!(f, "Missing semicolon ';'"),
-            ParserErrorKind::VariableNameExpected             => write!(f, "Expected variable name after 'var'"),
-            ParserErrorKind::ExpectedToken  => write!(f, "Expected token '?'"),
-            ParserErrorKind::UdefinedVariable(name)  => write!(f, "Undefined variable '{}'", name),
+            ParserErrorKind::LiteralExpected                  => write!(f, "Expected literal, found '?'"),
+            ParserErrorKind::ExpectedToken                    => write!(f, "Expected token '?'"),
             ParserErrorKind::BreakOutsideLoop                 => write!(f, "Found 'break' keyword outside a loop"),
         }
     }

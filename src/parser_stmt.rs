@@ -6,32 +6,35 @@ use crate::alias::IdentifierSymbol;
 use crate::error::{LoxError, ParserErrorKind, ErrorLogger};
 use crate::common::Peekable;
 use crate::parser_expr::{Expr, expression};
-use crate::tokens::{Token, TokenKind, TokenSource, consume, check, consume_if, check_end_of_file, is_at_end, consume_identifier, Identifier};
+use crate::tokens::{Token, TokenKind, TokenSource, consume, check, consume_if, check_end_of_file, is_at_end, consume_identifier, Identifier, Position};
 
 #[derive(Clone, Debug)]
 pub enum Stmt
 {
-    Print(Expr),
+    Print   (Expr),
     ExprStmt(Expr),
-    Var(Identifier, Option<Expr>),
-    Block(Vec<Stmt>),
-    If(Expr, Box<Stmt>),
-    IfElse(Expr, Box<Stmt>, Box<Stmt>),
-    While(Expr, Box<Stmt>),
-    For(Box<Option<Stmt>>, Option<Expr>, Option<Expr>, Box<Stmt>),
-    Break, Continue,
+    Var     (Identifier, Option<Expr>),
+    Block   (Vec<Stmt>),
+    If      (Expr, Box<Stmt>),
+    IfElse  (Expr, Box<Stmt>, Box<Stmt>),
+    While   (Expr, Box<Stmt>),
+    For     (Box<Option<Stmt>>, Option<Expr>, Option<Expr>, Box<Stmt>),
+    Return  (Option<Expr>, Position),
+    Break,
+    Continue,
     FunctionDeclaration(Rc::<FunctionDeclaration>),
-    Return(Token, Option<Expr>),
-    ClassDeclaration(Rc<ClassDeclaration>)
+    ClassDeclaration   (Rc<ClassDeclaration>),
+
 }
 
-pub struct Parser {
+pub struct Parser
+{
     in_loop: u32,
     error_logger: Box<dyn ErrorLogger>
 }
 
-impl Parser {
-
+impl Parser
+{
     pub fn new(error_logger: impl ErrorLogger + 'static) -> Self {
         Parser { in_loop: 0, error_logger: Box::new(error_logger) }
     }
@@ -103,7 +106,8 @@ impl Parser {
         }
     }
 
-    fn class_declaration(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
+    fn class_declaration(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
+    {
         let identifier = consume_identifier(token_source)?;
         let mut class_declaration = ClassDeclaration::new(identifier);
         consume(token_source, TokenKind::LeftBrace)?;
@@ -219,7 +223,7 @@ impl Parser {
             None
         };
         consume(token_source, TokenKind::Semicolon)?;
-        return Ok(Stmt::Return(return_token, expr));
+        return Ok(Stmt::Return(expr, return_token.position));
     }
 
     fn continue_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
@@ -320,29 +324,35 @@ impl Parser {
 }
 
 #[derive(Clone, Debug)]
-pub struct FunctionDeclaration {
+pub struct FunctionDeclaration
+{
     pub identifier: Identifier,
     pub parameters: Vec<FunctionParameter>,
     pub body: Stmt
 }
 
 #[derive(Clone, Debug)]
-pub struct FunctionParameter {
+pub struct FunctionParameter
+{
     pub identifier: Identifier
 }
 
 #[derive(Clone, Debug)]
-pub struct ClassDeclaration {
+pub struct ClassDeclaration
+{
     pub identifier: Identifier,
     pub methods: FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>
 }
 
-impl ClassDeclaration {
-    fn new(identifier: Identifier) -> Self {
+impl ClassDeclaration
+{
+    fn new(identifier: Identifier) -> Self
+    {
         ClassDeclaration {identifier, methods: FxHashMap::default()}
     }
 
-    fn insert_method(&mut self, name: IdentifierSymbol, method_declaration: FunctionDeclaration) {
+    fn insert_method(&mut self, name: IdentifierSymbol, method_declaration: FunctionDeclaration)
+    {
         self.methods.insert(name, Rc::new(method_declaration));
     }
 }

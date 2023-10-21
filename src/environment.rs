@@ -61,18 +61,15 @@ pub struct Scope {
 
 impl Scope
 {
-
     pub fn new() -> Self
     {
         Scope { map: FxHashMap::default() }
     }
 
-
     pub fn define_variable(&mut self, variable: IdentifierSymbol, var_value: Value)
     {
         self.map.insert(variable, var_value);
     }
-
 
     pub fn get_variable(&self, variable: IdentifierSymbol) -> Option<Value>
     {
@@ -82,7 +79,6 @@ impl Scope
         }
     }
 
-
     pub fn assign_variable(&mut self, variable: IdentifierSymbol, var_value: Value) -> Result<Value, ()>
     {
         if self.map.contains_key(&variable)
@@ -91,12 +87,6 @@ impl Scope
             return Ok(var_value);
         }
         Err(())
-    }
-
-
-    pub fn contains_variable(&self, variable: IdentifierSymbol) -> bool
-    {
-        self.map.contains_key(&variable)
     }
 
 }

@@ -1,17 +1,19 @@
 use once_cell::sync::Lazy;
 use unique_id::{sequence::SequenceGenerator, Generator};
 
-use crate::{tokens::{Token, TokenKind, TokenSource, consume_if, consume, check, consume_identifier, Identifier}, error::{LoxError, ParserErrorKind}};
+use crate::{tokens::{Token, TokenKind, TokenSource, consume_if, consume, check, consume_identifier, Identifier, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, Operator, Literal, Position}, error::{LoxError, ParserErrorKind}};
 
 static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(||SequenceGenerator::default());
 
 #[derive(Clone, Debug)]
-pub struct Expr {
+pub struct Expr
+{
     pub id: i64,
     pub kind: ExprKind
 }
 
-impl Expr {
+impl Expr
+{
     fn new(kind: ExprKind) -> Self {
         Expr { id: ID_GENERATOR.next_id(), kind }
     }
@@ -20,17 +22,17 @@ impl Expr {
 #[derive(Clone, Debug)]
 pub enum ExprKind
 {
-    Binary(Box<Expr>, Token, Box<Expr>),
+    Binary  (Box<Expr>, Operator<BinaryOperatorKind>, Box<Expr>),
     Grouping(Box<Expr>),
-    Unary(Token, Box<Expr>),
-    Literal(Token),
+    Unary   (Operator<UnaryOperatorKind>, Box<Expr>),
+    Literal (Literal),
     Variable(Identifier),
-    Assign(Identifier, Box<Expr>),
-    Logical(Box<Expr>, Token, Box<Expr>),
-    Call(Box<Expr>, Option<Vec<Expr>>, Token),
-    Get(Box<Expr>, Identifier),
-    Set(Box<Expr>, Identifier, Box<Expr>),
-    This(Token)
+    Assign  (Identifier, Box<Expr>),
+    Logical (Box<Expr>, Operator<LogicalOperatorKind>, Box<Expr>),
+    Call    (Box<Expr>, Option<Vec<Expr>>, Position),
+    Get     (Box<Expr>, Identifier),
+    Set     (Box<Expr>, Identifier, Box<Expr>),
+    This    (Position)
 }
 
 
@@ -86,7 +88,7 @@ fn or(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::Or => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = and(token_source)?;
-                expr =  Expr::new(ExprKind::Logical(Box::new(expr), operator, Box::new(right)));
+                expr =  Expr::new(ExprKind::Logical(Box::new(expr), Operator::<LogicalOperatorKind>::from_token(&operator), Box::new(right)));
             },
             _ => {
                 return Ok(expr);
@@ -107,7 +109,7 @@ fn and(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::And => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = equality(token_source)?;
-                expr = Expr::new(ExprKind::Logical(Box::new(expr), operator, Box::new(right)));
+                expr = Expr::new(ExprKind::Logical(Box::new(expr), Operator::<LogicalOperatorKind>::from_token(&operator), Box::new(right)));
             },
             _ => {
                 return Ok(expr);
@@ -128,7 +130,7 @@ fn equality(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::BangEqual|TokenKind::EqualEqual => {
                 let operator: Token = token_source.next().unwrap();
                 let right: Expr = comparison(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(expr), operator, Box::new(right)));
+                expr = Expr::new(ExprKind::Binary(Box::new(expr), Operator::<BinaryOperatorKind>::from_token(&operator), Box::new(right)));
             },
             _ => {
                 return Ok(expr);
@@ -149,7 +151,7 @@ fn comparison(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::Greater | TokenKind::GreaterEqual | TokenKind::Less | TokenKind::LessEqual => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = term(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(expr), operator, Box::new(right)));
+                expr = Expr::new(ExprKind::Binary(Box::new(expr), Operator::<BinaryOperatorKind>::from_token(&operator), Box::new(right)));
             },
             _ => {
                 return Ok(expr);
@@ -170,7 +172,7 @@ fn term(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::Minus | TokenKind::Plus => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = factor(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(expr), operator, Box::new(right)));
+                expr = Expr::new(ExprKind::Binary(Box::new(expr), Operator::<BinaryOperatorKind>::from_token(&operator), Box::new(right)));
             },
             _ => {
                 return Ok(expr);
@@ -191,7 +193,7 @@ fn factor(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             TokenKind::Slash | TokenKind::Star => {
                 let operator: Token = token_source.next().unwrap();
                 let right = unary(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(expr), operator, Box::new(right)));
+                expr = Expr::new(ExprKind::Binary(Box::new(expr), Operator::<BinaryOperatorKind>::from_token(&operator), Box::new(right)));
             },
             _ => {
                 return Ok(expr);
@@ -210,7 +212,7 @@ fn unary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
         TokenKind::Bang | TokenKind::Minus => {
             let operator: Token = token_source.next().unwrap();
             let right:    Expr = unary(token_source)?;
-            Ok(Expr::new(ExprKind::Unary(operator, Box::new(right))))
+            Ok(Expr::new(ExprKind::Unary(Operator::<UnaryOperatorKind>::from_token(&operator), Box::new(right))))
         },
         _ => {
             call(token_source)
@@ -229,7 +231,7 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
         {
             let left_paren = token_source.next().unwrap();
             if consume_if(token_source, TokenKind::RightParen) {
-                expr = Expr::new(ExprKind::Call(Box::new(expr), None, left_paren));
+                expr = Expr::new(ExprKind::Call(Box::new(expr), None, left_paren.position));
                 continue;
             }
             let mut args: Vec<Expr> = Vec::new();
@@ -243,7 +245,7 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             if args.len() >= 255 {
                 todo!("Segnalare errore se più di 255 argomenti");
             }
-            expr = Expr::new(ExprKind::Call(Box::new(expr), Some(args), left_paren));
+            expr = Expr::new(ExprKind::Call(Box::new(expr), Some(args), left_paren.position));
         }
         else if consume_if(token_source, TokenKind::Dot)
         {
@@ -263,10 +265,10 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
         },
         TokenKind::Nil => {
-            Ok(Expr::new(ExprKind::Literal(token)))
+            Ok(Expr::new(ExprKind::Literal(Literal::from_token(&token))))
         }
         TokenKind::False(_) | TokenKind::True(_) | TokenKind::Number(_) | TokenKind::String(_) => {
-            Ok(Expr::new(ExprKind::Literal(token)))
+            Ok(Expr::new(ExprKind::Literal(Literal::from_token(&token))))
         },
         TokenKind::Identifier(identifier) => {
              Ok(Expr::new(ExprKind::Variable(identifier.clone())))
@@ -290,7 +292,7 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
         },
         TokenKind::This => {
             let token = token_source.next().unwrap();
-            Ok(Expr::new(ExprKind::This(token)))
+            Ok(Expr::new(ExprKind::This(token.position)))
         },
         _ => {
             Err(LoxError::parser_error(ParserErrorKind::LiteralExpected, position))

@@ -3,16 +3,16 @@ use std::{fmt::Debug, rc::Rc, cell::RefCell};
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{TokenKind, Position}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}, alias::{IdentifierSymbol, ExprId}};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, LiteralKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}, alias::{IdentifierSymbol, ExprId}};
 
 pub struct Interpreter
 {
     environment_stack: Environment,
-    string_interner: Rc<RefCell<StringInterner>>,
-    side_table: Rc<RefCell<FxHashMap<i64, usize>>>,
-    global_scope: Rc<RefCell<Scope>>,
-    this_symbol: IdentifierSymbol,
-    init_symbol: IdentifierSymbol
+    string_interner:   Rc<RefCell<StringInterner>>,
+    side_table:        Rc<RefCell<FxHashMap<ExprId, usize>>>,
+    global_scope:      Rc<RefCell<Scope>>,
+    this_symbol:       IdentifierSymbol,
+    init_symbol:       IdentifierSymbol
 }
 
 impl Interpreter
@@ -20,9 +20,9 @@ impl Interpreter
     pub fn new(string_interner: Rc<RefCell<StringInterner>>) -> Self
     {
         let environment = Environment::new();
-        let this_symbol  = string_interner.borrow_mut().get_or_intern_static("this");
-        let init_symbol  = string_interner.borrow_mut().get_or_intern_static("init");
-        let clock_symbol = string_interner.borrow_mut().get_or_intern_static("clock");
+        let this_symbol   = string_interner.borrow_mut().get_or_intern_static("this");
+        let init_symbol   = string_interner.borrow_mut().get_or_intern_static("init");
+        let clock_symbol  = string_interner.borrow_mut().get_or_intern_static("clock");
         let mut interpreter = Interpreter {
             environment_stack: environment,
             string_interner,
@@ -41,20 +41,21 @@ impl Interpreter
     {
         Interpreter {
             environment_stack: environment_stack.clone(),
-            string_interner: Rc::clone(&intrepreter.string_interner),
-            side_table: Rc::clone(&intrepreter.side_table),
-            global_scope: Rc::clone(&intrepreter.global_scope),
-            this_symbol: intrepreter.this_symbol,
-            init_symbol: intrepreter.init_symbol
+            string_interner:   Rc::clone(&intrepreter.string_interner),
+            side_table:        Rc::clone(&intrepreter.side_table),
+            global_scope:      Rc::clone(&intrepreter.global_scope),
+            this_symbol:       intrepreter.this_symbol,
+            init_symbol:       intrepreter.init_symbol
         }
     }
 
-    pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize) {
+    pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize)
+    {
         self.side_table.borrow_mut().insert(expr_id, depth);
     }
 
-
-    pub fn resolve(&mut self, expr_id: i64, depth: usize) {
+    pub fn resolve(&mut self, expr_id: i64, depth: usize)
+    {
         self.insert_into_side_table(expr_id, depth);
     }
 
@@ -81,15 +82,15 @@ impl Interpreter
             Stmt::Print(expr) =>
             {
                 match self.evaluate(expr)? {
-                    Value::String(string) => println!("{}", string),
-                    Value::Number(number) =>  println!("{}", number),
-                    Value::Bool(boolean) =>  println!("{}", boolean),
-                    Value::Nil => println!("{}", "nil"),
+                    Value::String(string)   => println!("{}", string),
+                    Value::Number(number)          =>  println!("{}", number),
+                    Value::Bool(boolean)          =>  println!("{}", boolean),
+                    Value::Nil                          => println!("{}", "nil"),
                     Value::Callable(callable) => {
                         match callable {
-                            Callable::Function(fun_decl, _, _) =>  println!("Function: '{}()'", self.string_interner.borrow().resolve(fun_decl.identifier.name).unwrap()),
-                            Callable::Class(class_decl, _) => println!("Class: '{}'", self.string_interner.borrow().resolve(class_decl.identifier.name).unwrap()),
-                            Callable::Clock =>  println!("Native function: clock()"),
+                            Callable::Function(fun_decl, _, _) => println!("Function: '{}()'", self.string_interner.borrow().resolve(fun_decl.identifier.name).unwrap()),
+                            Callable::Class(class_decl, _)        => println!("Class: '{}'", self.string_interner.borrow().resolve(class_decl.identifier.name).unwrap()),
+                            Callable::Clock                                             => println!("Native function: clock()"),
                         }
                     },
                     Value::ClassInstance(class_decl, _) => println!("Instance of class: '{}'", self.string_interner.borrow().resolve(class_decl.identifier.name).unwrap()),
@@ -211,7 +212,8 @@ impl Interpreter
                 self.environment_stack.remove_loval_scope();
                 return Ok(State::Normal);
             },
-            Stmt::FunctionDeclaration(declaration) => {
+            Stmt::FunctionDeclaration(declaration) =>
+            {
                 let cloned_environment = Environment::from(&self.environment_stack);
                 let function = Callable::Function(Rc::clone(&declaration), cloned_environment, false);
                 self.define_variable(
@@ -220,7 +222,8 @@ impl Interpreter
                     );
                 return Ok(State::Normal);
             },
-            Stmt::ClassDeclaration(class_declaration) => {
+            Stmt::ClassDeclaration(class_declaration) =>
+            {
                 //class is callable to construct a new instance. The new instance must have its own class template.
                 let cloned_environment = Environment::from(&self.environment_stack);
                 let callable = Callable::Class(Rc::clone(class_declaration), cloned_environment);
@@ -230,7 +233,8 @@ impl Interpreter
                 );
                 return Ok(State::Normal);
             },
-            Stmt::Return(_, opt_expr) => {
+            Stmt::Return(opt_expr, _) =>
+            {
                 let value = if let Some(expr) = opt_expr {
                     self.evaluate(expr)?
                 } else {
@@ -241,7 +245,8 @@ impl Interpreter
         }
     }
 
-    fn evaluate_or(&mut self, opt_expr: &Option<Expr>, or_value: Value) ->  Result<Value, LoxError> {
+    fn evaluate_or(&mut self, opt_expr: &Option<Expr>, or_value: Value) ->  Result<Value, LoxError>
+    {
         match opt_expr {
             Some(expr) => {
                 return self.evaluate(expr);
@@ -255,44 +260,37 @@ impl Interpreter
     fn evaluate(&mut self, expr: &Expr) -> Result<Value, LoxError>
     {
         match &expr.kind {
-            ExprKind::Literal( token) =>
+            ExprKind::Literal( literal) =>
             {
-                match &token.kind {
-                    TokenKind::String(val) =>
+                match &literal.kind {
+                    LiteralKind::String(val) =>
                     {
                         return Ok(val.clone());
                     },
-                    TokenKind::Number(val) =>
+                    LiteralKind::Number(val) =>
                     {
                         return Ok(val.clone());
                     },
-                    TokenKind::True(val) =>
+                    LiteralKind::True(val) =>
                     {
                         return Ok(val.clone());
                     },
-                    TokenKind::False(val) =>
+                    LiteralKind::False(val) =>
                     {
                         return Ok(val.clone());
                     },
-                    TokenKind::Nil =>
+                    LiteralKind::Nil =>
                     {
                         return Ok(Value::Nil);
-                    },
-                    TokenKind::Identifier(_) =>
-                    {
-                        panic!("unexpected state");
-                    },
-                    _ => {
-                        panic!("unsupported token!");
                     }
                 }
             },
-            ExprKind::Unary(token, right) =>
+            ExprKind::Unary(operator, right) =>
             {
                 let val_right: Value = self.evaluate(right.as_ref())?;
-                match token.kind
+                match operator.kind
                 {
-                    TokenKind::Minus =>
+                    UnaryOperatorKind::Minus =>
                     {
                         match val_right
                         {
@@ -301,16 +299,13 @@ impl Interpreter
                                 return Ok(Value::Number(-num));
                             },
                             _ => {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidUnaryType, token.position));
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidUnaryType, operator.position));
                             }
                         }
                     },
-                    TokenKind::Bang =>
+                    UnaryOperatorKind::Bang =>
                     {
                         Ok(Value::Bool(!is_truthy(&val_right)))
-                    },
-                    _ => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidUnaryType, token.position));
                     }
                 }
             },
@@ -318,12 +313,12 @@ impl Interpreter
             {
                 self.evaluate(expr.as_ref())
             },
-            ExprKind::Binary(left, token, right) =>
+            ExprKind::Binary(left, operator, right) =>
             {
                 let val_left  = self.evaluate(left.as_ref())?;
                 let val_right = self.evaluate(right.as_ref())?;
-                match token.kind {
-                    TokenKind::Minus =>
+                match operator.kind {
+                    BinaryOperatorKind::Minus =>
                     {
                         match (val_left, val_right)
                         {
@@ -331,11 +326,11 @@ impl Interpreter
                                 return Ok(Value::Number(num_left - num_right));
                             },
                             _ => {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position));
                             }
                         }
                     },
-                    TokenKind::Plus =>
+                    BinaryOperatorKind::Plus =>
                     {
                         match (val_left, val_right) {
                             (Value::Number(num_left), Value::Number(num_right)) => {
@@ -345,85 +340,82 @@ impl Interpreter
                                 return Ok(Value::String(Rc::new(format!("{}{}", str_left, str_right))));
                             },
                             _ => {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position));
                             }
                         }
                     },
-                    TokenKind::Slash =>
+                    BinaryOperatorKind::Slash =>
                     {
                         match (val_left, val_right) {
                             (Value::Number(num_left), Value::Number(num_right)) => {
                                 return Ok(Value::Number(num_left / num_right));
                             },
                             _ => {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position));
                             }
                         }
                     },
-                    TokenKind::Star =>
+                    BinaryOperatorKind::Star =>
                     {
                         match (val_left, val_right) {
                             (Value::Number(num_left), Value::Number(num_right)) => {
                                 return Ok(Value::Number(num_left * num_right));
                             },
                             _ => {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position));
                             }
                         }
                     },
-                    TokenKind::Greater =>
+                    BinaryOperatorKind::Greater =>
                     {
                         match (val_left, val_right) {
                             (Value::Number(num_left), Value::Number(num_right)) => {
                                 return Ok(Value::Bool(num_left > num_right));
                             },
                             _ => {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position));
                             }
                         }
                     },
-                    TokenKind::GreaterEqual =>
+                    BinaryOperatorKind::GreaterEqual =>
                     {
                         match (val_left, val_right) {
                             (Value::Number(num_left), Value::Number(num_right)) => {
                                 return Ok(Value::Bool(num_left >= num_right));
                             },
                             _ => {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position));
                             }
                         }
                     },
-                    TokenKind::Less => {
+                    BinaryOperatorKind::Less => {
                         match (val_left, val_right) {
                             (Value::Number(num_left), Value::Number(num_right)) => {
                                 return Ok(Value::Bool(num_left < num_right));
                             },
                             _ => {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position));
                             }
                         }
                     },
-                    TokenKind::LessEqual =>
+                    BinaryOperatorKind::LessEqual =>
                     {
                         match (val_left, val_right) {
                             (Value::Number(num_left), Value::Number(num_right)) => {
                                 return Ok(Value::Bool(num_left <= num_right));
                             },
                             _ => {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, token.position));
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position));
                             }
                         }
                     },
-                    TokenKind::EqualEqual =>
+                    BinaryOperatorKind::EqualEqual =>
                     {
                         return Ok(Value::Bool(is_equal(val_left, val_right)));
                     },
-                    TokenKind::BangEqual =>
+                    BinaryOperatorKind::BangEqual =>
                     {
                         return Ok(Value::Bool(!is_equal(val_left, val_right)));
-                    },
-                    _ => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidBinaryType, token.position));
                     }
                 }
             }
@@ -450,31 +442,28 @@ impl Interpreter
                     },
                 }
             },
-            ExprKind::Logical(left, token, right) =>
+            ExprKind::Logical(left, operator, right) =>
             {
                 let val_left = self.evaluate(left.as_ref())?;
-                match token.kind
+                match operator.kind
                 {
-                    TokenKind::Or => {
+                    LogicalOperatorKind::Or => {
                         if is_truthy(&val_left) {
                             return Ok(val_left);
                         } else {
                             return self.evaluate(right.as_ref());
                         }
                     },
-                    TokenKind::And => {
+                    LogicalOperatorKind::And => {
                         if !is_truthy(&val_left) {
                             return Ok(val_left);
                         } else {
                             return self.evaluate(right.as_ref());
                         }
-                    },
-                    _ => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidBinaryType, token.position));
                     }
                 }
             },
-            ExprKind::Call(callee_expr, opt_args_expr, token) => {
+            ExprKind::Call(callee_expr, opt_args_expr, position) => {
                 let mut args: Vec<Value>;
                 if let Some(args_expr) = opt_args_expr
                 {
@@ -493,12 +482,12 @@ impl Interpreter
                     Value::Callable(function) =>
                     {
                         if function.arity(self.init_symbol) != args.len() {
-                            return Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(self.init_symbol), args.len()), token.position));
+                            return Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(self.init_symbol), args.len()), *position));
                         }
-                        return function.call(self, &args, &token.position);
+                        return function.call(self, &args, position);
                     },
                     _ => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::NotCallable, token.position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::NotCallable, *position));
                     }
                 }
             },
@@ -547,7 +536,7 @@ impl Interpreter
                     }
                 }
             },
-            ExprKind::This(this_token) => {
+            ExprKind::This(position) => {
                 //println!("looking up variable: {}", "this");
                 match self.lookup_variable(self.this_symbol, expr.id)
                 {
@@ -555,7 +544,7 @@ impl Interpreter
                         return Ok(variable);
                     },
                     None => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(self.this_symbol, Rc::clone(&self.string_interner)), this_token.position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(self.this_symbol, Rc::clone(&self.string_interner)), *position));
                     },
                 }
             },
@@ -604,7 +593,8 @@ impl Interpreter
 
 }
 
-pub enum State {
+pub enum State
+{
     Normal,
     Break,
     Continue,
@@ -612,7 +602,8 @@ pub enum State {
 }
 
 #[derive(Clone, Debug)]
-pub enum Callable {
+pub enum Callable
+{
     Function(Rc<FunctionDeclaration>, Environment, bool),
     Class(Rc<ClassDeclaration>, Environment),
     Clock
@@ -620,7 +611,8 @@ pub enum Callable {
 
 impl Callable
 {
-    fn arity(&self, init_symbol: IdentifierSymbol) -> usize {
+    fn arity(&self, init_symbol: IdentifierSymbol) -> usize
+    {
         match self {
             Callable::Function(declaration, _, _) => {
                 declaration.parameters.len()
@@ -637,7 +629,8 @@ impl Callable
         }
     }
 
-    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: &Position) -> Result<Value, LoxError> {
+    fn call(&self,  interpreter: &Interpreter, args: &[Value], position: &Position) -> Result<Value, LoxError>
+    {
         match self
         {
             Callable::Function(declaration, environment, is_initializer) =>

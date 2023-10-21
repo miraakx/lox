@@ -1,5 +1,5 @@
 
-use std::{fmt, rc::Rc};
+use std::fmt;
 
 use crate::{common::Peekable, error::{ParserErrorKind, LoxError}, alias::IdentifierSymbol, value::Value};
 
@@ -46,30 +46,121 @@ pub struct Identifier {
 }
 
 #[derive(Clone, Debug)]
-pub struct Operator {
-    pub kind: OperatorKind,
+pub struct Literal {
+    pub kind: LiteralKind,
+    pub position: Position
+}
+
+
+#[derive(Clone, Debug)]
+pub enum LiteralKind
+{
+    Nil, False(Value), True(Value), Number(Value), String(Value)
+}
+
+impl Literal
+{
+    pub fn from_token(token: &Token) -> Self
+    {
+        let literal_kind = match &token.kind
+        {
+            TokenKind::Nil                  => LiteralKind::Nil,
+            TokenKind::False(value)  => LiteralKind::False(value.clone()),
+            TokenKind::True(value)   => LiteralKind::True(value.clone()),
+            TokenKind::Number(value) => LiteralKind::Number(value.clone()),
+            TokenKind::String(value) => LiteralKind::String(value.clone()),
+            _ => {
+                panic!("Internal error, unexpecter operator type");
+            }
+        };
+        Literal { kind: literal_kind, position: token.position }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Operator<Kind>
+{
+    pub kind: Kind,
     pub position: Position
 }
 
 #[derive(Clone, Debug)]
-pub enum OperatorKind {
+pub enum BinaryOperatorKind
+{
     Minus,           Plus,
     Slash,           Star,
-    Bang,            BangEqual,
-    Equal,           EqualEqual,
+    BangEqual,       EqualEqual,
     Greater,         GreaterEqual,
     Less,            LessEqual,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum LiteralValue
+impl Operator<BinaryOperatorKind>
 {
-    String(Rc<String>),
-    Number(f64),
-    Bool(bool),
-    Nil,
-    Identifier(IdentifierSymbol)
+    pub fn from_token(token: &Token) -> Self
+    {
+        let bonary_op_kind = match token.kind {
+            TokenKind::Minus        => BinaryOperatorKind::Minus,
+            TokenKind::Plus         => BinaryOperatorKind::Plus,
+            TokenKind::Slash        => BinaryOperatorKind::Slash,
+            TokenKind::Star         => BinaryOperatorKind::Star,
+            TokenKind::BangEqual    => BinaryOperatorKind::BangEqual,
+            TokenKind::EqualEqual   => BinaryOperatorKind::EqualEqual,
+            TokenKind::Greater      => BinaryOperatorKind::Greater,
+            TokenKind::GreaterEqual => BinaryOperatorKind::GreaterEqual,
+            TokenKind::Less         => BinaryOperatorKind::Less,
+            TokenKind::LessEqual    => BinaryOperatorKind::LessEqual,
+            _ => {
+                panic!("Internal error, unexpecter operator type");
+            }
+        };
+        Operator { kind: bonary_op_kind, position: token.position }
+    }
 }
+
+
+#[derive(Clone, Debug)]
+pub enum UnaryOperatorKind
+{
+    Bang, Minus,
+}
+
+impl Operator<UnaryOperatorKind>
+{
+    pub fn from_token(token: &Token) -> Self
+    {
+        let bonary_op_kind = match token.kind {
+            TokenKind::Bang  => UnaryOperatorKind::Bang,
+            TokenKind::Minus => UnaryOperatorKind::Minus,
+            _ => {
+                panic!("Internal error, unexpecter operator type");
+            }
+        };
+        Operator { kind: bonary_op_kind, position: token.position }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum LogicalOperatorKind
+{
+    And, Or,
+}
+
+impl Operator<LogicalOperatorKind>
+{
+    pub fn from_token(token: &Token) -> Self
+    {
+        let bonary_op_kind = match token.kind {
+            TokenKind::And  => LogicalOperatorKind::And,
+            TokenKind::Or => LogicalOperatorKind::Or,
+            _ => {
+                panic!("Internal error, unexpecter operator type");
+            }
+        };
+        Operator { kind: bonary_op_kind, position: token.position }
+    }
+}
+
+
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Position
@@ -119,7 +210,7 @@ const AND:      &str = "and";
 const CLASS:    &str = "class";
 const FUN:      &str = "fun";
 const SUPER:    &str = "super";
-pub const THIS:     &str = "this";
+pub const THIS: &str = "this";
 const VAR:      &str = "var";
 const NIL:      &str = "nil";
 const PRINT:    &str = "print";

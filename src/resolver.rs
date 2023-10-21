@@ -5,24 +5,27 @@ use string_interner::StringInterner;
 
 use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, interpreter::Interpreter, alias::IdentifierSymbol, tokens::{Position, THIS}};
 
-pub struct Resolver<'a> {
-    interpreter: &'a mut Interpreter,
-    stack: Stack<FxHashMap<IdentifierSymbol, bool>>,
-    error_logger: Box<dyn ErrorLogger>,
-    string_interner: Rc<RefCell<StringInterner>>,
-    has_error: bool,
+pub struct Resolver<'a>
+{
+    interpreter:      &'a mut Interpreter,
+    stack:            Stack<FxHashMap<IdentifierSymbol, bool>>,
+    error_logger:     Box<dyn ErrorLogger>,
+    string_interner:  Rc<RefCell<StringInterner>>,
+    has_error:        bool,
     current_function: FunctionType,
-    current_class: ClassType,
-    this_symbol: IdentifierSymbol,
-    init_symbol: IdentifierSymbol
+    current_class:    ClassType,
+    this_symbol:      IdentifierSymbol,
+    init_symbol:      IdentifierSymbol
 }
 
 impl <'a> Resolver<'a>
 {
-    pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self {
+    pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self
+    {
         let this_symbol = string_interner.borrow_mut().get_or_intern_static(THIS);
         let init_symbol = string_interner.borrow_mut().get_or_intern_static("init");
-        Resolver {
+        Resolver
+        {
             stack: Stack::new(),
             interpreter,
             error_logger: Box::new(error_logger),
@@ -35,13 +38,16 @@ impl <'a> Resolver<'a>
         }
     }
 
-    fn error(&mut self, err_kind: ResolverErrorKind, position: &Position) {
+    fn error(&mut self, err_kind: ResolverErrorKind, position: &Position)
+    {
         self.error_logger.log(LoxError::resolver_error(err_kind, *position));
         self.has_error = true;
     }
 
-    pub fn resolve(&mut self, stmts: &[Stmt]) -> Result<(),()>{
-        for stmt in stmts {
+    pub fn resolve(&mut self, stmts: &[Stmt]) -> Result<(),()>
+    {
+        for stmt in stmts
+        {
             self.resolve_stmt(stmt, self.current_function, self.current_class);
         }
         if self.has_error {
@@ -108,13 +114,16 @@ impl <'a> Resolver<'a>
             },
             Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
             {
-                if let Some(initializer) = opt_initializer.as_ref() {
+                if let Some(initializer) = opt_initializer.as_ref()
+                {
                     self.resolve_stmt(initializer, self.current_function, self.current_class);
                 }
-                if let Some(condition) = opt_condition {
+                if let Some(condition) = opt_condition
+                {
                     self.resolve_expr(condition);
                 }
-                if let Some(increment) = opt_increment {
+                if let Some(increment) = opt_increment
+                {
                     self.resolve_expr(increment);
                 }
                 self.resolve_stmt(body, self.current_function, self.current_class);
@@ -125,15 +134,15 @@ impl <'a> Resolver<'a>
             {
                 self.resolve_function(func_decl, FunctionType::Function, self.current_class);
             },
-            Stmt::Return(return_token, opt_expr) =>
+            Stmt::Return(opt_expr, position) =>
             {
                 match self.current_function {
                     FunctionType::None => {
-                        self.error(ResolverErrorKind::ReturnFromTopLevelCode, &return_token.position)
+                        self.error(ResolverErrorKind::ReturnFromTopLevelCode, position)
                     },
                     FunctionType::Initializer => {
                         if opt_expr.is_some() {
-                            self.error(ResolverErrorKind::ReturnFromInitializer, &return_token.position)
+                            self.error(ResolverErrorKind::ReturnFromInitializer, position)
                         }
                     },
                     _ => {
@@ -182,8 +191,10 @@ impl <'a> Resolver<'a>
         //< restore-current-function
     }
 
-    fn resolve_function(&mut self, func_decl: &Rc<FunctionDeclaration>, function_type: FunctionType, class_type: ClassType) {
-        match self.declare(func_decl.identifier.name) {
+    fn resolve_function(&mut self, func_decl: &Rc<FunctionDeclaration>, function_type: FunctionType, class_type: ClassType)
+    {
+        match self.declare(func_decl.identifier.name)
+        {
             Err(err_kind) => {
                 self.error(err_kind, &func_decl.identifier.position);
             },
@@ -191,8 +202,10 @@ impl <'a> Resolver<'a>
         }
         self.define(func_decl.identifier.name);
         self.begin_scope();
-        for param in &func_decl.parameters {
-            match self.declare(param.identifier.name) {
+        for param in &func_decl.parameters
+        {
+            match self.declare(param.identifier.name)
+            {
                 Err(err_kind) => {
                     self.error(err_kind, &param.identifier.position);
                 },
@@ -229,9 +242,11 @@ impl <'a> Resolver<'a>
             },
             ExprKind::Variable(identifier) =>
             {
-                if !self.stack.is_empty() {
+                if !self.stack.is_empty()
+                {
                     let opt_bool =self.stack.peek().unwrap().get(&identifier.name);
-                    if opt_bool.is_none() || *opt_bool.unwrap() == false {
+                    if opt_bool.is_none() || *opt_bool.unwrap() == false
+                    {
                         LoxError::resolver_error(crate::error::ResolverErrorKind::LocalVariableNotFound(identifier.name, Rc::clone(&self.string_interner)), identifier.position);
                     }
                 }
@@ -250,23 +265,28 @@ impl <'a> Resolver<'a>
             ExprKind::Call(expr, opt_args, _) =>
             {
                 self.resolve_expr(expr);
-                if let Some(args) = opt_args {
-                    for arg in args {
+                if let Some(args) = opt_args
+                {
+                    for arg in args
+                    {
                         self.resolve_expr(arg);
                     }
                 }
             },
-            ExprKind::Get(expr, _) => {
+            ExprKind::Get(expr, _) =>
+            {
                 self.resolve_expr(expr);
             },
-            ExprKind::Set(object, _, value) => {
+            ExprKind::Set(object, _, value) =>
+            {
                 self.resolve_expr(object);
                 self.resolve_expr(value);
             },
-            ExprKind::This(token) => {
-                match self.current_class {
+            ExprKind::This(position) => {
+                match self.current_class
+                {
                     ClassType::None => {
-                        self.error(ResolverErrorKind::InvalidThisUsage, &token.position)
+                        self.error(ResolverErrorKind::InvalidThisUsage, position)
                     },
                     _ => {
                         self.resolve_local(expr, self.this_symbol);
@@ -290,7 +310,8 @@ impl <'a> Resolver<'a>
     {
         if let Some(scope) = self.stack.peek_mut()
         {
-            if scope.contains_key(&identifier) {
+            if scope.contains_key(&identifier)
+            {
                 return Err(ResolverErrorKind::VariableAlreadyExists(identifier, Rc::clone(&self.string_interner)));
             }
             scope.insert(identifier, false);
@@ -300,15 +321,18 @@ impl <'a> Resolver<'a>
 
     fn define(&mut self, identifier: IdentifierSymbol)
     {
-        if let Some(last) = self.stack.peek_mut() {
+        if let Some(last) = self.stack.peek_mut()
+        {
             last.insert(identifier, true);
         }
     }
 
     fn resolve_local(&mut self, expr: &Expr, identifier: IdentifierSymbol)
     {
-        for (index, scope) in self.stack.iter().enumerate().rev() {
-            if scope.contains_key(&identifier) {
+        for (index, scope) in self.stack.iter().enumerate().rev()
+        {
+            if scope.contains_key(&identifier)
+            {
                 self.interpreter.resolve(expr.id, index);
             }
         }
@@ -316,11 +340,13 @@ impl <'a> Resolver<'a>
 }
 
 #[derive(Clone, Debug, Copy)]
-enum FunctionType {
+enum FunctionType
+{
     None, Function, Method, Initializer
 }
 
 #[derive(Clone, Debug, Copy)]
-enum ClassType {
+enum ClassType
+{
     None, Class
 }
