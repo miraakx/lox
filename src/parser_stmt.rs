@@ -2,18 +2,18 @@ use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
 
-use crate::alias::Identifier;
+use crate::alias::IdentifierSymbol;
 use crate::error::{LoxError, ParserErrorKind, ErrorLogger};
 use crate::common::Peekable;
 use crate::parser_expr::{Expr, expression};
-use crate::tokens::{Token, TokenKind, Position, TokenSource, consume, check, consume_if, check_end_of_file, is_at_end};
+use crate::tokens::{Token, TokenKind, TokenSource, consume, check, consume_if, check_end_of_file, is_at_end, consume_identifier, Identifier};
 
 #[derive(Clone, Debug)]
 pub enum Stmt
 {
     Print(Expr),
     ExprStmt(Expr),
-    Var(Identifier, Position, Option<Expr>),
+    Var(Identifier, Option<Expr>),
     Block(Vec<Stmt>),
     If(Expr, Box<Stmt>),
     IfElse(Expr, Box<Stmt>, Box<Stmt>),
@@ -104,13 +104,13 @@ impl Parser {
     }
 
     fn class_declaration(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError> {
-        let name = consume(token_source, TokenKind::Identifier)?;
-        let mut class_declaration = ClassDeclaration::new(name);
+        let identifier = consume_identifier(token_source)?;
+        let mut class_declaration = ClassDeclaration::new(identifier);
         consume(token_source, TokenKind::LeftBrace)?;
 
         while !check(token_source, TokenKind::RightBrace) && !is_at_end(token_source) {
             let method_declaration = self.create_fun_declaration(token_source)?;
-            class_declaration.insert_method(method_declaration.name.get_identifier(), method_declaration);
+            class_declaration.insert_method(method_declaration.identifier.name, method_declaration);
         }
         consume(token_source, TokenKind::RightBrace)?;
         return Ok(Stmt::ClassDeclaration(Rc::new(class_declaration)));
@@ -123,12 +123,12 @@ impl Parser {
 
     fn create_fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<FunctionDeclaration, LoxError>
     {
-        let identifier = consume(token_source, TokenKind::Identifier)?;
+        let identifier = consume_identifier(token_source)?;
         consume(token_source, TokenKind::LeftParen)?;
-        let mut args: Vec<Token> = vec!();
+        let mut args: Vec<FunctionParameter> = vec!();
         if !check(token_source, TokenKind::RightParen) {
             loop {
-                args.push(consume(token_source, TokenKind::Identifier)?);
+                args.push(FunctionParameter { identifier:  consume_identifier(token_source)?});
                 if !consume_if(token_source, TokenKind::Comma) {
                     break;
                 }
@@ -137,22 +137,20 @@ impl Parser {
         consume(token_source, TokenKind::RightParen)?;
         consume(token_source, TokenKind::LeftBrace)?;
         let body = self.block_statement(token_source)?;
-        let declaration = FunctionDeclaration { name: identifier, parameters: args, body: body };
+        let declaration = FunctionDeclaration {identifier,  parameters: args, body: body };
         return Ok(declaration);
     }
 
     fn var_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
     {
-        let identifier = consume(token_source, TokenKind::Identifier)?;
+        let identifier = consume_identifier(token_source)?;
         if consume_if(token_source, TokenKind::Equal) {
             let expr: Expr = expression(token_source)?;
             consume(token_source, TokenKind::Semicolon)?;
-            let val = identifier.get_identifier_and_position();
-            return Ok(Stmt::Var(val.0, val.1, Some(expr)));
+            return Ok(Stmt::Var(identifier, Some(expr)));
         } else {
             consume(token_source, TokenKind::Semicolon)?;
-            let val = identifier.get_identifier_and_position();
-            return Ok(Stmt::Var(val.0, val.1, None));
+            return Ok(Stmt::Var(identifier, None));
         }
     }
 
@@ -323,23 +321,28 @@ impl Parser {
 
 #[derive(Clone, Debug)]
 pub struct FunctionDeclaration {
-    pub name: Token,
-    pub parameters: Vec<Token>,
+    pub identifier: Identifier,
+    pub parameters: Vec<FunctionParameter>,
     pub body: Stmt
 }
 
 #[derive(Clone, Debug)]
+pub struct FunctionParameter {
+    pub identifier: Identifier
+}
+
+#[derive(Clone, Debug)]
 pub struct ClassDeclaration {
-    pub name: Token,
-    pub methods: FxHashMap<Identifier, Rc<FunctionDeclaration>>
+    pub identifier: Identifier,
+    pub methods: FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>
 }
 
 impl ClassDeclaration {
-    fn new(name: Token) -> Self {
-        ClassDeclaration {name, methods: FxHashMap::default()}
+    fn new(identifier: Identifier) -> Self {
+        ClassDeclaration {identifier, methods: FxHashMap::default()}
     }
 
-    fn insert_method(&mut self, name: Identifier, method_declaration: FunctionDeclaration) {
+    fn insert_method(&mut self, name: IdentifierSymbol, method_declaration: FunctionDeclaration) {
         self.methods.insert(name, Rc::new(method_declaration));
     }
 }

@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use unique_id::{sequence::SequenceGenerator, Generator};
 
-use crate::{tokens::{Token, Position, TokenKind, TokenSource, consume_if, consume, check}, error::{LoxError, ParserErrorKind}, alias::Identifier};
+use crate::{tokens::{Token, TokenKind, TokenSource, consume_if, consume, check, consume_identifier, Identifier}, error::{LoxError, ParserErrorKind}};
 
 static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(||SequenceGenerator::default());
 
@@ -24,12 +24,12 @@ pub enum ExprKind
     Grouping(Box<Expr>),
     Unary(Token, Box<Expr>),
     Literal(Token),
-    Variable(Identifier, Position),
-    Assign(Identifier, Box<Expr>, Position),
+    Variable(Identifier),
+    Assign(Identifier, Box<Expr>),
     Logical(Box<Expr>, Token, Box<Expr>),
     Call(Box<Expr>, Option<Vec<Expr>>, Token),
-    Get(Box<Expr>, Token),
-    Set(Box<Expr>, Token, Box<Expr>),
+    Get(Box<Expr>, Identifier),
+    Set(Box<Expr>, Identifier, Box<Expr>),
     This(Token)
 }
 
@@ -56,12 +56,12 @@ fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             let value: Expr = assignment(token_source)?;
 
             match expr.kind {
-                ExprKind::Variable(name, pos) => {
-                    return Ok(Expr::new(ExprKind::Assign(name, Box::new(value), pos)));
+                ExprKind::Variable(identifier) => {
+                    return Ok(Expr::new(ExprKind::Assign(identifier, Box::new(value))));
                 },
                 //Assign a value expression to an instance property
-                ExprKind::Get(expr, token) => {
-                    return Ok(Expr::new(ExprKind::Set(expr, token, Box::new(value))));
+                ExprKind::Get(expr, identifier) => {
+                    return Ok(Expr::new(ExprKind::Set(expr, identifier, Box::new(value))));
                 }
                 _ => {
                     return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position));
@@ -247,7 +247,7 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
         }
         else if consume_if(token_source, TokenKind::Dot)
         {
-            let identifier = consume(token_source, TokenKind::Identifier)?;
+            let identifier: crate::tokens::Identifier = consume_identifier(token_source)?;
             expr = Expr::new(ExprKind::Get(Box::new(expr), identifier));
         }
     }
@@ -255,19 +255,21 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
 
 fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
 {
-    let token = token_source.peek().unwrap();
+    let token = token_source.next().unwrap();
     let position = token.position;
 
     match &token.kind {
         TokenKind::EOF => {
             Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
         },
-        TokenKind::False|TokenKind::True|TokenKind::Nil|TokenKind::Number|TokenKind::String => {
-            Ok(Expr::new(ExprKind::Literal(token_source.next().unwrap())))
+        TokenKind::Nil => {
+            Ok(Expr::new(ExprKind::Literal(token)))
+        }
+        TokenKind::False(_) | TokenKind::True(_) | TokenKind::Number(_) | TokenKind::String(_) => {
+            Ok(Expr::new(ExprKind::Literal(token)))
         },
-        TokenKind::Identifier => {
-            let val = token_source.next().unwrap().get_identifier_and_position();
-            Ok(Expr::new(ExprKind::Variable(val.0, val.1)))
+        TokenKind::Identifier(identifier) => {
+             Ok(Expr::new(ExprKind::Variable(identifier.clone())))
         },
         TokenKind::LeftParen => {
             //consuma la parentesi appena trovata
@@ -290,8 +292,8 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             let token = token_source.next().unwrap();
             Ok(Expr::new(ExprKind::This(token)))
         },
-        found => {
-            Err(LoxError::parser_error(ParserErrorKind::LiteralExpected(*found), position))
+        _ => {
+            Err(LoxError::parser_error(ParserErrorKind::LiteralExpected, position))
         }
     }
 }

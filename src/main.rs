@@ -1,10 +1,6 @@
 #![allow(dead_code)]
 
 use std::cell::RefCell;
-use std::env;
-use std::error::Error;
-use std::fs;
-use std::io;
 use std::rc::Rc;
 
 use error::ConsoleErrorLogger;
@@ -29,34 +25,21 @@ mod alias;
 
 fn main()
 {
-   //let code = "fun ciao() { return \"ciao\"; } fun stampa(fn) { print fn(); } stampa(ciao);";
-   //let code = "var a = \"global\"; { fun showA() {print a;} showA(); var a = \"block\"; showA(); }";
-   //let code = "class Car { start() { print \"engine on\"; } stop() { print \"engine off\"; } } var panda = Car(); panda.start(); print panda.stop();";
    let code =
-   /*"
-      {
-         var closure = 5;
-         fun prova() {
-            var inner = closure;
-         }
-      }
-      prova();
-   ";*/
       "
       fun fib(n) {
-      if (n < 2) return n;
-      return fib(n - 1) + fib(n - 2);
+         if (n < 2)
+            return n;
+         return fib(n - 1) + fib(n - 2);
       }
-
       var before = clock();
-      print fib(40);
+      print fib(36);
       var after = clock();
       print after - before;
       ";
    run(code);
-   //todo!("stop() {{ print \"engine off\"; }} senza punto e virgola panica!");
 }
-
+/*
 fn _main()
 {
    let args: Vec<String> = env::args().collect();
@@ -93,7 +76,7 @@ fn run_prompt() -> Result<(), Box<dyn Error>>
       run(&line);
    }
 }
-
+*/
 fn run(code: &str)
 {
    let interner = Rc::new(RefCell::new(StringInterner::default()));

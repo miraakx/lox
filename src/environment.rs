@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use rustc_hash::FxHashMap;
 
-use crate::{value::Value, alias::Identifier};
+use crate::{value::Value, alias::IdentifierSymbol};
 
 #[derive(Clone, Debug)]
 pub struct Environment
@@ -25,12 +25,12 @@ impl Environment
         environment.clone()
     }
 
-    pub fn get_variable_from_local_at(&self, index: usize, name: Identifier) -> Option<Value>
+    pub fn get_variable_from_local_at(&self, index: usize, name: IdentifierSymbol) -> Option<Value>
     {
         return self.locals_scope[index].borrow().get_variable(name);
     }
 
-    pub fn assign_variable_to_local_at(&mut self, index: usize, variable: Identifier, var_value: Value) -> Result<Value, ()>
+    pub fn assign_variable_to_local_at(&mut self, index: usize, variable: IdentifierSymbol, var_value: Value) -> Result<Value, ()>
     {
         return self.locals_scope[index].borrow_mut().assign_variable(variable, var_value);
     }
@@ -56,7 +56,7 @@ impl Environment
 
 #[derive(Clone, Debug)]
 pub struct Scope {
-    map: FxHashMap<Identifier, Value>
+    map: FxHashMap<IdentifierSymbol, Value>
 }
 
 impl Scope
@@ -68,13 +68,13 @@ impl Scope
     }
 
 
-    pub fn define_variable(&mut self, variable: Identifier, var_value: Value)
+    pub fn define_variable(&mut self, variable: IdentifierSymbol, var_value: Value)
     {
         self.map.insert(variable, var_value);
     }
 
 
-    pub fn get_variable(&self, variable: Identifier) -> Option<Value>
+    pub fn get_variable(&self, variable: IdentifierSymbol) -> Option<Value>
     {
         match self.map.get(&variable) {
             Some(value) => Some(value.clone()),
@@ -83,7 +83,7 @@ impl Scope
     }
 
 
-    pub fn assign_variable(&mut self, variable: Identifier, var_value: Value) -> Result<Value, ()>
+    pub fn assign_variable(&mut self, variable: IdentifierSymbol, var_value: Value) -> Result<Value, ()>
     {
         if self.map.contains_key(&variable)
         {
@@ -94,7 +94,7 @@ impl Scope
     }
 
 
-    pub fn contains_variable(&self, variable: Identifier) -> bool
+    pub fn contains_variable(&self, variable: IdentifierSymbol) -> bool
     {
         self.map.contains_key(&variable)
     }

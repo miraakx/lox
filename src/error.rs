@@ -4,7 +4,7 @@ use std::fmt;
 
 use string_interner::StringInterner;
 
-use crate::{tokens::{Position, TokenKind}, alias::Identifier};
+use crate::{tokens::Position, alias::IdentifierSymbol};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LoxError
@@ -67,8 +67,8 @@ impl fmt::Display for LoxErrorKind
 #[derive(Clone, Debug, PartialEq)]
 pub enum ResolverErrorKind
 {
-    LocalVariableNotFound(Identifier, Rc<RefCell<StringInterner>>),
-    VariableAlreadyExists(Identifier, Rc<RefCell<StringInterner>>),
+    LocalVariableNotFound(IdentifierSymbol, Rc<RefCell<StringInterner>>),
+    VariableAlreadyExists(IdentifierSymbol, Rc<RefCell<StringInterner>>),
     ReturnFromTopLevelCode,
     InvalidThisUsage,
     ReturnFromInitializer
@@ -98,9 +98,9 @@ pub enum InterpreterErrorKind
     WrongArity(usize, usize),
     NativeClockSysTimeError,
     InvalidPropertyAccess,
-    UdefinedProperty(Identifier, Rc<RefCell<StringInterner>>),
-    UdefinedVariableUsage(Identifier, Rc<RefCell<StringInterner>>),
-    UdefinedVariableAssignment(Identifier, Rc<RefCell<StringInterner>>)
+    UdefinedProperty(IdentifierSymbol, Rc<RefCell<StringInterner>>),
+    UdefinedVariableUsage(IdentifierSymbol, Rc<RefCell<StringInterner>>),
+    UdefinedVariableAssignment(IdentifierSymbol, Rc<RefCell<StringInterner>>)
 }
 
 impl fmt::Display for InterpreterErrorKind
@@ -132,10 +132,10 @@ pub enum ParserErrorKind
     UnexpectedToken2(String),
     UnexpectedEndOfFile,
     MissingClosingParenthesis,
-    LiteralExpected(TokenKind),
+    LiteralExpected,
     MissingSemicolon,
     VariableNameExpected,
-    ExpectedToken(TokenKind),
+    ExpectedToken,
     UdefinedVariable(String),
     BreakOutsideLoop,
 }
@@ -152,10 +152,10 @@ impl fmt::Display for ParserErrorKind
             ParserErrorKind::UnexpectedToken2(ch)    => write!(f, "Unexpected token '{}'", ch),
             ParserErrorKind::UnexpectedEndOfFile              => write!(f, "Unexpected end of file"),
             ParserErrorKind::MissingClosingParenthesis        => write!(f, "Missing closing parenthesis ')'"),
-            ParserErrorKind::LiteralExpected(kind)=> write!(f, "Expected literal, found '{:?}'", kind),
+            ParserErrorKind::LiteralExpected=> write!(f, "Expected literal, found '?'"),
             ParserErrorKind::MissingSemicolon                 => write!(f, "Missing semicolon ';'"),
             ParserErrorKind::VariableNameExpected             => write!(f, "Expected variable name after 'var'"),
-            ParserErrorKind::ExpectedToken(kind)  => write!(f, "Expected token '{:?}'", kind),
+            ParserErrorKind::ExpectedToken  => write!(f, "Expected token '?'"),
             ParserErrorKind::UdefinedVariable(name)  => write!(f, "Undefined variable '{}'", name),
             ParserErrorKind::BreakOutsideLoop                 => write!(f, "Found 'break' keyword outside a loop"),
         }

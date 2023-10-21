@@ -2,7 +2,7 @@ use std::{rc::Rc, cell::RefCell};
 
 use rustc_hash::FxHashMap;
 
-use crate::{interpreter::Callable, parser_stmt::ClassDeclaration, alias::Identifier};
+use crate::{interpreter::Callable, parser_stmt::ClassDeclaration, alias::IdentifierSymbol};
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -11,7 +11,7 @@ pub enum Value {
     Bool(bool),
     Nil,
     Callable(Callable),
-    ClassInstance(Rc<ClassDeclaration>, Rc<RefCell<FxHashMap<Identifier, Value>>>)
+    ClassInstance(Rc<ClassDeclaration>, Rc<RefCell<FxHashMap<IdentifierSymbol, Value>>>)
 }
 
 pub fn is_equal(val_left: Value, val_right: Value) -> bool

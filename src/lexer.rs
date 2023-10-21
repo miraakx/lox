@@ -2,7 +2,7 @@ use std::{rc::Rc, cell::RefCell};
 
 use string_interner::StringInterner;
 
-use crate::{common::Scanner, tokens::*, error::*};
+use crate::{common::Scanner, tokens::*, error::*, value::Value};
 
 pub struct Lexer<'a>
 {
@@ -33,7 +33,6 @@ impl<'a> Iterator for Lexer<'a>
     fn next(&mut self) -> Option<Token>
     {
         let mut opt_token_kind:  Option<TokenKind>;
-        let mut opt_token_value: Option<LiteralValue>;
         let column_start: u32 = self.scanner.column();
         let line_start: u32 = self.scanner.line();
         let index_start: u32 = self.scanner.index();
@@ -46,14 +45,13 @@ impl<'a> Iterator for Lexer<'a>
                     return None;
                 } else {
                     self.end_of_file = true;
-                    return Some(Token{ kind: TokenKind::EOF, value: None, position: Position { line: self.scanner.line(), column: self.scanner.column()}, length: 0 });
+                    return Some(Token{ kind: TokenKind::EOF, position: Position { line: self.scanner.line(), column: self.scanner.column()}, length: 0 });
                 }
             }
 
             let ch: char = opt_ch.unwrap();
 
             opt_token_kind = None;
-            opt_token_value = None;
 
             match ch {
                 SPACE | TAB => {},
@@ -187,8 +185,7 @@ impl<'a> Iterator for Lexer<'a>
                                     }
                                 )
                             );
-                            opt_token_kind = Some(TokenKind::String);
-                            opt_token_value = Some(LiteralValue::String(Rc::new(string)));
+                            opt_token_kind = Some(TokenKind::String(Value::String(Rc::new(string))));
                             break;
                         }
                         let ch = value.unwrap();
@@ -228,8 +225,7 @@ impl<'a> Iterator for Lexer<'a>
                                 }
                             },
                             '"' => {
-                                opt_token_kind = Some(TokenKind::String);
-                                opt_token_value = Some(LiteralValue::String(Rc::new(string)));
+                                opt_token_kind = Some(TokenKind::String(Value::String(Rc::new(string))));
                                 break;
                             },
                             _ => {
@@ -265,13 +261,11 @@ impl<'a> Iterator for Lexer<'a>
                     let r_number = number_string.parse::<f64>();
                     match r_number {
                         Ok(number) => {
-                            opt_token_kind = Some(TokenKind::Number);
-                            opt_token_value = Some(LiteralValue::Number(number));
+                            opt_token_kind = Some(TokenKind::Number(Value::Number(number)));
                         }
                         Err(_) => {
                             self.error_logger.log(LoxError::parser_error(ParserErrorKind::ParseFloatError(number_string), Position { line: self.scanner.line(), column: self.scanner.column() }));
-                            opt_token_kind = Some(TokenKind::Number);
-                            opt_token_value = Some(LiteralValue::Number(f64::NAN));
+                            opt_token_kind = Some(TokenKind::Number(Value::Number(f64::NAN)));
                         }
                     }
                 },
@@ -292,22 +286,11 @@ impl<'a> Iterator for Lexer<'a>
 
                     }
                     if let Some(keyword_token) = find_keyword(identifier.as_str()) {
-                        opt_token_value = match keyword_token {
-                            TokenKind::True  => Some(LiteralValue::Bool(true)),
-                            TokenKind::False => Some(LiteralValue::Bool(false)),
-                            TokenKind::Nil   => Some(LiteralValue::Nil),
-                            TokenKind::This  => {
-                                let this_symbol = self.string_interner.borrow_mut().get_or_intern_static(THIS);
-                                Some(LiteralValue::Identifier(this_symbol))
-                            }
-                            _ => None
-                        };
                         opt_token_kind = Some(keyword_token);
 
                     } else {
-                        opt_token_kind  = Some(TokenKind::Identifier);
                         let symbol = self.string_interner.borrow_mut().get_or_intern(identifier);
-                        opt_token_value = Some(LiteralValue::Identifier(symbol));
+                        opt_token_kind  = Some(TokenKind::Identifier(Identifier {name: symbol, position: Position { line: self.scanner.line(), column: self.scanner.column() }}));
                     }
                 },
                 _ =>
@@ -320,7 +303,6 @@ impl<'a> Iterator for Lexer<'a>
                 return Some(
                     Token{
                         kind: token_kind,
-                        value: opt_token_value,
                         position: Position {
                             line: line_start,
                             column: column_start

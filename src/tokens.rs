@@ -1,62 +1,64 @@
 
 use std::{fmt, rc::Rc};
 
-use crate::{common::Peekable, error::{ParserErrorKind, LoxError}, alias::Identifier};
+use crate::{common::Peekable, error::{ParserErrorKind, LoxError}, alias::IdentifierSymbol, value::Value};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Token
 {
     pub kind:     TokenKind,
-    pub value:    Option<LiteralValue>,
     pub position: Position,
     pub length:   u32,
 }
 
-impl Token
-{
-    pub fn get_identifier(&self) -> Identifier
-    {
-        if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
-            return *identifier;
-        } else {
-            panic!("Internal error identifier not found inside token");
-        }
-    }
-
-    pub fn get_identifier_and_position(&self) -> (Identifier, Position)
-    {
-        if let LiteralValue::Identifier(identifier) = self.value.as_ref().unwrap() {
-            return (*identifier, self.position);
-        } else {
-            panic!("Internal error identifier not found inside token");
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum TokenKind
 {
-    LeftParen,  RightParen,
-    LeftBrace,  RightBrace,
-    Comma,      Dot,     Semicolon,
-    Minus,      Plus,
-    Slash,      Star,
-    Bang,       BangEqual,
-    Equal,      EqualEqual,
-    Greater,    GreaterEqual,
-    Less,       LessEqual,
-    True,       False,
-    If,         Else,
-    For,        While,
-    And,        Or,
-    Class,      Fun,
-    Super,      This,
-    Var,        Nil,
-    Print,      Return,
-    String,     Number,  Identifier,
-    Break,      Continue,
+    LeftParen,       RightParen,
+    LeftBrace,       RightBrace,
+    //operators
+    Comma,           Dot,           Semicolon,
+    Minus,           Plus,
+    Slash,           Star,
+    Bang,            BangEqual,
+    Equal,           EqualEqual,
+    Greater,         GreaterEqual,
+    Less,            LessEqual,
+
+    If,              Else,
+    For,             While,
+    And,             Or,
+    Class,           Fun,
+    Super,           This,
+    Var,             Nil,
+    Print,           Return,
+    True(Value),     False(Value),
+    String(Value),   Number(Value),  Identifier(Identifier),
+    Break,           Continue,
     UnexpectedToken,
     EOF
+}
+
+#[derive(Clone, Debug)]
+pub struct Identifier {
+    pub name: IdentifierSymbol,
+    pub position: Position
+}
+
+#[derive(Clone, Debug)]
+pub struct Operator {
+    pub kind: OperatorKind,
+    pub position: Position
+}
+
+#[derive(Clone, Debug)]
+pub enum OperatorKind {
+    Minus,           Plus,
+    Slash,           Star,
+    Bang,            BangEqual,
+    Equal,           EqualEqual,
+    Greater,         GreaterEqual,
+    Less,            LessEqual,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -66,7 +68,7 @@ pub enum LiteralValue
     Number(f64),
     Bool(bool),
     Nil,
-    Identifier(Identifier)
+    Identifier(IdentifierSymbol)
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -127,6 +129,8 @@ const CONTINUE: &str = "continue";
 
 pub fn find_keyword(str: &str) -> Option<TokenKind>
 {
+    const TOKEN_FALSE: TokenKind = TokenKind::False(Value::Bool(false));
+    const TOKEN_TRUE:  TokenKind = TokenKind::True(Value::Bool(true));
     if str.len() < IF.len() || str.len() > CONTINUE.len() {
         return None;
     }
@@ -137,7 +141,7 @@ pub fn find_keyword(str: &str) -> Option<TokenKind>
         {
             match chars.next()?
             {
-                'a' => { compare(str, FALSE, TokenKind::False) },
+                'a' => { compare(str, FALSE, TOKEN_FALSE) },
                 'o' => { compare(str, FOR,   TokenKind::For  ) },
                 'u' => { compare(str, FUN,   TokenKind::Fun  ) },
                 _ =>   { None }
@@ -148,7 +152,7 @@ pub fn find_keyword(str: &str) -> Option<TokenKind>
             match chars.next()?
             {
                 'h' => { compare(str, THIS, TokenKind::This) },
-                'r' => { compare(str, TRUE, TokenKind::True) },
+                'r' => { compare(str, TRUE, TOKEN_TRUE) },
                 _ =>   { None }
             }
         },
@@ -197,17 +201,33 @@ fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
 pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<Token,LoxError>
 {
     let token = token_source.next().unwrap();
-    if token_kind == token.kind {
+    if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
         Ok(token)
-    } else if token.kind == TokenKind::EOF {
+    } else if std::mem::discriminant(&token.kind) == std::mem::discriminant(&TokenKind::EOF) {
         Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
     } else {
-        Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(token_kind), token.position))
+        Err(LoxError::parser_error(ParserErrorKind::ExpectedToken, token.position))
+    }
+}
+
+pub fn consume_identifier(token_source: &mut TokenSource) -> Result<Identifier,LoxError>
+{
+    let token = token_source.next().unwrap();
+    match token.kind {
+        TokenKind::Identifier(identifier) => {
+            Ok(identifier)
+        },
+        TokenKind::EOF => {
+            Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
+        },
+        _ => {
+            Err(LoxError::parser_error(ParserErrorKind::ExpectedToken, token.position))
+        }
     }
 }
 
 pub fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
-    token_source.peek().unwrap().kind == token_kind
+    std::mem::discriminant(&token_source.peek().unwrap().kind) == std::mem::discriminant(&token_kind)
 }
 
 pub fn is_at_end(token_source: &mut TokenSource) -> bool {
@@ -216,18 +236,21 @@ pub fn is_at_end(token_source: &mut TokenSource) -> bool {
 
 pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
     let token = token_source.peek().unwrap();
-    if token_kind == token.kind {
+    if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
         token_source.consume();
-        return true;
+            return true;
     }
     return false;
 }
 
 pub fn check_end_of_file(token_source: &mut TokenSource) -> Result<(),LoxError> {
     let peek = token_source.peek().unwrap();
-    if peek.kind == TokenKind::EOF {
-        Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek.position))
-    } else {
-        Ok(())
+    match peek.kind {
+        TokenKind::EOF => {
+            Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek.position))
+        },
+        _ => {
+            Ok(())
+        }
     }
 }
