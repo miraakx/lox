@@ -24,7 +24,7 @@ pub enum Stmt
     Return  (Option<Expr>, Position),
     Break,
     Continue,
-    FunctionDeclaration(Rc::<FunctionDeclaration>),
+    FunctionDeclaration(Rc<FunctionDeclaration>),
     ClassDeclaration   (Rc<ClassDeclaration>),
 
 }

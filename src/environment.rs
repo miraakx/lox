@@ -20,11 +20,6 @@ impl Environment
         }
     }
 
-    pub fn from(environment: &Environment) -> Self
-    {
-        environment.clone()
-    }
-
     pub fn get_variable_from_local_at(&self, index: usize, name: IdentifierSymbol) -> Option<Value>
     {
         return self.locals_scope[index].borrow().get_variable(name);
