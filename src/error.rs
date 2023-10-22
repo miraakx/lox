@@ -1,10 +1,7 @@
-use std::cell::RefCell;
-use std::{error::Error, rc::Rc};
+use std::error::Error;
 use std::fmt;
 
-use string_interner::StringInterner;
-
-use crate::{tokens::Position, alias::IdentifierSymbol};
+use crate::tokens::Position;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LoxError

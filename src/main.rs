@@ -1,9 +1,5 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use error::ConsoleErrorLogger;
 use interpreter::Interpreter;
-use lexer::Lexer;
 use parser_stmt::Parser;
 use resolver::Resolver;
 use string_interner::StringInterner;
