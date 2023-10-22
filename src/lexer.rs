@@ -35,7 +35,6 @@ impl<'a> Iterator for Lexer<'a>
         let mut opt_token_kind:  Option<TokenKind>;
         let column_start: u32 = self.scanner.column();
         let line_start: u32 = self.scanner.line();
-        let index_start: u32 = self.scanner.index();
 
         loop {
 
@@ -45,7 +44,7 @@ impl<'a> Iterator for Lexer<'a>
                     return None;
                 } else {
                     self.end_of_file = true;
-                    return Some(Token{ kind: TokenKind::EOF, position: Position { line: self.scanner.line(), column: self.scanner.column()}, length: 0 });
+                    return Some(Token{ kind: TokenKind::EOF, position: Position { line: self.scanner.line(), column: self.scanner.column()} });
                 }
             }
 
@@ -306,8 +305,7 @@ impl<'a> Iterator for Lexer<'a>
                         position: Position {
                             line: line_start,
                             column: column_start
-                        },
-                        length: self.scanner.index() - index_start
+                        }
                     }
                 );
             }

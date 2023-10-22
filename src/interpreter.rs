@@ -3,13 +3,13 @@ use std::{fmt::Debug, rc::Rc, cell::RefCell};
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, LiteralKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}, alias::{IdentifierSymbol, ExprId}};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, LiteralKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}, alias::{IdentifierSymbol, ExprId, SideTable}};
 
 pub struct Interpreter
 {
     environment_stack: Environment,
     string_interner:   Rc<RefCell<StringInterner>>,
-    side_table:        Rc<RefCell<FxHashMap<ExprId, usize>>>,
+    side_table:        Rc<SideTable>,
     global_scope:      Rc<RefCell<Scope>>,
     this_symbol:       IdentifierSymbol,
     init_symbol:       IdentifierSymbol
@@ -17,7 +17,7 @@ pub struct Interpreter
 
 impl Interpreter
 {
-    pub fn new(string_interner: Rc<RefCell<StringInterner>>) -> Self
+    pub fn new(string_interner: Rc<RefCell<StringInterner>>, side_table: SideTable) -> Self
     {
         let environment = Environment::new();
         let this_symbol   = string_interner.borrow_mut().get_or_intern_static("this");
@@ -26,7 +26,7 @@ impl Interpreter
         let mut interpreter = Interpreter {
             environment_stack: environment,
             string_interner,
-            side_table:   Rc::new(RefCell::new(FxHashMap::default())),
+            side_table:   Rc::new(side_table),
             global_scope: Rc::new(RefCell::new(Scope::new())),
             this_symbol,
             init_symbol
@@ -47,16 +47,6 @@ impl Interpreter
             this_symbol:       intrepreter.this_symbol,
             init_symbol:       intrepreter.init_symbol
         }
-    }
-
-    pub fn insert_into_side_table(&mut self, expr_id: i64, depth: usize)
-    {
-        self.side_table.borrow_mut().insert(expr_id, depth);
-    }
-
-    pub fn resolve(&mut self, expr_id: i64, depth: usize)
-    {
-        self.insert_into_side_table(expr_id, depth);
     }
 
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
@@ -554,8 +544,7 @@ impl Interpreter
     pub fn lookup_variable(&self, name: IdentifierSymbol, expr_id: ExprId) -> Option<Value>
     {
         {
-            let borrowed_table = self.side_table.borrow();
-            if let Some(index) = borrowed_table.get(&expr_id)
+            if let Some(index) = self.side_table.get(&expr_id)
             {
                 //println!("searching variable '{}' ad index '{}' of {}", self.string_interner.borrow().resolve(name).unwrap(), *index, borrowed_table.len() - 1);
                 return self.environment_stack.get_variable_from_local_at(*index, name);
@@ -567,8 +556,7 @@ impl Interpreter
     pub fn assign_variable(&mut self, variable: IdentifierSymbol, var_value: Value, expr_id: i64) -> Result<Value, ()>
     {
         {
-            let borrowed_table = self.side_table.borrow_mut();
-            if let Some(index) = borrowed_table.get(&expr_id)
+            if let Some(index) = self.side_table.get(&expr_id)
             {
                 return self.environment_stack.assign_variable_to_local_at(*index, variable, var_value);
             }

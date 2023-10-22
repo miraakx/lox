@@ -7,8 +7,7 @@ use crate::{common::Peekable, error::{ParserErrorKind, LoxError}, alias::Identif
 pub struct Token
 {
     pub kind:     TokenKind,
-    pub position: Position,
-    pub length:   u32,
+    pub position: Position
 }
 
 #[derive(Clone, Debug)]

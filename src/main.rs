@@ -31,7 +31,7 @@ fn main()
          return fib(n - 1) + fib(n - 2);
       }
       var before = clock();
-      print fib(36);
+      print fib(35);
       var after = clock();
       print after - before;
       ";
@@ -89,13 +89,18 @@ fn run(code: &str)
       return;
    }
    let stmts = &r_stmts.unwrap()[..];
-   let mut interpreter = Interpreter::new(Rc::clone(&interner));
+   let mut interpreter;
    {
-      let mut resolver: Resolver = Resolver::new(&mut interpreter, ConsoleErrorLogger{}, Rc::clone(&interner));
+      let mut resolver: Resolver = Resolver::new(ConsoleErrorLogger{}, Rc::clone(&interner));
       let result = resolver.resolve(stmts);
-      if result.is_err() {
-         println!("\nCompile time error(s) detected. See above.\n");
-         return;
+      match result {
+         Ok(side_table) => {
+            interpreter = Interpreter::new(Rc::clone(&interner), side_table);
+         },
+         Err(_) => {
+            println!("\nCompile time error(s) detected. See above.\n");
+            return;
+         }
       }
    }
    let result = interpreter.execute(stmts);

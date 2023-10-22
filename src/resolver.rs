@@ -3,31 +3,29 @@ use std::{cell::RefCell, rc::Rc};
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, interpreter::Interpreter, alias::IdentifierSymbol, tokens::{Position, THIS}};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, alias::{IdentifierSymbol, SideTable}, tokens::{Position, THIS}};
 
-pub struct Resolver<'a>
+pub struct Resolver
 {
-    interpreter:      &'a mut Interpreter,
     stack:            Stack<FxHashMap<IdentifierSymbol, bool>>,
-    error_logger:     Box<dyn ErrorLogger>,
     string_interner:  Rc<RefCell<StringInterner>>,
     has_error:        bool,
     current_function: FunctionType,
     current_class:    ClassType,
     this_symbol:      IdentifierSymbol,
-    init_symbol:      IdentifierSymbol
+    init_symbol:      IdentifierSymbol,
+    error_logger:     Box<dyn ErrorLogger>,
 }
 
-impl <'a> Resolver<'a>
+impl Resolver
 {
-    pub fn new(interpreter: &'a mut Interpreter, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self
+    pub fn new(error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self
     {
         let this_symbol = string_interner.borrow_mut().get_or_intern_static(THIS);
         let init_symbol = string_interner.borrow_mut().get_or_intern_static("init");
         Resolver
         {
             stack: Stack::new(),
-            interpreter,
             error_logger: Box::new(error_logger),
             string_interner,
             has_error: false,
@@ -44,20 +42,21 @@ impl <'a> Resolver<'a>
         self.has_error = true;
     }
 
-    pub fn resolve(&mut self, stmts: &[Stmt]) -> Result<(),()>
+    pub fn resolve(&mut self, stmts: &[Stmt]) -> Result<SideTable,()>
     {
+        let mut side_table: SideTable = FxHashMap::default();
         for stmt in stmts
         {
-            self.resolve_stmt(stmt, self.current_function, self.current_class);
+            self.resolve_stmt(stmt, self.current_function, self.current_class, &mut side_table);
         }
         if self.has_error {
             Err(())
         } else {
-            Ok(())
+            Ok(side_table)
         }
     }
 
-    fn resolve_stmt(&mut self, stmt: &Stmt, function_type: FunctionType, class_type: ClassType)
+    fn resolve_stmt(&mut self, stmt: &Stmt, function_type: FunctionType, class_type: ClassType, side_table: &mut SideTable)
     {
         let enclosing_function = self.current_function;
         let enclosing_class = self.current_class;
@@ -69,11 +68,11 @@ impl <'a> Resolver<'a>
         {
             Stmt::Print(print_expr) =>
             {
-                self.resolve_expr(print_expr);
+                self.resolve_expr(print_expr, side_table);
             },
             Stmt::ExprStmt(expr) =>
             {
-                self.resolve_expr(expr);
+                self.resolve_expr(expr, side_table);
             },
             Stmt::Var(identifier, opt_expr) =>
             {
@@ -84,7 +83,7 @@ impl <'a> Resolver<'a>
                     _ => {}
                 }
                 if let Some(expr) = opt_expr {
-                    self.resolve_expr(&expr);
+                    self.resolve_expr(&expr, side_table);
                 }
                 self.define(identifier.name)
             },
@@ -92,47 +91,47 @@ impl <'a> Resolver<'a>
             {
                 self.begin_scope();
                 for stmt in stmt_list {
-                    self.resolve_stmt(stmt, self.current_function, self.current_class);
+                    self.resolve_stmt(stmt, self.current_function, self.current_class, side_table);
                 }
                 self.end_scope();
             },
             Stmt::If(expr, then_stmt) =>
             {
-                self.resolve_expr(expr);
-                self.resolve_stmt(then_stmt, self.current_function, self.current_class);
+                self.resolve_expr(expr, side_table);
+                self.resolve_stmt(then_stmt, self.current_function, self.current_class, side_table);
             },
             Stmt::IfElse(expr, then_stmt, else_stmt) =>
             {
-                self.resolve_expr(expr);
-                self.resolve_stmt(&then_stmt, self.current_function, self.current_class);
-                self.resolve_stmt(&else_stmt, self.current_function, self.current_class);
+                self.resolve_expr(expr, side_table);
+                self.resolve_stmt(&then_stmt, self.current_function, self.current_class, side_table);
+                self.resolve_stmt(&else_stmt, self.current_function, self.current_class, side_table);
             },
             Stmt::While(condition, body) =>
             {
-                self.resolve_expr(condition);
-                self.resolve_stmt(body, self.current_function, self.current_class);
+                self.resolve_expr(condition, side_table);
+                self.resolve_stmt(body, self.current_function, self.current_class, side_table);
             },
             Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
             {
                 if let Some(initializer) = opt_initializer.as_ref()
                 {
-                    self.resolve_stmt(initializer, self.current_function, self.current_class);
+                    self.resolve_stmt(initializer, self.current_function, self.current_class, side_table);
                 }
                 if let Some(condition) = opt_condition
                 {
-                    self.resolve_expr(condition);
+                    self.resolve_expr(condition, side_table);
                 }
                 if let Some(increment) = opt_increment
                 {
-                    self.resolve_expr(increment);
+                    self.resolve_expr(increment, side_table);
                 }
-                self.resolve_stmt(body, self.current_function, self.current_class);
+                self.resolve_stmt(body, self.current_function, self.current_class, side_table);
             },
             Stmt::Break     => { /*do nothing*/ },
             Stmt::Continue  => { /*do nothing*/ },
             Stmt::FunctionDeclaration(func_decl) =>
             {
-                self.resolve_function(func_decl, FunctionType::Function, self.current_class);
+                self.resolve_function(func_decl, FunctionType::Function, self.current_class, side_table);
             },
             Stmt::Return(opt_expr, position) =>
             {
@@ -147,7 +146,7 @@ impl <'a> Resolver<'a>
                     },
                     _ => {
                         if let Some(expr) = opt_expr {
-                            self.resolve_expr(expr);
+                            self.resolve_expr(expr, side_table);
                         }
                     }
                 }
@@ -177,7 +176,7 @@ impl <'a> Resolver<'a>
                     } else {
                         function_type = FunctionType::Method;
                     }
-                    self.resolve_function(rc_method, function_type, ClassType::Class);
+                    self.resolve_function(rc_method, function_type, ClassType::Class, side_table);
                 }
                 //<resolve methods
 
@@ -191,7 +190,7 @@ impl <'a> Resolver<'a>
         //< restore-current-function
     }
 
-    fn resolve_function(&mut self, func_decl: &Rc<FunctionDeclaration>, function_type: FunctionType, class_type: ClassType)
+    fn resolve_function(&mut self, func_decl: &Rc<FunctionDeclaration>, function_type: FunctionType, class_type: ClassType, side_table: &mut SideTable)
     {
         match self.declare(func_decl.identifier.name)
         {
@@ -214,27 +213,27 @@ impl <'a> Resolver<'a>
             self.define(param.identifier.name);
         }
         //>Inside a function stmt set current function to FunctionType::Function
-        self.resolve_stmt(&func_decl.body, function_type, class_type);
+        self.resolve_stmt(&func_decl.body, function_type, class_type, side_table);
         //<Inside a function stmt set current function to FunctionType::Function
         self.end_scope();
     }
 
-    fn resolve_expr(&mut self, expr: &Expr)
+    fn resolve_expr(&mut self, expr: &Expr, side_table: &mut SideTable)
     {
         match &expr.kind
         {
             ExprKind::Binary(expr_left, _, expr_right) =>
             {
-                self.resolve_expr(expr_left);
-                self.resolve_expr(expr_right);
+                self.resolve_expr(expr_left, side_table);
+                self.resolve_expr(expr_right, side_table);
             },
             ExprKind::Grouping(expr) =>
             {
-                self.resolve_expr(expr);
+                self.resolve_expr(expr, side_table);
             },
             ExprKind::Unary(_, expr) =>
             {
-                self.resolve_expr(expr);
+                self.resolve_expr(expr, side_table);
             },
             ExprKind::Literal(_) =>
             {
@@ -250,37 +249,37 @@ impl <'a> Resolver<'a>
                         LoxError::resolver_error(crate::error::ResolverErrorKind::LocalVariableNotFound(identifier.name, Rc::clone(&self.string_interner)), identifier.position);
                     }
                 }
-                self.resolve_local(expr, identifier.name);
+                self.resolve_local(expr, identifier.name, side_table);
             },
             ExprKind::Assign(identifier, expr) =>
             {
-                self.resolve_expr(expr);
-                self.resolve_local(expr, identifier.name);
+                self.resolve_expr(expr, side_table);
+                self.resolve_local(expr, identifier.name, side_table);
             },
             ExprKind::Logical(expr_left, _, expr_right) =>
             {
-                self.resolve_expr(expr_left);
-                self.resolve_expr(expr_right);
+                self.resolve_expr(expr_left, side_table);
+                self.resolve_expr(expr_right, side_table);
             },
             ExprKind::Call(expr, opt_args, _) =>
             {
-                self.resolve_expr(expr);
+                self.resolve_expr(expr, side_table);
                 if let Some(args) = opt_args
                 {
                     for arg in args
                     {
-                        self.resolve_expr(arg);
+                        self.resolve_expr(arg, side_table);
                     }
                 }
             },
             ExprKind::Get(expr, _) =>
             {
-                self.resolve_expr(expr);
+                self.resolve_expr(expr, side_table);
             },
             ExprKind::Set(object, _, value) =>
             {
-                self.resolve_expr(object);
-                self.resolve_expr(value);
+                self.resolve_expr(object, side_table);
+                self.resolve_expr(value, side_table);
             },
             ExprKind::This(position) => {
                 match self.current_class
@@ -289,7 +288,7 @@ impl <'a> Resolver<'a>
                         self.error(ResolverErrorKind::InvalidThisUsage, position)
                     },
                     _ => {
-                        self.resolve_local(expr, self.this_symbol);
+                        self.resolve_local(expr, self.this_symbol, side_table);
                     }
                 }
             },
@@ -327,13 +326,13 @@ impl <'a> Resolver<'a>
         }
     }
 
-    fn resolve_local(&mut self, expr: &Expr, identifier: IdentifierSymbol)
+    fn resolve_local(&mut self, expr: &Expr, identifier: IdentifierSymbol, side_table: &mut SideTable)
     {
         for (index, scope) in self.stack.iter().enumerate().rev()
         {
             if scope.contains_key(&identifier)
             {
-                self.interpreter.resolve(expr.id, index);
+                side_table.insert(expr.id, index);
             }
         }
     }
