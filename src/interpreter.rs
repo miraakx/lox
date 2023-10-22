@@ -20,22 +20,25 @@ impl <'a> Interpreter<'a>
     {
         let this_symbol   = string_interner.get_or_intern_static("this");
         let init_symbol   = string_interner.get_or_intern_static("init");
-
-        let interpreter = Interpreter {
+        Interpreter {
             string_interner,
             side_table,
             global_scope: Scope::new(),
             this_symbol,
             init_symbol
-        };
-        return interpreter;
+        }
+    }
+
+    fn define_native_functions(&mut self) {
+        let clock_symbol  = self.string_interner.get_or_intern_static("clock");
+        self.global_scope.define_variable(clock_symbol, Value::Callable(Callable::Clock));
     }
 
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
     {
         let mut environment = Environment::new();
-        let clock_symbol  = self.string_interner.get_or_intern_static("clock");
-        self.define_variable(&mut environment, clock_symbol, Value::Callable(Callable::Clock));
+
+        self.define_native_functions();
 
         for stmt in stmts
         {
@@ -64,9 +67,9 @@ impl <'a> Interpreter<'a>
                     Value::Nil                          => println!("{}", "nil"),
                     Value::Callable(callable) => {
                         match callable {
-                            Callable::Function(fun_decl, _, _) => println!("Function: '{}()'", self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
-                            Callable::Class(class_decl, _)        => println!("Class: '{}'", self.string_interner.resolve(class_decl.identifier.name).unwrap()),
-                            Callable::Clock                                             => println!("Native function: clock()"),
+                            Callable::Function(fun_decl, _, _) => println!("<fn: '{}'>", self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
+                            Callable::Class(class_decl, _)        => println!("<class: '{}'>", self.string_interner.resolve(class_decl.identifier.name).unwrap()),
+                            Callable::Clock                                             => println!("<native_fn: 'clock'>"),
                         }
                     },
                     Value::ClassInstance(class_decl, _) => println!("Instance of class: '{}'", self.string_interner.resolve(class_decl.identifier.name).unwrap()),
