@@ -1,12 +1,14 @@
 use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
+use string_interner::StringInterner;
 
 use crate::alias::IdentifierSymbol;
-use crate::error::{LoxError, ParserErrorKind, ErrorLogger};
+use crate::error::{LoxError, ParserErrorKind, ErrorLogger, ConsoleErrorLogger};
 use crate::common::Peekable;
+use crate::lexer::Lexer;
 use crate::parser_expr::{Expr, expression};
-use crate::tokens::{Token, TokenKind, TokenSource, consume, check, consume_if, check_end_of_file, is_at_end, consume_identifier, Identifier, Position};
+use crate::tokens::{TokenKind, TokenSource, consume, check, consume_if, check_end_of_file, is_at_end, consume_identifier, Identifier, Position};
 
 #[derive(Clone, Debug)]
 pub enum Stmt
@@ -63,16 +65,25 @@ impl Parser
         }
     }
 
-    pub fn parse(&mut self, token_iter: &mut dyn Iterator<Item=Token>) -> Result<Vec<Stmt>, ()>
+    pub fn parse(&mut self, code: &str) -> Result<(Vec<Stmt>, StringInterner), ()>
     {
-        let token_source: &mut TokenSource = &mut Peekable::new(token_iter);
         let mut statements: Vec<Stmt> = vec!();
-        let mut is_error = false;
+        let mut interner    : StringInterner = StringInterner::default();
+
+        let mut is_error  : bool      = false;
+
+        let mut lexer       : Lexer<'_>      = Lexer::new(code, &mut interner, ConsoleErrorLogger{});
+        let mut token_source: TokenSource    = Peekable::new(&mut lexer);
+
         loop {
-            if is_at_end(token_source) {
-                if is_error { return Err(()); } else { return Ok(statements); }
+            if is_at_end(&mut token_source) {
+                if is_error {
+                    return Err(());
+                } else {
+                    return Ok((statements, interner));
+                }
             }
-            let result = self.declaration(token_source);
+            let result = self.declaration(&mut token_source);
             match result {
                 Ok(stmt) => {
                     statements.push(stmt);
@@ -80,7 +91,7 @@ impl Parser
                 Err(err) => {
                     is_error = true;
                     self.error_logger.log(err);
-                    self.synchronize(token_source);
+                    self.synchronize(&mut token_source);
                 }
             }
         }

@@ -67,8 +67,8 @@ impl fmt::Display for LoxErrorKind
 #[derive(Clone, Debug, PartialEq)]
 pub enum ResolverErrorKind
 {
-    LocalVariableNotFound(IdentifierSymbol, Rc<RefCell<StringInterner>>),
-    VariableAlreadyExists(IdentifierSymbol, Rc<RefCell<StringInterner>>),
+    LocalVariableNotFound(String),
+    VariableAlreadyExists(String),
     ReturnFromTopLevelCode,
     InvalidThisUsage,
     ReturnFromInitializer
@@ -79,8 +79,8 @@ impl fmt::Display for ResolverErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match self {
-            ResolverErrorKind::LocalVariableNotFound(identifier, interner) => write!(f, "Can't read local variable {} in its own initializer", interner.borrow().resolve(*identifier).unwrap()),
-            ResolverErrorKind::VariableAlreadyExists(identifier, interner) => write!(f, "Already a variable with name '{}' in this scope", interner.borrow().resolve(*identifier).unwrap()),
+            ResolverErrorKind::LocalVariableNotFound(value) => write!(f, "Can't read local variable {} in its own initializer", value),
+            ResolverErrorKind::VariableAlreadyExists(value) => write!(f, "Already a variable with name '{}' in this scope", value),
             ResolverErrorKind::ReturnFromTopLevelCode => write!(f, "Can't return from top-level code"),
             ResolverErrorKind::InvalidThisUsage => write!(f, "Can't use 'this' keyword outside of a class"),
             ResolverErrorKind::ReturnFromInitializer => write!(f, "Can't return a value from an initializer"),
@@ -97,9 +97,9 @@ pub enum InterpreterErrorKind
     WrongArity(usize, usize),
     NativeClockSysTimeError,
     InvalidPropertyAccess,
-    UdefinedProperty(IdentifierSymbol, Rc<RefCell<StringInterner>>),
-    UdefinedVariableUsage(IdentifierSymbol, Rc<RefCell<StringInterner>>),
-    UdefinedVariableAssignment(IdentifierSymbol, Rc<RefCell<StringInterner>>)
+    UdefinedProperty(String),
+    UdefinedVariableUsage(String),
+    UdefinedVariableAssignment(String)
 }
 
 impl fmt::Display for InterpreterErrorKind
@@ -113,9 +113,9 @@ impl fmt::Display for InterpreterErrorKind
             InterpreterErrorKind::WrongArity(expected, found)   => write!(f, "Expected {} arguments, found {}", expected, found),
             InterpreterErrorKind::NativeClockSysTimeError                   => write!(f, "System time error calling clock()"),
             InterpreterErrorKind::InvalidPropertyAccess                     => write!(f, "Only instances have properties"),
-            InterpreterErrorKind::UdefinedProperty(identifier, interner)       => write!(f, "Undefined property '{}'", interner.borrow().resolve(*identifier).unwrap()),
-            InterpreterErrorKind::UdefinedVariableUsage(identifier, interner)       => write!(f, "Undefined variable. Tryng to evaluate undefined variable '{}'", interner.borrow().resolve(*identifier).unwrap()),
-            InterpreterErrorKind::UdefinedVariableAssignment(identifier, interner)  => write!(f, "Undefined variable. Tryng to assign to undefined variable '{}'", interner.borrow().resolve(*identifier).unwrap()),
+            InterpreterErrorKind::UdefinedProperty(value)       => write!(f, "Undefined property '{}'", value),
+            InterpreterErrorKind::UdefinedVariableUsage(value)       => write!(f, "Undefined variable. Tryng to evaluate undefined variable '{}'", value),
+            InterpreterErrorKind::UdefinedVariableAssignment(value)  => write!(f, "Undefined variable. Tryng to assign to undefined variable '{}'", value),
         }
     }
 }

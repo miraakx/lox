@@ -5,24 +5,24 @@ use string_interner::StringInterner;
 
 use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, LiteralKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}, alias::{IdentifierSymbol, ExprId, SideTable}};
 
-pub struct Interpreter
+pub struct Interpreter<'a>
 {
     environment_stack: Environment,
-    string_interner:   Rc<RefCell<StringInterner>>,
+    string_interner:   &'a StringInterner,
     side_table:        Rc<SideTable>,
     global_scope:      Rc<RefCell<Scope>>,
     this_symbol:       IdentifierSymbol,
     init_symbol:       IdentifierSymbol
 }
 
-impl Interpreter
+impl <'a> Interpreter<'a>
 {
-    pub fn new(string_interner: Rc<RefCell<StringInterner>>, side_table: SideTable) -> Self
+    pub fn new(string_interner: &'a mut StringInterner, side_table: SideTable) -> Self
     {
         let environment = Environment::new();
-        let this_symbol   = string_interner.borrow_mut().get_or_intern_static("this");
-        let init_symbol   = string_interner.borrow_mut().get_or_intern_static("init");
-        let clock_symbol  = string_interner.borrow_mut().get_or_intern_static("clock");
+        let this_symbol   = string_interner.get_or_intern_static("this");
+        let init_symbol   = string_interner.get_or_intern_static("init");
+        let clock_symbol  = string_interner.get_or_intern_static("clock");
         let mut interpreter = Interpreter {
             environment_stack: environment,
             string_interner,
@@ -37,11 +37,11 @@ impl Interpreter
         return interpreter;
     }
 
-    pub fn from(environment_stack: &Environment, intrepreter: &Interpreter) -> Self
+    pub fn from(environment_stack: &Environment, intrepreter: &'a Interpreter) -> Self
     {
         Interpreter {
             environment_stack: environment_stack.clone(),
-            string_interner:   Rc::clone(&intrepreter.string_interner),
+            string_interner:   intrepreter.string_interner,
             side_table:        Rc::clone(&intrepreter.side_table),
             global_scope:      Rc::clone(&intrepreter.global_scope),
             this_symbol:       intrepreter.this_symbol,
@@ -78,12 +78,12 @@ impl Interpreter
                     Value::Nil                          => println!("{}", "nil"),
                     Value::Callable(callable) => {
                         match callable {
-                            Callable::Function(fun_decl, _, _) => println!("Function: '{}()'", self.string_interner.borrow().resolve(fun_decl.identifier.name).unwrap()),
-                            Callable::Class(class_decl, _)        => println!("Class: '{}'", self.string_interner.borrow().resolve(class_decl.identifier.name).unwrap()),
+                            Callable::Function(fun_decl, _, _) => println!("Function: '{}()'", self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
+                            Callable::Class(class_decl, _)        => println!("Class: '{}'", self.string_interner.resolve(class_decl.identifier.name).unwrap()),
                             Callable::Clock                                             => println!("Native function: clock()"),
                         }
                     },
-                    Value::ClassInstance(class_decl, _) => println!("Instance of class: '{}'", self.string_interner.borrow().resolve(class_decl.identifier.name).unwrap()),
+                    Value::ClassInstance(class_decl, _) => println!("Instance of class: '{}'", self.string_interner.resolve(class_decl.identifier.name).unwrap()),
                 }
                 return Ok(State::Normal);
             },
@@ -411,13 +411,12 @@ impl Interpreter
             }
             ExprKind::Variable(identifier) =>
             {
-                //println!("looking up variable: {} ({})", self.string_interner.borrow().resolve(*name).unwrap(), name.to_usize());
                 match self.lookup_variable(identifier.name, expr.id) {
                     Some(variable) => {
                         return Ok(variable);
                     },
                     None => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(identifier.name, Rc::clone(&self.string_interner)), identifier.position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position));
                     },
                 }
             },
@@ -428,7 +427,7 @@ impl Interpreter
                 {
                     Ok(value) => { return Ok(value); },
                     Err(_) => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableAssignment(identifier.name, Rc::clone(&self.string_interner)), identifier.position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableAssignment(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position));
                     },
                 }
             },
@@ -503,7 +502,7 @@ impl Interpreter
                                 return Ok(Value::Callable(callable));
                             }
                         }
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(property.name, Rc::clone(&self.string_interner)), property.position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(property.name).unwrap().to_owned()), property.position));
                     },
                     _ =>
                     {
@@ -534,7 +533,7 @@ impl Interpreter
                         return Ok(variable);
                     },
                     None => {
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(self.this_symbol, Rc::clone(&self.string_interner)), *position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(self.string_interner.resolve(self.this_symbol).unwrap().to_owned()), *position));
                     },
                 }
             },
@@ -546,7 +545,6 @@ impl Interpreter
         {
             if let Some(index) = self.side_table.get(&expr_id)
             {
-                //println!("searching variable '{}' ad index '{}' of {}", self.string_interner.borrow().resolve(name).unwrap(), *index, borrowed_table.len() - 1);
                 return self.environment_stack.get_variable_from_local_at(*index, name);
             }
         }
@@ -569,12 +567,10 @@ impl Interpreter
         {
             if let Some(scope) = self.environment_stack.last_scope()
             {
-                //println!("defining variable '{}' in local scope", self.string_interner.borrow().resolve(variable).unwrap());
                 scope.borrow_mut().define_variable(variable, var_value);
                 return;
             }
         }
-        //println!("defining variable '{}' in global scope", self.string_interner.borrow().resolve(variable).unwrap());
         self.global_scope.borrow_mut().define_variable(variable, var_value);
         return;
     }

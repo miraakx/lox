@@ -1,4 +1,4 @@
-use std::{rc::Rc, cell::RefCell};
+use std::rc::Rc;
 
 use string_interner::StringInterner;
 
@@ -6,15 +6,15 @@ use crate::{common::Scanner, tokens::*, error::*, value::Value};
 
 pub struct Lexer<'a>
 {
-    scanner:       Scanner<'a>,
-    error_logger:  Box<dyn ErrorLogger>,
-    end_of_file:   bool,
-    string_interner: Rc<RefCell<StringInterner>>
+    scanner        : Scanner<'a>,
+    string_interner: &'a mut StringInterner,
+    error_logger   : Box<dyn ErrorLogger>,
+    end_of_file    : bool,
 }
 
 impl<'a> Lexer<'a>
 {
-    pub fn new(code: &'a str, error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self
+    pub fn new(code: &'a str, string_interner: &'a mut StringInterner, error_logger: impl ErrorLogger + 'static) -> Self
     {
         Lexer
         {
@@ -288,7 +288,7 @@ impl<'a> Iterator for Lexer<'a>
                         opt_token_kind = Some(keyword_token);
 
                     } else {
-                        let symbol = self.string_interner.borrow_mut().get_or_intern(identifier);
+                        let symbol = self.string_interner.get_or_intern(identifier);
                         opt_token_kind  = Some(TokenKind::Identifier(Identifier {name: symbol, position: Position { line: self.scanner.line(), column: self.scanner.column() }}));
                     }
                 },

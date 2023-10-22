@@ -8,6 +8,8 @@ use parser_stmt::Parser;
 use resolver::Resolver;
 use string_interner::StringInterner;
 
+use crate::parser_stmt::Stmt;
+
 mod common;
 mod error;
 mod interpreter;
@@ -77,25 +79,15 @@ fn run_prompt() -> Result<(), Box<dyn Error>>
 */
 fn run(code: &str)
 {
-   let interner = Rc::new(RefCell::new(StringInterner::default()));
-   let r_stmts;
+   let stmts       : Vec<Stmt>;
+   let mut interner: StringInterner;
    {
-      let mut lexer = Lexer::new(code, ConsoleErrorLogger{}, Rc::clone(&interner));
       let mut parser: Parser = Parser::new(ConsoleErrorLogger{});
-      r_stmts  = parser.parse(&mut lexer);
-   }
-   if r_stmts.is_err() {
-      println!("\nCompile time error(s) detected. See above.\n");
-      return;
-   }
-   let stmts = &r_stmts.unwrap()[..];
-   let mut interpreter;
-   {
-      let mut resolver: Resolver = Resolver::new(ConsoleErrorLogger{}, Rc::clone(&interner));
-      let result = resolver.resolve(stmts);
+      let result  = parser.parse(code);
       match result {
-         Ok(side_table) => {
-            interpreter = Interpreter::new(Rc::clone(&interner), side_table);
+         Ok((r_stmts, r_interner)) => {
+            stmts    = r_stmts;
+            interner = r_interner;
          },
          Err(_) => {
             println!("\nCompile time error(s) detected. See above.\n");
@@ -103,7 +95,21 @@ fn run(code: &str)
          }
       }
    }
-   let result = interpreter.execute(stmts);
+   let mut interpreter;
+   {
+      let mut resolver: Resolver = Resolver::new(ConsoleErrorLogger{}, &mut interner);
+      let result = resolver.resolve(&stmts);
+      match result {
+         Ok(side_table) => {
+            interpreter = Interpreter::new(&mut interner, side_table);
+         },
+         Err(_) => {
+            println!("\nCompile time error(s) detected. See above.\n");
+            return;
+         }
+      }
+   }
+   let result = interpreter.execute(&stmts);
    if result.is_err() {
       println!("\nProgram terminated with errors. See above.\n");
       return;

@@ -1,14 +1,14 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
 use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, alias::{IdentifierSymbol, SideTable}, tokens::{Position, THIS}};
 
-pub struct Resolver
+pub struct Resolver<'a>
 {
     stack:            Stack<FxHashMap<IdentifierSymbol, bool>>,
-    string_interner:  Rc<RefCell<StringInterner>>,
+    string_interner:  &'a StringInterner,
     has_error:        bool,
     current_function: FunctionType,
     current_class:    ClassType,
@@ -17,12 +17,12 @@ pub struct Resolver
     error_logger:     Box<dyn ErrorLogger>,
 }
 
-impl Resolver
+impl <'a> Resolver<'a>
 {
-    pub fn new(error_logger: impl ErrorLogger + 'static, string_interner: Rc<RefCell<StringInterner>>) -> Self
+    pub fn new(error_logger: impl ErrorLogger + 'static, string_interner: &'a mut StringInterner) -> Self
     {
-        let this_symbol = string_interner.borrow_mut().get_or_intern_static(THIS);
-        let init_symbol = string_interner.borrow_mut().get_or_intern_static("init");
+        let this_symbol = string_interner.get_or_intern_static(THIS);
+        let init_symbol = string_interner.get_or_intern_static("init");
         Resolver
         {
             stack: Stack::new(),
@@ -246,7 +246,7 @@ impl Resolver
                     let opt_bool =self.stack.peek().unwrap().get(&identifier.name);
                     if opt_bool.is_none() || *opt_bool.unwrap() == false
                     {
-                        LoxError::resolver_error(crate::error::ResolverErrorKind::LocalVariableNotFound(identifier.name, Rc::clone(&self.string_interner)), identifier.position);
+                        LoxError::resolver_error(crate::error::ResolverErrorKind::LocalVariableNotFound(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position);
                     }
                 }
                 self.resolve_local(expr, identifier.name, side_table);
@@ -311,7 +311,7 @@ impl Resolver
         {
             if scope.contains_key(&identifier)
             {
-                return Err(ResolverErrorKind::VariableAlreadyExists(identifier, Rc::clone(&self.string_interner)));
+                return Err(ResolverErrorKind::VariableAlreadyExists(self.string_interner.resolve(identifier).unwrap().to_owned()));
             }
             scope.insert(identifier, false);
         }
