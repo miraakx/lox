@@ -1,7 +1,3 @@
-#![warn(
-   clippy::nursery
-)]
-
 use error::ConsoleErrorLogger;
 use interpreter::Interpreter;
 use parser_stmt::Parser;
@@ -34,7 +30,7 @@ fn main()
          return fib(n - 1) + fib(n - 2);
       }
       var before = clock();
-      print fib(40);
+      print fib(35);
       var after = clock();
       print after - before;
       ";

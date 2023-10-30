@@ -39,8 +39,11 @@ impl fmt::Display for LoxError
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum LoxErrorKind {
-    Parser(ParserErrorKind), Interpreter(InterpreterErrorKind), Resolver(ResolverErrorKind)
+pub enum LoxErrorKind
+{
+    Parser(ParserErrorKind),
+    Interpreter(InterpreterErrorKind),
+    Resolver(ResolverErrorKind)
 }
 
 impl fmt::Display for LoxErrorKind

@@ -193,7 +193,6 @@ impl <'a> Interpreter<'a>
             },
             Stmt::FunctionDeclaration(declaration) =>
             {
-                //let cloned_environment = Environment::from(&self.environment_stack);
                 let function = Callable::Function(Rc::clone(declaration), environment.clone(), false);
                 self.define_variable(environment,
                         declaration.identifier.name,
@@ -204,7 +203,6 @@ impl <'a> Interpreter<'a>
             Stmt::ClassDeclaration(class_declaration) =>
             {
                 //class is callable to construct a new instance. The new instance must have its own class template.
-                //let cloned_environment = Environment::from(&self.environment_stack);
                 let callable = Callable::Class(Rc::clone(class_declaration), environment.clone());
                 self.define_variable(environment,
                     class_declaration.identifier.name,
@@ -514,7 +512,6 @@ impl <'a> Interpreter<'a>
                 }
             },
             ExprKind::This(position) => {
-                //println!("looking up variable: {}", "this");
                 match self.lookup_variable(environment, self.this_symbol, expr.id)
                 {
                     Some(variable) => {
@@ -584,18 +581,21 @@ impl Callable
     fn arity(&self, init_symbol: IdentifierSymbol) -> usize
     {
         match self {
-            Self::Function(declaration, _, _) => {
+            Self::Function(declaration, _, _) =>
+            {
                 declaration.parameters.len()
             },
-            Self::Class(rc_declaration, _) => {
+            Self::Class(rc_declaration, _) =>
+            {
                 //>If class has an initializer determine the number of parameters of the initializer to be passed to the class contructor
-                if let Some(init) = rc_declaration.methods.get(&init_symbol)
-                {
-                    return init.parameters.len();
+                if let Some(init) = rc_declaration.methods.get(&init_symbol) {
+                    init.parameters.len()
+                } else {
+                    0
                 }
-                0
             },
-            Self::Clock => {
+            Self::Clock =>
+            {
                 0
             },
         }
@@ -639,7 +639,7 @@ impl Callable
                 if let Some(init) = declaration.methods.get(&interpreter.init_symbol)
                 {
                     let mut cloned_environment = environment.clone();
-                    let scope: Rc<RefCell<Scope>> = cloned_environment.new_local_scope();
+                    let scope = cloned_environment.new_local_scope();
                     scope.borrow_mut().define_variable(interpreter.this_symbol, instance.clone());
                     let mut callable = Self::Function(Rc::clone(init), cloned_environment, true);
                     callable.call(interpreter, args, &declaration.identifier.position)?;
