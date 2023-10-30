@@ -1,3 +1,7 @@
+#![warn(
+   clippy::nursery
+)]
+
 use error::ConsoleErrorLogger;
 use interpreter::Interpreter;
 use parser_stmt::Parser;
@@ -18,6 +22,7 @@ mod native;
 mod resolver;
 mod value;
 mod alias;
+mod tiny_vec;
 
 fn main()
 {
@@ -29,7 +34,7 @@ fn main()
          return fib(n - 1) + fib(n - 2);
       }
       var before = clock();
-      print fib(35);
+      print fib(40);
       var after = clock();
       print after - before;
       ";

@@ -13,7 +13,7 @@ use crate::tokens::{TokenKind, TokenSource, consume, check, consume_if, check_en
 #[derive(Clone, Debug)]
 pub enum Stmt
 {
-    ExprStmt(Expr),
+    Expr(Expr),
     Var     (Identifier, Option<Expr>),
     Block   (Vec<Stmt>),
     If      (Expr, Box<Stmt>),
@@ -38,7 +38,7 @@ pub struct Parser
 impl Parser
 {
     pub fn new(error_logger: impl ErrorLogger + 'static) -> Self {
-        Parser { in_loop: 0, error_logger: Box::new(error_logger) }
+        Self { in_loop: 0, error_logger: Box::new(error_logger) }
     }
 
     fn synchronize(&mut self, token_source: &mut TokenSource) {
@@ -49,7 +49,7 @@ impl Parser
                 TokenKind::Var   | TokenKind::For    |
                 TokenKind::If    | TokenKind::While  |
                 TokenKind::Print | TokenKind::Return |
-                TokenKind::EOF =>
+                TokenKind::Eof =>
                 {
                     return;
                 },
@@ -67,8 +67,8 @@ impl Parser
 
     pub fn parse(&mut self, code: &str) -> Result<(Vec<Stmt>, StringInterner), ()>
     {
-        let mut statements: Vec<Stmt> = vec!();
-        let mut interner    : StringInterner = StringInterner::default();
+        let mut statements: Vec<Stmt> = vec![];
+        let mut interner  : StringInterner = StringInterner::default();
 
         let mut is_error  : bool      = false;
 
@@ -128,22 +128,25 @@ impl Parser
             class_declaration.insert_method(method_declaration.identifier.name, method_declaration);
         }
         consume(token_source, TokenKind::RightBrace)?;
-        return Ok(Stmt::ClassDeclaration(Rc::new(class_declaration)));
+        Ok(Stmt::ClassDeclaration(Rc::new(class_declaration)))
     }
 
     fn fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
     {
-        return Ok(Stmt::FunctionDeclaration(Rc::new(self.create_fun_declaration(token_source)?)));
+        Ok(Stmt::FunctionDeclaration(Rc::new(self.create_fun_declaration(token_source)?)))
     }
 
     fn create_fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<FunctionDeclaration, LoxError>
     {
         let identifier = consume_identifier(token_source)?;
         consume(token_source, TokenKind::LeftParen)?;
-        let mut args: Vec<FunctionParameter> = vec!();
-        if !check(token_source, TokenKind::RightParen) {
-            loop {
-                args.push(FunctionParameter { identifier:  consume_identifier(token_source)?});
+        let mut args: Vec<Identifier> = vec![];
+        if !check(token_source, TokenKind::RightParen)
+        {
+            loop
+            {
+                args.push(consume_identifier(token_source)?);
+
                 if !consume_if(token_source, TokenKind::Comma) {
                     break;
                 }
@@ -152,8 +155,8 @@ impl Parser
         consume(token_source, TokenKind::RightParen)?;
         consume(token_source, TokenKind::LeftBrace)?;
         let body = self.block_statement(token_source)?;
-        let declaration = FunctionDeclaration {identifier,  parameters: args, body: body };
-        return Ok(declaration);
+        let declaration = FunctionDeclaration::new(identifier, args, body);
+        Ok(declaration)
     }
 
     fn var_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
@@ -162,10 +165,10 @@ impl Parser
         if consume_if(token_source, TokenKind::Equal) {
             let expr: Expr = expression(token_source)?;
             consume(token_source, TokenKind::Semicolon)?;
-            return Ok(Stmt::Var(identifier, Some(expr)));
+            Ok(Stmt::Var(identifier, Some(expr)))
         } else {
             consume(token_source, TokenKind::Semicolon)?;
-            return Ok(Stmt::Var(identifier, None));
+            Ok(Stmt::Var(identifier, None))
         }
     }
 
@@ -173,54 +176,54 @@ impl Parser
     {
         let token = token_source.peek().unwrap();
         match token.kind {
-            TokenKind::EOF => {
-                return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position));
+            TokenKind::Eof => {
+                Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
             },
             TokenKind::Print => {
                 token_source.consume();
-                return self.print_statement(token_source);
+                self.print_statement(token_source)
             },
             TokenKind::LeftBrace => {
                 token_source.consume();
-                return self.block_statement(token_source);
+                self.block_statement(token_source)
             },
             TokenKind::If => {
                 token_source.consume();
-                return self.if_statement(token_source);
+                self.if_statement(token_source)
             },
             TokenKind::While => {
-                self.in_loop = self.in_loop + 1;
+                self.in_loop += 1;
                 token_source.consume();
                 let while_stmt = self.while_statement(token_source);
-                self.in_loop = self.in_loop - 1;
-                return while_stmt;
+                self.in_loop -= 1;
+                while_stmt
             },
             TokenKind::For => {
-                self.in_loop = self.in_loop + 1;
+                self.in_loop += 1;
                 token_source.consume();
                 let for_stmt = self.for_statement(token_source);
-                self.in_loop = self.in_loop - 1;
-                return for_stmt;
+                self.in_loop -= 1;
+                for_stmt
             },
             TokenKind::Break => {
                 if self.in_loop < 1 {
-                    return Err(LoxError::parser_error(ParserErrorKind::BreakOutsideLoop, token.position))
+                    return Err(LoxError::parser_error(ParserErrorKind::BreakOutsideLoop, token.position));
                 }
                 token_source.consume();
-                return self.break_statement(token_source);
+                self.break_statement(token_source)
             },
             TokenKind::Continue => {
                 if self.in_loop < 1 {
                     return Err(LoxError::parser_error(ParserErrorKind::BreakOutsideLoop, token.position))
                 }
                 token_source.consume();
-                return self.continue_statement(token_source);
+                self.continue_statement(token_source)
             },
             TokenKind::Return => {
-                return self.return_statement(token_source);
+                self.return_statement(token_source)
             },
             _ => {
-                return self.expression_statement(token_source);
+                self.expression_statement(token_source)
             }
         }
     }
@@ -234,19 +237,19 @@ impl Parser
             None
         };
         consume(token_source, TokenKind::Semicolon)?;
-        return Ok(Stmt::Return(expr, return_token.position));
+        Ok(Stmt::Return(expr, return_token.position))
     }
 
     fn continue_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         consume(token_source, TokenKind::Semicolon)?;
-        return Ok(Stmt::Continue);
+        Ok(Stmt::Continue)
     }
 
     fn break_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         consume(token_source, TokenKind::Semicolon)?;
-        return Ok(Stmt::Break);
+        Ok(Stmt::Break)
     }
 
     fn for_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
@@ -278,7 +281,7 @@ impl Parser
         //parse body
         let body = self.statement(token_source)?;
 
-        return Ok(Stmt::For(Box::new(opt_initializer), opt_condition, opt_increment, Box::new(body)));
+        Ok(Stmt::For(Box::new(opt_initializer), opt_condition, opt_increment, Box::new(body)))
 
     }
 
@@ -288,7 +291,7 @@ impl Parser
         let expr = expression(token_source)?;
         consume(token_source, TokenKind::RightParen)?;
         let stmt = self.statement(token_source)?;
-        return Ok(Stmt::While(expr, Box::new(stmt)));
+        Ok(Stmt::While(expr, Box::new(stmt)))
     }
 
     fn if_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
@@ -300,16 +303,16 @@ impl Parser
 
         check_end_of_file(token_source)?;
 
-        return if consume_if(token_source, TokenKind::Else) {
+        if consume_if(token_source, TokenKind::Else) {
             Ok(Stmt::IfElse(condition, Box::new(then_stmt), Box::new(self.statement(token_source)?)))
         } else {
             Ok(Stmt::If(condition, Box::new(then_stmt)))
-        };
+        }
     }
 
     fn block_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
-        let mut statements: Vec<Stmt> = vec!();
+        let mut statements: Vec<Stmt> = vec![];
         loop {
             check_end_of_file(token_source)?;
             if consume_if(token_source, TokenKind::RightBrace) {
@@ -323,14 +326,14 @@ impl Parser
     {
         let expr = expression(token_source)?;
         consume(token_source, TokenKind::Semicolon)?;
-        return Ok(Stmt::Print(expr));
+        Ok(Stmt::Print(expr))
     }
 
     fn expression_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let expr = expression(token_source)?;
         consume(token_source, TokenKind::Semicolon)?;
-        return Ok(Stmt::ExprStmt(expr));
+        Ok(Stmt::Expr(expr))
     }
 }
 
@@ -338,14 +341,23 @@ impl Parser
 pub struct FunctionDeclaration
 {
     pub identifier: Identifier,
-    pub parameters: Vec<FunctionParameter>,
+    pub parameters: Vec<IdentifierSymbol>,
+    pub positions: Vec<Position>,
     pub body: Stmt
 }
 
-#[derive(Clone, Debug)]
-pub struct FunctionParameter
+impl FunctionDeclaration
 {
-    pub identifier: Identifier
+    pub fn new(identifier: Identifier, parameters: Vec<Identifier>, body: Stmt) -> Self
+    {
+        Self
+        {
+            identifier,
+            parameters: parameters.iter().map(|p| p.name).collect(),
+            positions: parameters.iter().map(|p| p.position).collect(),
+            body
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -359,7 +371,7 @@ impl ClassDeclaration
 {
     fn new(identifier: Identifier) -> Self
     {
-        ClassDeclaration {identifier, methods: FxHashMap::default()}
+        Self {identifier, methods: FxHashMap::default()}
     }
 
     fn insert_method(&mut self, name: IdentifierSymbol, method_declaration: FunctionDeclaration)

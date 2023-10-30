@@ -44,7 +44,7 @@ impl<'a> Iterator for Lexer<'a>
                     return None;
                 } else {
                     self.end_of_file = true;
-                    return Some(Token{ kind: TokenKind::EOF, position: Position { line: self.scanner.line(), column: self.scanner.column()} });
+                    return Some(Token{ kind: TokenKind::Eof, position: Position { line: self.scanner.line(), column: self.scanner.column()} });
                 }
             }
 
@@ -313,17 +313,17 @@ impl<'a> Iterator for Lexer<'a>
     }
 }
 
-fn is_identifier(ch: char) -> bool
+const fn is_identifier(ch: char) -> bool
 {
     ch.is_ascii_alphabetic() || ch == '_'
 }
 
-fn is_number(ch: char) -> bool
+const fn is_number(ch: char) -> bool
 {
     ch.is_ascii_digit()
 }
 
-fn is_identifier_char_allowed(ch: char) -> bool
+const fn is_identifier_char_allowed(ch: char) -> bool
 {
     ch.is_ascii_alphabetic() || ch == '_' || ch.is_ascii_digit()
 }

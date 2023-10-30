@@ -35,7 +35,7 @@ pub enum TokenKind
     String(Value),   Number(Value),  Identifier(Identifier),
     Break,           Continue,
     UnexpectedToken,
-    EOF
+    Eof
 }
 
 #[derive(Clone, Debug)]
@@ -72,7 +72,7 @@ impl Literal
                 panic!("Internal error, unexpecter operator type");
             }
         };
-        Literal { kind: literal_kind, position: token.position }
+        Self { kind: literal_kind, position: token.position }
     }
 }
 
@@ -112,7 +112,7 @@ impl Operator<BinaryOperatorKind>
                 panic!("Internal error, unexpecter operator type");
             }
         };
-        Operator { kind: bonary_op_kind, position: token.position }
+        Self { kind: bonary_op_kind, position: token.position }
     }
 }
 
@@ -134,7 +134,7 @@ impl Operator<UnaryOperatorKind>
                 panic!("Internal error, unexpecter operator type");
             }
         };
-        Operator { kind: bonary_op_kind, position: token.position }
+        Self { kind: bonary_op_kind, position: token.position }
     }
 }
 
@@ -155,7 +155,7 @@ impl Operator<LogicalOperatorKind>
                 panic!("Internal error, unexpecter operator type");
             }
         };
-        Operator { kind: bonary_op_kind, position: token.position }
+        Self { kind: bonary_op_kind, position: token.position }
     }
 }
 
@@ -293,7 +293,7 @@ pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<
     let token = token_source.next().unwrap();
     if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
         Ok(token)
-    } else if std::mem::discriminant(&token.kind) == std::mem::discriminant(&TokenKind::EOF) {
+    } else if std::mem::discriminant(&token.kind) == std::mem::discriminant(&TokenKind::Eof) {
         Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
     } else {
         Err(LoxError::parser_error(ParserErrorKind::ExpectedToken, token.position))
@@ -307,7 +307,7 @@ pub fn consume_identifier(token_source: &mut TokenSource) -> Result<Identifier,L
         TokenKind::Identifier(identifier) => {
             Ok(identifier)
         },
-        TokenKind::EOF => {
+        TokenKind::Eof => {
             Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
         },
         _ => {
@@ -321,22 +321,23 @@ pub fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
 }
 
 pub fn is_at_end(token_source: &mut TokenSource) -> bool {
-    check(token_source, TokenKind::EOF)
+    check(token_source, TokenKind::Eof)
 }
 
 pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
     let token = token_source.peek().unwrap();
     if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
         token_source.consume();
-            return true;
+        true
+    } else {
+        false
     }
-    return false;
 }
 
 pub fn check_end_of_file(token_source: &mut TokenSource) -> Result<(),LoxError> {
     let peek = token_source.peek().unwrap();
     match peek.kind {
-        TokenKind::EOF => {
+        TokenKind::Eof => {
             Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek.position))
         },
         _ => {

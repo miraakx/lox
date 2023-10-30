@@ -13,7 +13,7 @@ impl<T: Clone> CircularBuffer<T>
 {
     fn new(capacity: usize) -> Self
     {
-        CircularBuffer
+        Self
         {
             buffer: vec![None; capacity],
             capacity,
@@ -23,12 +23,12 @@ impl<T: Clone> CircularBuffer<T>
         }
     }
 
-    pub fn is_empty(&self) -> bool
+    pub const fn is_empty(&self) -> bool
     {
         self.size == 0
     }
 
-    fn is_full(&self) -> bool
+    const fn is_full(&self) -> bool
     {
         self.size == self.capacity
     }
@@ -40,7 +40,7 @@ impl<T: Clone> CircularBuffer<T>
         }
         self.buffer[self.tail] = Some(item);
         self.move_tail();
-        self.size = self.size + 1;
+        self.size += 1;
     }
 
     pub fn dequeue(&mut self) -> Option<T>
@@ -50,7 +50,7 @@ impl<T: Clone> CircularBuffer<T>
         }
         let item = self.buffer[self.head].take();
         self.move_head();
-        self.size = self.size - 1;
+        self.size -= 1;
         item
     }
 
@@ -68,7 +68,7 @@ impl<T: Clone> CircularBuffer<T>
     {
         self.tail = (self.tail + 1) % self.capacity;
     }
-
+/*
     pub fn tail(&self) -> Option<&T>
     {
         //If necessario perche' self.tail e self.capacity sono usize
@@ -83,8 +83,8 @@ impl<T: Clone> CircularBuffer<T>
     {
         self.buffer[self.head].as_ref()
     }
-
-    pub fn size(&self) -> usize
+*/
+    pub const fn size(&self) -> usize
     {
         self.size
     }
@@ -100,7 +100,7 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
 {
     pub fn new(iter: I, size: usize) -> Self
     {
-        NthPeekable
+        Self
         {
             iter,
             buffer: CircularBuffer::new(size),
@@ -133,7 +133,7 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
             if i == index {
                 return self.buffer.peek(index);
             }
-            i = i + 1;
+            i += 1;
         }
     }
 
@@ -144,12 +144,12 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
         }
         self.buffer.dequeue()
     }
-
+/*
     pub fn is_last(&mut self) -> bool
     {
         self.peek().is_none()
     }
-
+*/
 }
 
 pub struct Peekable<I, T: Clone> where I: Iterator<Item = T>,
@@ -160,9 +160,9 @@ pub struct Peekable<I, T: Clone> where I: Iterator<Item = T>,
 
 impl<I, T: Clone> Peekable<I, T> where I: Iterator<Item = T>,
 {
-    pub fn new(iter: I) -> Self
+    pub const fn new(iter: I) -> Self
     {
-        Peekable { iter, item: None }
+        Self { iter, item: None }
     }
 
     pub fn peek(&mut self) -> Option<&T>
@@ -210,15 +210,15 @@ impl <'a> Scanner<'a>
 
     pub fn next(&mut self) -> Option<char>
     {
-        self.column = self.column + 1;
-        self.index  = self.index  + 1;
+        self.column += 1;
+        self.index  += 1;
         self.iter.next()
     }
 
     pub fn new_line(&mut self)
     {
-        self.column   = LINE_START;
-        self.line = self.line + 1;
+        self.column = LINE_START;
+        self.line += 1;
     }
 
     pub fn peek(&mut self) -> Option<char>
@@ -245,20 +245,21 @@ impl <'a> Scanner<'a>
         }
     }
 
-    pub fn line(&self) -> u32
+    pub const fn line(&self) -> u32
     {
         self.line
     }
 
-    pub fn column(&self) -> u32
+    pub const fn column(&self) -> u32
     {
         self.column
     }
-
+/*
     pub fn index(&self) -> u32
     {
         self.index
     }
+s*/
 }
 
 pub struct Stack<T> {
@@ -267,8 +268,8 @@ pub struct Stack<T> {
 
 impl <T> Stack<T>
 {
-    pub fn new() -> Self {
-        Stack { vec: Vec::new() }
+    pub const fn new() -> Self {
+        Self { vec: Vec::new() }
     }
 
     pub fn push(&mut self, value: T) {
@@ -302,11 +303,17 @@ impl <T> Stack<T>
     pub fn iter(&self) -> Iter<T> {
         return self.vec.iter();
     }
-
+/*
     pub fn len(&self) -> usize {
         self.vec.len()
     }
+*/
 }
+
+
+
+
+
 
 #[test]
 fn test_circular_buffer()

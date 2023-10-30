@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::tokens::Position;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LoxError
 {
     pub kind: LoxErrorKind,
@@ -12,19 +12,19 @@ pub struct LoxError
 
 impl LoxError
 {
-    pub fn parser_error(kind: ParserErrorKind, position: Position) -> LoxError
+    pub const fn parser_error(kind: ParserErrorKind, position: Position) -> Self
     {
-        LoxError { kind: LoxErrorKind::ParserErrorKind(kind), position }
+        Self { kind: LoxErrorKind::Parser(kind), position }
     }
 
-    pub fn resolver_error(kind: ResolverErrorKind, position: Position) -> LoxError
+    pub const fn resolver_error(kind: ResolverErrorKind, position: Position) -> Self
     {
-        LoxError { kind: LoxErrorKind::ResolverErrorKind(kind), position }
+        Self { kind: LoxErrorKind::Resolver(kind), position }
     }
 
-    pub fn interpreter_error(kind: InterpreterErrorKind, position: Position) -> LoxError
+    pub const fn interpreter_error(kind: InterpreterErrorKind, position: Position) -> Self
     {
-        LoxError { kind: LoxErrorKind::InterpreterErrorKind(kind), position }
+        Self { kind: LoxErrorKind::Interpreter(kind), position }
     }
 }
 
@@ -38,9 +38,9 @@ impl fmt::Display for LoxError
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LoxErrorKind {
-    ParserErrorKind(ParserErrorKind), InterpreterErrorKind(InterpreterErrorKind), ResolverErrorKind(ResolverErrorKind)
+    Parser(ParserErrorKind), Interpreter(InterpreterErrorKind), Resolver(ResolverErrorKind)
 }
 
 impl fmt::Display for LoxErrorKind
@@ -48,20 +48,20 @@ impl fmt::Display for LoxErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match &self {
-            LoxErrorKind::ParserErrorKind(error) => {
+            Self::Parser(error) => {
                 write!(f, "Parser error: {}", error)
             },
-            LoxErrorKind::InterpreterErrorKind(error) => {
+            Self::Interpreter(error) => {
                 write!(f, "Runtime error: {}", error)
             },
-            LoxErrorKind::ResolverErrorKind(error) => {
+            Self::Resolver(error) => {
                 write!(f, "Resolver error: {}", error)
             },
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ResolverErrorKind
 {
     LocalVariableNotFound(String),
@@ -76,16 +76,16 @@ impl fmt::Display for ResolverErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match self {
-            ResolverErrorKind::LocalVariableNotFound(value) => write!(f, "Can't read local variable {} in its own initializer", value),
-            ResolverErrorKind::VariableAlreadyExists(value) => write!(f, "Already a variable with name '{}' in this scope", value),
-            ResolverErrorKind::ReturnFromTopLevelCode => write!(f, "Can't return from top-level code"),
-            ResolverErrorKind::InvalidThisUsage => write!(f, "Can't use 'this' keyword outside of a class"),
-            ResolverErrorKind::ReturnFromInitializer => write!(f, "Can't return a value from an initializer"),
+            Self::LocalVariableNotFound(value) => write!(f, "Can't read local variable {} in its own initializer", value),
+            Self::VariableAlreadyExists(value) => write!(f, "Already a variable with name '{}' in this scope", value),
+            Self::ReturnFromTopLevelCode => write!(f, "Can't return from top-level code"),
+            Self::InvalidThisUsage => write!(f, "Can't use 'this' keyword outside of a class"),
+            Self::ReturnFromInitializer => write!(f, "Can't return a value from an initializer"),
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InterpreterErrorKind
 {
     IncompatibleBinaryOpTypes,
@@ -104,20 +104,20 @@ impl fmt::Display for InterpreterErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match self {
-            InterpreterErrorKind::IncompatibleBinaryOpTypes                 => write!(f, "Both expressions side are not of the same type"),
-            InterpreterErrorKind::InvalidUnaryType                          => write!(f, "Invalid unary type"),
-            InterpreterErrorKind::NotCallable                               => write!(f, "Not a callable expression"),
-            InterpreterErrorKind::WrongArity(expected, found)   => write!(f, "Expected {} arguments, found {}", expected, found),
-            InterpreterErrorKind::NativeClockSysTimeError                   => write!(f, "System time error calling clock()"),
-            InterpreterErrorKind::InvalidPropertyAccess                     => write!(f, "Only instances have properties"),
-            InterpreterErrorKind::UdefinedProperty(value)       => write!(f, "Undefined property '{}'", value),
-            InterpreterErrorKind::UdefinedVariableUsage(value)       => write!(f, "Undefined variable. Tryng to evaluate undefined variable '{}'", value),
-            InterpreterErrorKind::UdefinedVariableAssignment(value)  => write!(f, "Undefined variable. Tryng to assign to undefined variable '{}'", value),
+            Self::IncompatibleBinaryOpTypes                 => write!(f, "Both expressions side are not of the same type"),
+            Self::InvalidUnaryType                          => write!(f, "Invalid unary type"),
+            Self::NotCallable                               => write!(f, "Not a callable expression"),
+            Self::WrongArity(expected, found)   => write!(f, "Expected {} arguments, found {}", expected, found),
+            Self::NativeClockSysTimeError                   => write!(f, "System time error calling clock()"),
+            Self::InvalidPropertyAccess                     => write!(f, "Only instances have properties"),
+            Self::UdefinedProperty(value)       => write!(f, "Undefined property '{}'", value),
+            Self::UdefinedVariableUsage(value)       => write!(f, "Undefined variable. Tryng to evaluate undefined variable '{}'", value),
+            Self::UdefinedVariableAssignment(value)  => write!(f, "Undefined variable. Tryng to assign to undefined variable '{}'", value),
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ParserErrorKind
 {
     UnexpectedToken(char),
@@ -136,15 +136,15 @@ impl fmt::Display for ParserErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match &self {
-            ParserErrorKind::UnexpectedToken(ch)       => write!(f, "Unexpected token '{}'", ch),
-            ParserErrorKind::ParseFloatError(value)  => write!(f, "Cannot parse float '{}'", value),
-            ParserErrorKind::UnterminatedString               => write!(f, "Unterminated string"),
-            ParserErrorKind::InvalidEscapeCharacter           => write!(f, "Invalid escape character"),
-            ParserErrorKind::UnexpectedEndOfFile              => write!(f, "Unexpected end of file"),
-            ParserErrorKind::MissingClosingParenthesis        => write!(f, "Missing closing parenthesis ')'"),
-            ParserErrorKind::LiteralExpected                  => write!(f, "Expected literal, found '?'"),
-            ParserErrorKind::ExpectedToken                    => write!(f, "Expected token '?'"),
-            ParserErrorKind::BreakOutsideLoop                 => write!(f, "Found 'break' keyword outside a loop"),
+            Self::UnexpectedToken(ch)       => write!(f, "Unexpected token '{}'", ch),
+            Self::ParseFloatError(value)  => write!(f, "Cannot parse float '{}'", value),
+            Self::UnterminatedString               => write!(f, "Unterminated string"),
+            Self::InvalidEscapeCharacter           => write!(f, "Invalid escape character"),
+            Self::UnexpectedEndOfFile              => write!(f, "Unexpected end of file"),
+            Self::MissingClosingParenthesis        => write!(f, "Missing closing parenthesis ')'"),
+            Self::LiteralExpected                  => write!(f, "Expected literal, found '?'"),
+            Self::ExpectedToken                    => write!(f, "Expected token '?'"),
+            Self::BreakOutsideLoop                 => write!(f, "Found 'break' keyword outside a loop"),
         }
     }
 }

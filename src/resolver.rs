@@ -70,20 +70,17 @@ impl <'a> Resolver<'a>
             {
                 self.resolve_expr(print_expr, side_table);
             },
-            Stmt::ExprStmt(expr) =>
+            Stmt::Expr(expr) =>
             {
                 self.resolve_expr(expr, side_table);
             },
             Stmt::Var(identifier, opt_expr) =>
             {
-                match self.declare(identifier.name) {
-                    Err(err_kind) => {
-                        self.error(err_kind, &identifier.position);
-                    },
-                    _ => {}
+                if let Err(err_kind) = self.declare(identifier.name) {
+                    self.error(err_kind, &identifier.position);
                 }
                 if let Some(expr) = opt_expr {
-                    self.resolve_expr(&expr, side_table);
+                    self.resolve_expr(expr, side_table);
                 }
                 self.define(identifier.name)
             },
@@ -103,8 +100,8 @@ impl <'a> Resolver<'a>
             Stmt::IfElse(expr, then_stmt, else_stmt) =>
             {
                 self.resolve_expr(expr, side_table);
-                self.resolve_stmt(&then_stmt, self.current_function, self.current_class, side_table);
-                self.resolve_stmt(&else_stmt, self.current_function, self.current_class, side_table);
+                self.resolve_stmt(then_stmt, self.current_function, self.current_class, side_table);
+                self.resolve_stmt(else_stmt, self.current_function, self.current_class, side_table);
             },
             Stmt::While(condition, body) =>
             {
@@ -154,12 +151,10 @@ impl <'a> Resolver<'a>
             Stmt::ClassDeclaration(class_declaration) =>
             {
                 //resolve class name
-                match self.declare(class_declaration.identifier.name) {
-                    Err(err_kind) => {
-                        self.error(err_kind, &class_declaration.identifier.position);
-                    },
-                    _ => {}
+                if let Err(err_kind) = self.declare(class_declaration.identifier.name) {
+                    self.error(err_kind, &class_declaration.identifier.position);
                 }
+
                 self.define(class_declaration.identifier.name);
 
                 //>start THIS scope wrapping around methods declarations
@@ -169,13 +164,13 @@ impl <'a> Resolver<'a>
 
                 //>resolve methods
                 let methods = &class_declaration.methods;
-                for (_, rc_method) in methods.into_iter() {
-                    let function_type;
-                    if rc_method.identifier.name == self.init_symbol {
-                        function_type = FunctionType::Initializer;
+                for (_, rc_method) in methods.iter() {
+
+                    let function_type = if rc_method.identifier.name == self.init_symbol {
+                        FunctionType::Initializer
                     } else {
-                        function_type = FunctionType::Method;
-                    }
+                        FunctionType::Method
+                    };
                     self.resolve_function(rc_method, function_type, ClassType::Class, side_table);
                 }
                 //<resolve methods
@@ -192,25 +187,17 @@ impl <'a> Resolver<'a>
 
     fn resolve_function(&mut self, func_decl: &Rc<FunctionDeclaration>, function_type: FunctionType, class_type: ClassType, side_table: &mut SideTable)
     {
-        match self.declare(func_decl.identifier.name)
-        {
-            Err(err_kind) => {
-                self.error(err_kind, &func_decl.identifier.position);
-            },
-            _ => {}
+        if let Err(err_kind) = self.declare(func_decl.identifier.name) {
+            self.error(err_kind, &func_decl.identifier.position);
         }
         self.define(func_decl.identifier.name);
         self.begin_scope();
-        for param in &func_decl.parameters
+        for (index, param) in func_decl.parameters.iter().enumerate()
         {
-            match self.declare(param.identifier.name)
-            {
-                Err(err_kind) => {
-                    self.error(err_kind, &param.identifier.position);
-                },
-                _ => {}
+            if let Err(err_kind) = self.declare(*param) {
+                self.error(err_kind, &func_decl.positions[index]);
             }
-            self.define(param.identifier.name);
+            self.define(*param);
         }
         //>Inside a function stmt set current function to FunctionType::Function
         self.resolve_stmt(&func_decl.body, function_type, class_type, side_table);
@@ -244,7 +231,7 @@ impl <'a> Resolver<'a>
                 if !self.stack.is_empty()
                 {
                     let opt_bool =self.stack.peek().unwrap().get(&identifier.name);
-                    if opt_bool.is_none() || *opt_bool.unwrap() == false
+                    if opt_bool.is_none() || !(*opt_bool.unwrap())
                     {
                         LoxError::resolver_error(crate::error::ResolverErrorKind::LocalVariableNotFound(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position);
                     }
@@ -315,7 +302,7 @@ impl <'a> Resolver<'a>
             }
             scope.insert(identifier, false);
         }
-        return Ok(());
+        Ok(())
     }
 
     fn define(&mut self, identifier: IdentifierSymbol)

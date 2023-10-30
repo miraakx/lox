@@ -3,7 +3,7 @@ use unique_id::{sequence::SequenceGenerator, Generator};
 
 use crate::{tokens::{Token, TokenKind, TokenSource, consume_if, consume, check, consume_identifier, Identifier, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, Operator, Literal, Position}, error::{LoxError, ParserErrorKind}};
 
-static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(||SequenceGenerator::default());
+static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(SequenceGenerator::default);
 
 #[derive(Clone, Debug)]
 pub struct Expr
@@ -15,7 +15,7 @@ pub struct Expr
 impl Expr
 {
     fn new(kind: ExprKind) -> Self {
-        Expr { id: ID_GENERATOR.next_id(), kind }
+        Self { id: ID_GENERATOR.next_id(), kind }
     }
 }
 
@@ -50,8 +50,8 @@ fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError>
     let position = peek_token.position;
 
     match peek_token.kind {
-        TokenKind::EOF => {
-            return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position));
+        TokenKind::Eof => {
+            Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
         },
         TokenKind::Equal => {
             token_source.consume();
@@ -59,19 +59,19 @@ fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError>
 
             match expr.kind {
                 ExprKind::Variable(identifier) => {
-                    return Ok(Expr::new(ExprKind::Assign(identifier, Box::new(value))));
+                    Ok(Expr::new(ExprKind::Assign(identifier, Box::new(value))))
                 },
                 //Assign a value expression to an instance property
                 ExprKind::Get(expr, identifier) => {
-                    return Ok(Expr::new(ExprKind::Set(expr, identifier, Box::new(value))));
+                    Ok(Expr::new(ExprKind::Set(expr, identifier, Box::new(value))))
                 }
                 _ => {
-                    return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position));
+                    Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
                 }
             }
         },
         _ => {
-            return Ok(expr);
+            Ok(expr)
         }
     }
 }
@@ -82,7 +82,7 @@ fn or(token_source: &mut TokenSource) -> Result<Expr,LoxError>
     loop {
         let peek_token = token_source.peek().unwrap();
         match &peek_token.kind {
-            TokenKind::EOF => {
+            TokenKind::Eof => {
                 return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
             },
             TokenKind::Or => {
@@ -103,7 +103,7 @@ fn and(token_source: &mut TokenSource) -> Result<Expr,LoxError>
     loop {
         let peek_token = token_source.peek().unwrap();
         match &peek_token.kind {
-            TokenKind::EOF => {
+            TokenKind::Eof => {
                 return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
             },
             TokenKind::And => {
@@ -124,7 +124,7 @@ fn equality(token_source: &mut TokenSource) -> Result<Expr,LoxError>
     loop {
         let peek_token = token_source.peek().unwrap();
         match &peek_token.kind {
-            TokenKind::EOF => {
+            TokenKind::Eof => {
                 return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
             },
             TokenKind::BangEqual|TokenKind::EqualEqual => {
@@ -145,7 +145,7 @@ fn comparison(token_source: &mut TokenSource) -> Result<Expr,LoxError>
     loop {
         let peek_token = token_source.peek().unwrap();
         match &peek_token.kind {
-            TokenKind::EOF => {
+            TokenKind::Eof => {
                 return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
             },
             TokenKind::Greater | TokenKind::GreaterEqual | TokenKind::Less | TokenKind::LessEqual => {
@@ -166,7 +166,7 @@ fn term(token_source: &mut TokenSource) -> Result<Expr,LoxError>
     loop {
         let peek_token = token_source.peek().unwrap();
         match &peek_token.kind {
-            TokenKind::EOF => {
+            TokenKind::Eof => {
                 return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
             },
             TokenKind::Minus | TokenKind::Plus => {
@@ -187,7 +187,7 @@ fn factor(token_source: &mut TokenSource) -> Result<Expr, LoxError>
     loop {
         let peek_token: &Token = token_source.peek().unwrap();
         match &peek_token.kind {
-            TokenKind::EOF => {
+            TokenKind::Eof => {
                 return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
             },
             TokenKind::Slash | TokenKind::Star => {
@@ -206,7 +206,7 @@ fn unary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
 {
     let peek_token = token_source.peek().unwrap();
     match &peek_token.kind {
-        TokenKind::EOF => {
+        TokenKind::Eof => {
             Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position))
         },
         TokenKind::Bang | TokenKind::Minus => {
@@ -261,7 +261,7 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
     let position = token.position;
 
     match &token.kind {
-        TokenKind::EOF => {
+        TokenKind::Eof => {
             Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
         },
         TokenKind::Nil => {
@@ -278,7 +278,7 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             token_source.consume();
             let expr: Expr = expression(token_source)?;
             match token_source.next().unwrap().kind {
-                TokenKind::EOF => {
+                TokenKind::Eof => {
                     return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position));
                 },
                 TokenKind::RightParen => {
@@ -288,7 +288,7 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
                     return Err(LoxError::parser_error(ParserErrorKind::MissingClosingParenthesis, position));
                 }
             }
-            return Ok(Expr::new(ExprKind::Grouping(Box::new(expr))));
+            Ok(Expr::new(ExprKind::Grouping(Box::new(expr))))
         },
         TokenKind::This => {
             let token = token_source.next().unwrap();
