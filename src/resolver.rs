@@ -248,15 +248,12 @@ impl <'a> Resolver<'a>
                 self.resolve_expr(expr_left, side_table);
                 self.resolve_expr(expr_right, side_table);
             },
-            ExprKind::Call(expr, opt_args, _) =>
+            ExprKind::Call(expr, args, _) =>
             {
                 self.resolve_expr(expr, side_table);
-                if let Some(args) = opt_args
+                for arg in args
                 {
-                    for arg in args
-                    {
-                        self.resolve_expr(arg, side_table);
-                    }
+                    self.resolve_expr(arg, side_table);
                 }
             },
             ExprKind::Get(expr, _) =>

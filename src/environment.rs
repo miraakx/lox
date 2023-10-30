@@ -38,7 +38,7 @@ impl Environment
     #[inline]
     pub fn new_local_scope(&mut self) -> Rc<RefCell<Scope>>
     {
-        let rc_scope: Rc<RefCell<Scope>> = Rc::new(RefCell::new(Scope::new()));
+        let rc_scope = Rc::new(RefCell::new(Scope::new()));
         self.locals_scope.push(Rc::clone(&rc_scope));
         rc_scope
     }

@@ -29,7 +29,7 @@ pub enum ExprKind
     Variable(Identifier),
     Assign  (Identifier, Box<Expr>),
     Logical (Box<Expr>, Operator<LogicalOperatorKind>, Box<Expr>),
-    Call    (Box<Expr>, Option<Vec<Expr>>, Position),
+    Call    (Box<Expr>, Vec<Expr>, Position),
     Get     (Box<Expr>, Identifier),
     Set     (Box<Expr>, Identifier, Box<Expr>),
     This    (Position)
@@ -231,7 +231,7 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
         {
             let left_paren = token_source.next().unwrap();
             if consume_if(token_source, TokenKind::RightParen) {
-                expr = Expr::new(ExprKind::Call(Box::new(expr), None, left_paren.position));
+                expr = Expr::new(ExprKind::Call(Box::new(expr), Vec::new(), left_paren.position));
                 continue;
             }
             let mut args: Vec<Expr> = Vec::new();
@@ -245,7 +245,7 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             if args.len() >= 255 {
                 todo!("Segnalare errore se più di 255 argomenti");
             }
-            expr = Expr::new(ExprKind::Call(Box::new(expr), Some(args), left_paren.position));
+            expr = Expr::new(ExprKind::Call(Box::new(expr), args, left_paren.position));
         }
         else if consume_if(token_source, TokenKind::Dot)
         {
