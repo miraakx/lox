@@ -284,11 +284,11 @@ impl <'a> Interpreter<'a>
             {
                 self.evaluate(expr.as_ref(), environment)
             },
-            ExprKind::Binary(left, operator, right) =>
+            ExprKind::Binary(binary_expr) =>
             {
-                let val_left  = self.evaluate(left.as_ref(), environment)?;
-                let val_right = self.evaluate(right.as_ref(), environment)?;
-                match operator.kind {
+                let val_left  = self.evaluate(&binary_expr.left, environment)?;
+                let val_right = self.evaluate(&binary_expr.right, environment)?;
+                match binary_expr.operator.kind {
                     BinaryOperatorKind::Minus =>
                     {
                         match (val_left, val_right)
@@ -297,7 +297,7 @@ impl <'a> Interpreter<'a>
                                 Ok(Value::Number(num_left - num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
                             }
                         }
                     },
@@ -311,7 +311,7 @@ impl <'a> Interpreter<'a>
                                 Ok(Value::String(Rc::new(format!("{}{}", str_left, str_right))))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
                             }
                         }
                     },
@@ -322,7 +322,7 @@ impl <'a> Interpreter<'a>
                                 Ok(Value::Number(num_left / num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
                             }
                         }
                     },
@@ -333,7 +333,7 @@ impl <'a> Interpreter<'a>
                                 Ok(Value::Number(num_left * num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
                             }
                         }
                     },
@@ -344,7 +344,7 @@ impl <'a> Interpreter<'a>
                                 Ok(Value::Bool(num_left > num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
                             }
                         }
                     },
@@ -355,7 +355,7 @@ impl <'a> Interpreter<'a>
                                 Ok(Value::Bool(num_left >= num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
                             }
                         }
                     },
@@ -365,7 +365,7 @@ impl <'a> Interpreter<'a>
                                 Ok(Value::Bool(num_left < num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
                             }
                         }
                     },
@@ -376,7 +376,7 @@ impl <'a> Interpreter<'a>
                                 Ok(Value::Bool(num_left <= num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
                             }
                         }
                     },
@@ -414,43 +414,43 @@ impl <'a> Interpreter<'a>
                     },
                 }
             },
-            ExprKind::Logical(left, operator, right) =>
+            ExprKind::Logical(logica_expr) =>
             {
-                let val_left = self.evaluate(left.as_ref(), environment)?;
-                match operator.kind
+                let val_left = self.evaluate(&logica_expr.left, environment)?;
+                match logica_expr.operator.kind
                 {
                     LogicalOperatorKind::Or => {
                         if is_truthy(&val_left) {
                             Ok(val_left)
                         } else {
-                            self.evaluate(right.as_ref(), environment)
+                            self.evaluate(&logica_expr.right, environment)
                         }
                     },
                     LogicalOperatorKind::And => {
                         if !is_truthy(&val_left) {
                             Ok(val_left)
                         } else {
-                            self.evaluate(right.as_ref(), environment)
+                            self.evaluate(&logica_expr.right, environment)
                         }
                     }
                 }
             },
-            ExprKind::Call(callee_expr, args_expr, position) => {
-                match self.evaluate(callee_expr, environment)?
+            ExprKind::Call(call_expr) => {
+                match self.evaluate(&call_expr.callee, environment)?
                 {
                     Value::Callable(mut function) =>
                     {
-                        if function.arity(self.init_symbol) == args_expr.len()
+                        if function.arity(self.init_symbol) == call_expr.arguments.len()
                         {
-                            function.call(self, environment, args_expr, position)
+                            function.call(self, environment, &call_expr.arguments, &call_expr.position)
                         }
                         else
                         {
-                            Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(self.init_symbol), args_expr.len()), *position))
+                            Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(self.init_symbol), call_expr.arguments.len()), call_expr.position))
                         }
                     },
                     _ => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::NotCallable, *position))
+                        Err(LoxError::interpreter_error(InterpreterErrorKind::NotCallable, call_expr.position))
                     }
                 }
             },
@@ -489,18 +489,18 @@ impl <'a> Interpreter<'a>
                     }
                 }
             },
-            ExprKind::Set(object, identifier, value) =>
+            ExprKind::Set(set_expr) =>
             {
-                match self.evaluate(object, environment)?
+                match self.evaluate(&set_expr.target, environment)?
                 {
                     Value::ClassInstance(_, attributes) =>
                     {
-                        let value = self.evaluate(value, environment)?;
-                        attributes.borrow_mut().insert(identifier.name, value.clone());
+                        let value = self.evaluate(&set_expr.value, environment)?;
+                        attributes.borrow_mut().insert(set_expr.identifier.name, value.clone());
                         Ok(value)
                     },
                     _ => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPropertyAccess, identifier.position))
+                        Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPropertyAccess, set_expr.identifier.position))
                     }
                 }
             },
@@ -515,6 +515,7 @@ impl <'a> Interpreter<'a>
                     },
                 }
             },
+
         }
     }
 

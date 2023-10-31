@@ -13,7 +13,7 @@ use crate::tokens::{TokenKind, TokenSource, consume, check, consume_if, check_en
 #[derive(Clone, Debug)]
 pub enum Stmt
 {
-    Expr(Expr),
+    Expr    (Expr),
     Var     (Identifier, Option<Expr>),
     Block   (Vec<Stmt>),
     If      (Expr, Box<Stmt>),
@@ -23,8 +23,8 @@ pub enum Stmt
     Return  (Option<Expr>, Position),
     Break,
     Continue,
-    FunctionDeclaration(Rc<FunctionDeclaration>),
-    ClassDeclaration   (Rc<ClassDeclaration>),
+    FunctionDeclaration (Rc<FunctionDeclaration>),
+    ClassDeclaration    (Rc<ClassDeclaration>),
     Print   (Expr),
 
 }

@@ -209,10 +209,10 @@ impl <'a> Resolver<'a>
     {
         match &expr.kind
         {
-            ExprKind::Binary(expr_left, _, expr_right) =>
+            ExprKind::Binary(binary) =>
             {
-                self.resolve_expr(expr_left, side_table);
-                self.resolve_expr(expr_right, side_table);
+                self.resolve_expr(&binary.left,  side_table);
+                self.resolve_expr(&binary.right, side_table);
             },
             ExprKind::Grouping(expr) =>
             {
@@ -243,15 +243,15 @@ impl <'a> Resolver<'a>
                 self.resolve_expr(expr, side_table);
                 self.resolve_local(expr, identifier.name, side_table);
             },
-            ExprKind::Logical(expr_left, _, expr_right) =>
+            ExprKind::Logical(logical_expr) =>
             {
-                self.resolve_expr(expr_left, side_table);
-                self.resolve_expr(expr_right, side_table);
+                self.resolve_expr(&logical_expr.left, side_table);
+                self.resolve_expr(&logical_expr.right, side_table);
             },
-            ExprKind::Call(expr, args, _) =>
+            ExprKind::Call(call_expr) =>
             {
-                self.resolve_expr(expr, side_table);
-                for arg in args
+                self.resolve_expr(&call_expr.callee, side_table);
+                for arg in &call_expr.arguments
                 {
                     self.resolve_expr(arg, side_table);
                 }
@@ -260,10 +260,10 @@ impl <'a> Resolver<'a>
             {
                 self.resolve_expr(expr, side_table);
             },
-            ExprKind::Set(object, _, value) =>
+            ExprKind::Set(set_expr) =>
             {
-                self.resolve_expr(object, side_table);
-                self.resolve_expr(value, side_table);
+                self.resolve_expr(&set_expr.target, side_table);
+                self.resolve_expr(&set_expr.value,  side_table);
             },
             ExprKind::This(position) => {
                 match self.current_class
@@ -276,6 +276,8 @@ impl <'a> Resolver<'a>
                     }
                 }
             },
+
+
         }
     }
 

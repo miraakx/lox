@@ -22,19 +22,46 @@ impl Expr
 #[derive(Clone, Debug)]
 pub enum ExprKind
 {
-    Binary  (Box<Expr>, Operator<BinaryOperatorKind>, Box<Expr>),
+    Binary  (Box<BinaryExpr>),
     Grouping(Box<Expr>),
     Unary   (Operator<UnaryOperatorKind>, Box<Expr>),
     Literal (Literal),
     Variable(Identifier),
     Assign  (Identifier, Box<Expr>),
-    Logical (Box<Expr>, Operator<LogicalOperatorKind>, Box<Expr>),
-    Call    (Box<Expr>, Vec<Expr>, Position),
+    Logical (Box<LogicalExpr>),
+    Call    (Box<CallExpr>),
     Get     (Box<Expr>, Identifier),
-    Set     (Box<Expr>, Identifier, Box<Expr>),
+    Set     (Box<SetExpr>),
     This    (Position)
 }
 
+#[derive(Clone, Debug)]
+pub struct BinaryExpr {
+    pub left: Expr,
+    pub operator: Operator<BinaryOperatorKind>,
+    pub right: Expr
+}
+
+#[derive(Clone, Debug)]
+pub struct LogicalExpr {
+    pub left: Expr,
+    pub operator: Operator<LogicalOperatorKind>,
+    pub right: Expr
+}
+
+#[derive(Clone, Debug)]
+pub struct SetExpr {
+    pub target: Expr,
+    pub identifier: Identifier,
+    pub value: Expr
+}
+
+#[derive(Clone, Debug)]
+pub struct CallExpr {
+    pub callee: Expr,
+    pub arguments: Vec<Expr>,
+    pub position: Position
+}
 
 pub fn expression(token_source: &mut TokenSource) -> Result<Expr,LoxError>
 {
@@ -63,7 +90,7 @@ fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError>
                 },
                 //Assign a value expression to an instance property
                 ExprKind::Get(expr, identifier) => {
-                    Ok(Expr::new(ExprKind::Set(expr, identifier, Box::new(value))))
+                    Ok(Expr::new(ExprKind::Set(Box::new(SetExpr { target: *expr, identifier: identifier, value: value }))))
                 }
                 _ => {
                     Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
@@ -88,7 +115,7 @@ fn or(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::Or => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = and(token_source)?;
-                expr =  Expr::new(ExprKind::Logical(Box::new(expr), Operator::<LogicalOperatorKind>::from_token(&operator), Box::new(right)));
+                expr =  Expr::new(ExprKind::Logical(Box::new(LogicalExpr { left: expr, operator: Operator::<LogicalOperatorKind>::from_token(&operator), right: right })));
             },
             _ => {
                 return Ok(expr);
@@ -109,7 +136,7 @@ fn and(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::And => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = equality(token_source)?;
-                expr = Expr::new(ExprKind::Logical(Box::new(expr), Operator::<LogicalOperatorKind>::from_token(&operator), Box::new(right)));
+                expr = Expr::new(ExprKind::Logical(Box::new(LogicalExpr { left: expr, operator: Operator::<LogicalOperatorKind>::from_token(&operator), right: right })));
             },
             _ => {
                 return Ok(expr);
@@ -130,7 +157,7 @@ fn equality(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::BangEqual|TokenKind::EqualEqual => {
                 let operator: Token = token_source.next().unwrap();
                 let right: Expr = comparison(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(expr), Operator::<BinaryOperatorKind>::from_token(&operator), Box::new(right)));
+                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right: right })));
             },
             _ => {
                 return Ok(expr);
@@ -151,7 +178,7 @@ fn comparison(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::Greater | TokenKind::GreaterEqual | TokenKind::Less | TokenKind::LessEqual => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = term(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(expr), Operator::<BinaryOperatorKind>::from_token(&operator), Box::new(right)));
+                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right: right })));
             },
             _ => {
                 return Ok(expr);
@@ -172,7 +199,7 @@ fn term(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::Minus | TokenKind::Plus => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = factor(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(expr), Operator::<BinaryOperatorKind>::from_token(&operator), Box::new(right)));
+                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right: right })));
             },
             _ => {
                 return Ok(expr);
@@ -193,7 +220,7 @@ fn factor(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             TokenKind::Slash | TokenKind::Star => {
                 let operator: Token = token_source.next().unwrap();
                 let right = unary(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(expr), Operator::<BinaryOperatorKind>::from_token(&operator), Box::new(right)));
+                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right: right })));
             },
             _ => {
                 return Ok(expr);
@@ -231,21 +258,22 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
         {
             let left_paren = token_source.next().unwrap();
             if consume_if(token_source, TokenKind::RightParen) {
-                expr = Expr::new(ExprKind::Call(Box::new(expr), Vec::new(), left_paren.position));
+                expr = Expr::new(ExprKind::Call(Box::new(CallExpr { callee: expr, arguments: Vec::new(), position: left_paren.position })));
                 continue;
             }
             let mut args: Vec<Expr> = Vec::new();
             loop {
                 args.push(expression(token_source)?);
                 if !consume_if(token_source, TokenKind::Comma) {
-                break;
+                    break;
                 }
             }
             consume(token_source, TokenKind::RightParen)?;
-            if args.len() >= 255 {
+            if args.len() < 255 {
+                expr = Expr::new(ExprKind::Call(Box::new(CallExpr { callee: expr, arguments: args, position: left_paren.position })));
+            } else {
                 todo!("Segnalare errore se più di 255 argomenti");
             }
-            expr = Expr::new(ExprKind::Call(Box::new(expr), args, left_paren.position));
         }
         else if consume_if(token_source, TokenKind::Dot)
         {
