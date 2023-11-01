@@ -1,10 +1,12 @@
+use std::mem::size_of;
+
 use error::ConsoleErrorLogger;
 use interpreter::Interpreter;
 use parser_stmt::Parser;
 use resolver::Resolver;
 use string_interner::StringInterner;
 
-use crate::parser_stmt::Stmt;
+use crate::{parser_stmt::Stmt, parser_expr::Expr, tokens::{Position}, value::Value};
 
 mod common;
 mod error;
@@ -22,6 +24,8 @@ mod tiny_vec;
 
 fn main()
 {
+   //println!("{}", size_of::<Value>());
+
    let code =
       "
       fun fib(n) {

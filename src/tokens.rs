@@ -44,6 +44,7 @@ pub struct Identifier {
     pub position: Position
 }
 
+/*
 #[derive(Clone, Debug)]
 pub struct Literal {
     pub kind: LiteralKind,
@@ -54,7 +55,7 @@ pub struct Literal {
 #[derive(Clone, Debug)]
 pub enum LiteralKind
 {
-    Nil, False(Value), True(Value), Number(Value), String(Value)
+    Nil, Boolean(Value), Number(Value), String(Value)
 }
 
 impl Literal
@@ -64,8 +65,8 @@ impl Literal
         let literal_kind = match &token.kind
         {
             TokenKind::Nil                  => LiteralKind::Nil,
-            TokenKind::False(value)  => LiteralKind::False(value.clone()),
-            TokenKind::True(value)   => LiteralKind::True(value.clone()),
+            TokenKind::False(value)  => LiteralKind::Boolean(value.clone()),
+            TokenKind::True(value)   => LiteralKind::Boolean(value.clone()),
             TokenKind::Number(value) => LiteralKind::Number(value.clone()),
             TokenKind::String(value) => LiteralKind::String(value.clone()),
             _ => {
@@ -75,7 +76,7 @@ impl Literal
         Self { kind: literal_kind, position: token.position }
     }
 }
-
+ */
 #[derive(Clone, Debug)]
 pub struct Operator<Kind>
 {

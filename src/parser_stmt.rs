@@ -16,17 +16,43 @@ pub enum Stmt
     Expr    (Expr),
     Var     (Identifier, Option<Expr>),
     Block   (Vec<Stmt>),
-    If      (Expr, Box<Stmt>),
-    IfElse  (Expr, Box<Stmt>, Box<Stmt>),
-    While   (Expr, Box<Stmt>),
-    For     (Box<Option<Stmt>>, Option<Expr>, Option<Expr>, Box<Stmt>),
+    If      (Box<IfStmt>),
+    IfElse  (Box<IfElseStmt>),
+    While   (Box<WhileStmt>),
+    For     (Box<ForStmt>),
     Return  (Option<Expr>, Position),
     Break,
     Continue,
     FunctionDeclaration (Rc<FunctionDeclaration>),
     ClassDeclaration    (Rc<ClassDeclaration>),
     Print   (Expr),
+}
 
+#[derive(Clone, Debug)]
+pub struct ForStmt {
+    pub opt_initializer: Option<Stmt>,
+    pub opt_condition: Option<Expr>,
+    pub opt_increment: Option<Expr>,
+    pub body: Stmt
+}
+
+#[derive(Clone, Debug)]
+pub struct IfElseStmt {
+    pub condition: Expr,
+    pub then_stmt: Stmt,
+    pub else_stmt: Stmt
+}
+
+#[derive(Clone, Debug)]
+pub struct IfStmt {
+    pub condition: Expr,
+    pub then_stmt: Stmt
+}
+
+#[derive(Clone, Debug)]
+pub struct WhileStmt {
+    pub condition: Expr,
+    pub body: Stmt
 }
 
 pub struct Parser
@@ -281,7 +307,7 @@ impl Parser
         //parse body
         let body = self.statement(token_source)?;
 
-        Ok(Stmt::For(Box::new(opt_initializer), opt_condition, opt_increment, Box::new(body)))
+        Ok(Stmt::For(Box::new(ForStmt { opt_initializer, opt_condition, opt_increment, body })))
 
     }
 
@@ -291,7 +317,7 @@ impl Parser
         let expr = expression(token_source)?;
         consume(token_source, TokenKind::RightParen)?;
         let stmt = self.statement(token_source)?;
-        Ok(Stmt::While(expr, Box::new(stmt)))
+        Ok(Stmt::While(Box::new(WhileStmt { condition: expr, body: stmt })))
     }
 
     fn if_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
@@ -304,9 +330,9 @@ impl Parser
         check_end_of_file(token_source)?;
 
         if consume_if(token_source, TokenKind::Else) {
-            Ok(Stmt::IfElse(condition, Box::new(then_stmt), Box::new(self.statement(token_source)?)))
+            Ok(Stmt::IfElse(Box::new(IfElseStmt { condition, then_stmt, else_stmt: self.statement(token_source)? })))
         } else {
-            Ok(Stmt::If(condition, Box::new(then_stmt)))
+            Ok(Stmt::If(Box::new(IfStmt { condition, then_stmt })))
         }
     }
 

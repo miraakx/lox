@@ -2,7 +2,7 @@ use std::{rc::Rc, cell::RefCell};
 
 use rustc_hash::FxHashMap;
 
-use crate::{interpreter::Callable, parser_stmt::ClassDeclaration, alias::IdentifierSymbol};
+use crate::{interpreter::Callable, parser_stmt::ClassDeclaration, alias::IdentifierSymbol, tokens::{Token, TokenKind}};
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -10,8 +10,32 @@ pub enum Value {
     Number(f64),
     Bool(bool),
     Nil,
-    Callable(Callable),
-    ClassInstance(Rc<ClassDeclaration>, Rc<RefCell<FxHashMap<IdentifierSymbol, Value>>>)
+    Callable(Box<Callable>),
+    ClassInstance(Box<ClassInstance>)
+}
+
+impl Value
+{
+    pub fn from_token(token: Token) -> Self
+    {
+        match token.kind
+        {
+            TokenKind::Nil                  => Value::Nil,
+            TokenKind::False(value)  => value,
+            TokenKind::True(value)   => value,
+            TokenKind::Number(value) => value,
+            TokenKind::String(value) => value,
+            _ => {
+                panic!("Internal error: unexpecter operator type.");
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ClassInstance {
+    pub declaration: Rc<ClassDeclaration>,
+    pub attributes: Rc<RefCell<FxHashMap<IdentifierSymbol, Value>>>
 }
 
 #[inline]
@@ -37,6 +61,6 @@ pub const fn is_truthy(value: &Value) -> bool
         Value::Bool(boolean) => *boolean,
         Value::Nil                  => false,
         Value::Callable(_)          => true,
-        Value::ClassInstance(_, _)  => true,
+        Value::ClassInstance(_)     => true,
     }
 }

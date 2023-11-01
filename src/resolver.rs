@@ -92,37 +92,37 @@ impl <'a> Resolver<'a>
                 }
                 self.end_scope();
             },
-            Stmt::If(expr, then_stmt) =>
+            Stmt::If(if_stmt) =>
             {
-                self.resolve_expr(expr, side_table);
-                self.resolve_stmt(then_stmt, self.current_function, self.current_class, side_table);
+                self.resolve_expr(&if_stmt.condition, side_table);
+                self.resolve_stmt(&if_stmt.then_stmt, self.current_function, self.current_class, side_table);
             },
-            Stmt::IfElse(expr, then_stmt, else_stmt) =>
+            Stmt::IfElse(if_else_stmt) =>
             {
-                self.resolve_expr(expr, side_table);
-                self.resolve_stmt(then_stmt, self.current_function, self.current_class, side_table);
-                self.resolve_stmt(else_stmt, self.current_function, self.current_class, side_table);
+                self.resolve_expr(&if_else_stmt.condition, side_table);
+                self.resolve_stmt(&if_else_stmt.then_stmt, self.current_function, self.current_class, side_table);
+                self.resolve_stmt(&if_else_stmt.else_stmt, self.current_function, self.current_class, side_table);
             },
-            Stmt::While(condition, body) =>
+            Stmt::While(while_stmt) =>
             {
-                self.resolve_expr(condition, side_table);
-                self.resolve_stmt(body, self.current_function, self.current_class, side_table);
+                self.resolve_expr(&while_stmt.condition, side_table);
+                self.resolve_stmt(&while_stmt.body, self.current_function, self.current_class, side_table);
             },
-            Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
+            Stmt::For(for_stmt) =>
             {
-                if let Some(initializer) = opt_initializer.as_ref()
+                if let Some(initializer) = for_stmt.opt_initializer.as_ref()
                 {
                     self.resolve_stmt(initializer, self.current_function, self.current_class, side_table);
                 }
-                if let Some(condition) = opt_condition
+                if let Some(condition) = &for_stmt.opt_condition
                 {
                     self.resolve_expr(condition, side_table);
                 }
-                if let Some(increment) = opt_increment
+                if let Some(increment) = &for_stmt.opt_increment
                 {
                     self.resolve_expr(increment, side_table);
                 }
-                self.resolve_stmt(body, self.current_function, self.current_class, side_table);
+                self.resolve_stmt(&for_stmt.body, self.current_function, self.current_class, side_table);
             },
             Stmt::Break     => { /*do nothing*/ },
             Stmt::Continue  => { /*do nothing*/ },
@@ -218,9 +218,9 @@ impl <'a> Resolver<'a>
             {
                 self.resolve_expr(expr, side_table);
             },
-            ExprKind::Unary(_, expr) =>
+            ExprKind::Unary(unary_expr) =>
             {
-                self.resolve_expr(expr, side_table);
+                self.resolve_expr(&unary_expr.expr, side_table);
             },
             ExprKind::Literal(_) =>
             {
@@ -238,10 +238,10 @@ impl <'a> Resolver<'a>
                 }
                 self.resolve_local(expr, identifier.name, side_table);
             },
-            ExprKind::Assign(identifier, expr) =>
+            ExprKind::Assign(assign_expr) =>
             {
-                self.resolve_expr(expr, side_table);
-                self.resolve_local(expr, identifier.name, side_table);
+                self.resolve_expr(&assign_expr.expr, side_table);
+                self.resolve_local(&assign_expr.expr, assign_expr.identifier.name, side_table);
             },
             ExprKind::Logical(logical_expr) =>
             {
@@ -256,9 +256,9 @@ impl <'a> Resolver<'a>
                     self.resolve_expr(arg, side_table);
                 }
             },
-            ExprKind::Get(expr, _) =>
+            ExprKind::Get(get_expr) =>
             {
-                self.resolve_expr(expr, side_table);
+                self.resolve_expr(&get_expr.expr, side_table);
             },
             ExprKind::Set(set_expr) =>
             {

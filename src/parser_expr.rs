@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use unique_id::{sequence::SequenceGenerator, Generator};
 
-use crate::{tokens::{Token, TokenKind, TokenSource, consume_if, consume, check, consume_identifier, Identifier, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, Operator, Literal, Position}, error::{LoxError, ParserErrorKind}};
+use crate::{tokens::{Token, TokenKind, TokenSource, consume_if, consume, check, consume_identifier, Identifier, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, Operator, Position}, error::{LoxError, ParserErrorKind}, value::Value};
 
 static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(SequenceGenerator::default);
 
@@ -24,15 +24,33 @@ pub enum ExprKind
 {
     Binary  (Box<BinaryExpr>),
     Grouping(Box<Expr>),
-    Unary   (Operator<UnaryOperatorKind>, Box<Expr>),
-    Literal (Literal),
+    Unary   (Box<UnaryExpr>),
+    Literal (Value),
     Variable(Identifier),
-    Assign  (Identifier, Box<Expr>),
+    Assign  (Box<AssignExpr>),
     Logical (Box<LogicalExpr>),
     Call    (Box<CallExpr>),
-    Get     (Box<Expr>, Identifier),
+    Get     (Box<GetExpr>),
     Set     (Box<SetExpr>),
     This    (Position)
+}
+
+#[derive(Clone, Debug)]
+pub struct GetExpr {
+    pub expr: Expr,
+    pub identifier: Identifier
+}
+
+#[derive(Clone, Debug)]
+pub struct AssignExpr {
+    pub identifier: Identifier,
+    pub expr: Expr
+}
+
+#[derive(Clone, Debug)]
+pub struct UnaryExpr {
+    pub operator: Operator<UnaryOperatorKind>,
+    pub expr: Expr
 }
 
 #[derive(Clone, Debug)]
@@ -86,11 +104,11 @@ fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError>
 
             match expr.kind {
                 ExprKind::Variable(identifier) => {
-                    Ok(Expr::new(ExprKind::Assign(identifier, Box::new(value))))
+                    Ok(Expr::new(ExprKind::Assign(Box::new(AssignExpr { identifier, expr: value }))))
                 },
                 //Assign a value expression to an instance property
-                ExprKind::Get(expr, identifier) => {
-                    Ok(Expr::new(ExprKind::Set(Box::new(SetExpr { target: *expr, identifier: identifier, value: value }))))
+                ExprKind::Get(get_expr) => {
+                    Ok(Expr::new(ExprKind::Set(Box::new(SetExpr { target: get_expr.expr, identifier: get_expr.identifier, value: value }))))
                 }
                 _ => {
                     Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
@@ -239,7 +257,7 @@ fn unary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
         TokenKind::Bang | TokenKind::Minus => {
             let operator: Token = token_source.next().unwrap();
             let right:    Expr = unary(token_source)?;
-            Ok(Expr::new(ExprKind::Unary(Operator::<UnaryOperatorKind>::from_token(&operator), Box::new(right))))
+            Ok(Expr::new(ExprKind::Unary(Box::new(UnaryExpr { operator: Operator::<UnaryOperatorKind>::from_token(&operator), expr: right }))))
         },
         _ => {
             call(token_source)
@@ -278,7 +296,7 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
         else if consume_if(token_source, TokenKind::Dot)
         {
             let identifier: crate::tokens::Identifier = consume_identifier(token_source)?;
-            expr = Expr::new(ExprKind::Get(Box::new(expr), identifier));
+            expr = Expr::new(ExprKind::Get(Box::new(GetExpr { expr, identifier })));
         }
     }
 }
@@ -293,10 +311,10 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
         },
         TokenKind::Nil => {
-            Ok(Expr::new(ExprKind::Literal(Literal::from_token(&token))))
+            Ok(Expr::new(ExprKind::Literal(Value::from_token(token))))
         }
         TokenKind::False(_) | TokenKind::True(_) | TokenKind::Number(_) | TokenKind::String(_) => {
-            Ok(Expr::new(ExprKind::Literal(Literal::from_token(&token))))
+            Ok(Expr::new(ExprKind::Literal(Value::from_token(token))))
         },
         TokenKind::Identifier(identifier) => {
              Ok(Expr::new(ExprKind::Variable(identifier.clone())))

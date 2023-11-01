@@ -3,7 +3,7 @@ use std::{fmt::Debug, rc::Rc, cell::RefCell};
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, LiteralKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal}, alias::{IdentifierSymbol, ExprId, SideTable}};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal, ClassInstance}, alias::{IdentifierSymbol, ExprId, SideTable}};
 
 pub struct Interpreter<'a>
 {
@@ -31,7 +31,7 @@ impl <'a> Interpreter<'a>
 
     fn define_native_functions(&mut self) {
         let clock_symbol  = self.string_interner.get_or_intern_static("clock");
-        self.global_scope.define_variable(clock_symbol, Value::Callable(Callable::Clock));
+        self.global_scope.define_variable(clock_symbol, Value::Callable(Box::new(Callable::Clock)));
     }
 
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
@@ -66,14 +66,14 @@ impl <'a> Interpreter<'a>
                     Value::Bool(boolean)          => println!("{}", boolean),
                     Value::Nil                          => println!("nil"),
                     Value::Callable(callable) => {
-                        match callable {
-                            Callable::Function(fun_decl, _)     => println!("<fn: '{}'>", self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
+                        match *callable {
+                            Callable::Function(fun_decl, _)     => println!("<fn: '{}'>",        self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
                             Callable::InitFunction(fun_decl, _) => println!("<fn (init): '{}'>", self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
-                            Callable::Class(class_decl, _)         => println!("<class: '{}'>", self.string_interner.resolve(class_decl.identifier.name).unwrap()),
+                            Callable::Class(class_decl, _)         => println!("<class: '{}'>",     self.string_interner.resolve(class_decl.identifier.name).unwrap()),
                             Callable::Clock                                              => println!("<fn (native): 'clock'>"),
                         }
                     },
-                    Value::ClassInstance(class_decl, _) => println!("Instance of class: '{}'", self.string_interner.resolve(class_decl.identifier.name).unwrap()),
+                    Value::ClassInstance(class_instance) => println!("Instance of class: '{}'", self.string_interner.resolve(class_instance.declaration.identifier.name).unwrap()),
                 }
                 Ok(State::Normal)
             },
@@ -120,29 +120,29 @@ impl <'a> Interpreter<'a>
                 environment.remove_local_scope();
                 Ok(State::Normal)
             },
-            Stmt::If(condition, then_stmt) =>
+            Stmt::If(if_stmt) =>
             {
-                let condition_value = self.evaluate(condition, environment)?;
+                let condition_value = self.evaluate(&if_stmt.condition, environment)?;
                 if is_truthy(&condition_value) {
-                    self.execute_stmt(then_stmt, environment)
+                    self.execute_stmt(&if_stmt.then_stmt, environment)
                 } else {
                     Ok(State::Normal)
                 }
             },
-            Stmt::IfElse(condition, then_stmt, else_stmt) =>
+            Stmt::IfElse(if_else_stmt) =>
             {
-                let condition_value = self.evaluate(condition, environment)?;
+                let condition_value = self.evaluate(&if_else_stmt.condition, environment)?;
                 if is_truthy(&condition_value) {
-                    self.execute_stmt(then_stmt, environment)
+                    self.execute_stmt(&if_else_stmt.then_stmt, environment)
                 } else {
-                    self.execute_stmt(else_stmt, environment)
+                    self.execute_stmt(&if_else_stmt.else_stmt, environment)
                 }
             },
-            Stmt::While(condition, body) =>
+            Stmt::While(while_stmt) =>
             {
-                while is_truthy(&self.evaluate(condition, environment)?)
+                while is_truthy(&self.evaluate(&while_stmt.condition, environment)?)
                 {
-                    let state = self.execute_stmt(body.as_ref(), environment)?;
+                    let state = self.execute_stmt(&while_stmt.body, environment)?;
                     match state
                     {
                         State::Normal  | State::Continue =>
@@ -164,22 +164,22 @@ impl <'a> Interpreter<'a>
             Stmt::Continue => {
                 Ok(State::Continue)
             },
-            Stmt::For(opt_initializer, opt_condition, opt_increment, body) =>
+            Stmt::For(for_stmt) =>
             {
                 environment.new_local_scope();
 
-                if let Some(initializer) = opt_initializer.as_ref() {
+                if let Some(initializer) = &for_stmt.opt_initializer {
                     self.execute_stmt(initializer, environment)?;
                 }
 
-                while is_truthy(&self.evaluate_or(opt_condition, Value::Bool(true), environment)?)
+                while is_truthy(&self.evaluate_or(&for_stmt.opt_condition, Value::Bool(true), environment)?)
                 {
-                    let state = self.execute_stmt(body, environment)?;
+                    let state = self.execute_stmt(&for_stmt.body, environment)?;
                     match state
                     {
                         State::Normal | State::Continue =>
                         {
-                            self.evaluate_or(opt_increment, Value::Bool(true), environment)?;
+                            self.evaluate_or(&for_stmt.opt_increment, Value::Bool(true), environment)?;
                             continue;
                         },
                         State::Break =>
@@ -197,7 +197,7 @@ impl <'a> Interpreter<'a>
                 let function = Callable::Function(Rc::clone(declaration), environment.clone());
                 self.define_variable(environment,
                         declaration.identifier.name,
-                        Value::Callable(function)
+                        Value::Callable(Box::new(function))
                     );
                 Ok(State::Normal)
             },
@@ -207,7 +207,7 @@ impl <'a> Interpreter<'a>
                 let callable = Callable::Class(Rc::clone(class_declaration), environment.clone());
                 self.define_variable(environment,
                     class_declaration.identifier.name,
-                    Value::Callable(callable)
+                    Value::Callable(Box::new(callable))
                 );
                 Ok(State::Normal)
             },
@@ -231,35 +231,14 @@ impl <'a> Interpreter<'a>
     fn evaluate(&mut self, expr: &Expr, environment:&mut Environment) -> Result<Value, LoxError>
     {
         match &expr.kind {
-            ExprKind::Literal( literal) =>
+            ExprKind::Literal(value) =>
             {
-                match &literal.kind {
-                    LiteralKind::String(val) =>
-                    {
-                        Ok(val.clone())
-                    },
-                    LiteralKind::Number(val) =>
-                    {
-                        Ok(val.clone())
-                    },
-                    LiteralKind::True(val) =>
-                    {
-                        Ok(val.clone())
-                    },
-                    LiteralKind::False(val) =>
-                    {
-                        Ok(val.clone())
-                    },
-                    LiteralKind::Nil =>
-                    {
-                        Ok(Value::Nil)
-                    }
-                }
+                Ok(value.clone())
             },
-            ExprKind::Unary(operator, right) =>
+            ExprKind::Unary(unary_expr) =>
             {
-                let val_right: Value = self.evaluate(right.as_ref(), environment)?;
-                match operator.kind
+                let val_right: Value = self.evaluate(&unary_expr.expr, environment)?;
+                match unary_expr.operator.kind
                 {
                     UnaryOperatorKind::Minus =>
                     {
@@ -270,7 +249,7 @@ impl <'a> Interpreter<'a>
                                 Ok(Value::Number(-num))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidUnaryType, operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidUnaryType, unary_expr.operator.position))
                             }
                         }
                     },
@@ -282,7 +261,7 @@ impl <'a> Interpreter<'a>
             },
             ExprKind::Grouping(expr) =>
             {
-                self.evaluate(expr.as_ref(), environment)
+                self.evaluate(expr, environment)
             },
             ExprKind::Binary(binary_expr) =>
             {
@@ -401,16 +380,16 @@ impl <'a> Interpreter<'a>
                     },
                 }
             },
-            ExprKind::Assign(identifier, expr) =>
+            ExprKind::Assign(assign_expr) =>
             {
-                let value = self.evaluate(expr.as_ref(), environment)?;
-                match self.assign_variable(environment, identifier.name, &value, expr.id)
+                let value = self.evaluate(&assign_expr.expr, environment)?;
+                match self.assign_variable(environment, assign_expr.identifier.name, &value, expr.id)
                 {
                     Ok(_) => {
                         Ok(value)
                     },
                     Err(_) => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableAssignment(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
+                        Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableAssignment(self.string_interner.resolve(assign_expr.identifier.name).unwrap().to_owned()), assign_expr.identifier.position))
                     },
                 }
             },
@@ -454,20 +433,20 @@ impl <'a> Interpreter<'a>
                     }
                 }
             },
-            ExprKind::Get(get_expr, property) =>
+            ExprKind::Get(get_expr) =>
             {
-                let instance = self.evaluate(get_expr, environment)?;
+                let instance = self.evaluate(&get_expr.expr, environment)?;
                 match &instance
                 {
-                    Value::ClassInstance(class, attributes) =>
+                    Value::ClassInstance(class_instance) =>
                     {
                         {
-                            if let Some(value) = attributes.borrow().get(&property.name) {
+                            if let Some(value) = class_instance.attributes.borrow().get(&get_expr.identifier.name) {
                                 return Ok(value.clone());
                             }
                         }
                         {
-                            if let Some(method) = class.methods.get(&property.name) {
+                            if let Some(method) = class_instance.declaration.methods.get(&get_expr.identifier.name) {
                                 //>define new closure for the current method
                                 let mut environment_clone = environment.clone();
                                 let scope: Rc<RefCell<Scope>> = environment_clone.new_local_scope();
@@ -478,14 +457,14 @@ impl <'a> Interpreter<'a>
                                 } else {
                                     Callable::Function(Rc::clone(method), environment_clone)
                                 };
-                                return Ok(Value::Callable(callable));
+                                return Ok(Value::Callable(Box::new(callable)));
                             }
                         }
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(property.name).unwrap().to_owned()), property.position));
+                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(get_expr.identifier.name).unwrap().to_owned()), get_expr.identifier.position));
                     },
                     _ =>
                     {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPropertyAccess, property.position))
+                        Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPropertyAccess, get_expr.identifier.position))
                     }
                 }
             },
@@ -493,10 +472,10 @@ impl <'a> Interpreter<'a>
             {
                 match self.evaluate(&set_expr.target, environment)?
                 {
-                    Value::ClassInstance(_, attributes) =>
+                    Value::ClassInstance(class_instance) =>
                     {
                         let value = self.evaluate(&set_expr.value, environment)?;
-                        attributes.borrow_mut().insert(set_expr.identifier.name, value.clone());
+                        class_instance.attributes.borrow_mut().insert(set_expr.identifier.name, value.clone());
                         Ok(value)
                     },
                     _ => {
@@ -625,7 +604,7 @@ impl Callable
             Self::Class(declaration, environment) =>
             {
                 let instance = Value::ClassInstance(
-                    Rc::clone(declaration), Rc::new(RefCell::new(FxHashMap::default()))
+                    Box::new(ClassInstance { declaration: Rc::clone(declaration), attributes: Rc::new(RefCell::new(FxHashMap::default())) })
                 );
                 //>call init method (if it exists)
                 if let Some(init) = declaration.methods.get(&interpreter.init_symbol)
