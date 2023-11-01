@@ -310,125 +310,125 @@ impl <T> Stack<T>
 */
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::common::{CircularBuffer, NthPeekable};
 
+    #[test]
+    fn test_circular_buffer()
+    {
+        let mut buffer: CircularBuffer<usize> = CircularBuffer::new(5);
 
+        assert_eq!(buffer.dequeue(), None);
 
+        assert_eq!(buffer.is_empty(), true);
+        assert_eq!(buffer.is_full(), false);
+        buffer.enqueue(1);
+        assert_eq!(buffer.is_empty(), false);
+        assert_eq!(buffer.is_full(), false);
+        buffer.enqueue(2);
+        assert_eq!(buffer.is_empty(), false);
+        assert_eq!(buffer.is_full(), false);
+        buffer.enqueue(3);
+        assert_eq!(buffer.is_empty(), false);
+        assert_eq!(buffer.is_full(), false);
+        buffer.enqueue(4);
+        assert_eq!(buffer.is_empty(), false);
+        assert_eq!(buffer.is_full(), false);
+        buffer.enqueue(5);
+        assert_eq!(buffer.is_empty(), false);
+        assert_eq!(buffer.is_full(), true);
 
+        assert_eq!(buffer.dequeue(), Some(1));
+        assert_eq!(buffer.is_empty(), false);
+        assert_eq!(buffer.is_full(), false);
+        assert_eq!(buffer.dequeue(), Some(2));
+        assert_eq!(buffer.is_empty(), false);
+        assert_eq!(buffer.is_full(), false);
+        assert_eq!(buffer.dequeue(), Some(3));
+        assert_eq!(buffer.is_empty(), false);
+        assert_eq!(buffer.is_full(), false);
+        assert_eq!(buffer.dequeue(), Some(4));
+        assert_eq!(buffer.is_empty(), false);
+        assert_eq!(buffer.is_full(), false);
+        assert_eq!(buffer.dequeue(), Some(5));
+        assert_eq!(buffer.is_empty(), true);
+        assert_eq!(buffer.is_full(), false);
+        assert_eq!(buffer.dequeue(), None);
+    }
 
-#[test]
-fn test_circular_buffer()
-{
-    let mut buffer: CircularBuffer<usize> = CircularBuffer::new(5);
+    #[test]
+    #[should_panic]
+    fn test_circular_buffer_panic()
+    {
+        let mut buffer: CircularBuffer<usize> = CircularBuffer::new(1);
+        buffer.enqueue(1);
+        buffer.enqueue(2);
+    }
 
-    assert_eq!(buffer.dequeue(), None);
+    #[test]
+    fn test_peekable_iter()
+    {
+        let text = "testo di prova";
+        let mut buffer = NthPeekable::new(text.chars(), 5);
+        assert_eq!(buffer.peek().cloned(), Some('t'));
+        assert_eq!(buffer.peek().cloned(), Some('t'));
+        assert_eq!(buffer.peek().cloned(), Some('t'));
+        assert_eq!(buffer.peek().cloned(), Some('t'));
+        assert_eq!(buffer.peek().cloned(), Some('t'));
 
-    assert_eq!(buffer.is_empty(), true);
-    assert_eq!(buffer.is_full(), false);
-    buffer.enqueue(1);
-    assert_eq!(buffer.is_empty(), false);
-    assert_eq!(buffer.is_full(), false);
-    buffer.enqueue(2);
-    assert_eq!(buffer.is_empty(), false);
-    assert_eq!(buffer.is_full(), false);
-    buffer.enqueue(3);
-    assert_eq!(buffer.is_empty(), false);
-    assert_eq!(buffer.is_full(), false);
-    buffer.enqueue(4);
-    assert_eq!(buffer.is_empty(), false);
-    assert_eq!(buffer.is_full(), false);
-    buffer.enqueue(5);
-    assert_eq!(buffer.is_empty(), false);
-    assert_eq!(buffer.is_full(), true);
+        assert_eq!(buffer.next(), Some('t'));
+        assert_eq!(buffer.next(), Some('e'));
+        assert_eq!(buffer.next(), Some('s'));
+        assert_eq!(buffer.next(), Some('t'));
+        assert_eq!(buffer.next(), Some('o'));
+        assert_eq!(buffer.next(), Some(' '));
 
-    assert_eq!(buffer.dequeue(), Some(1));
-    assert_eq!(buffer.is_empty(), false);
-    assert_eq!(buffer.is_full(), false);
-    assert_eq!(buffer.dequeue(), Some(2));
-    assert_eq!(buffer.is_empty(), false);
-    assert_eq!(buffer.is_full(), false);
-    assert_eq!(buffer.dequeue(), Some(3));
-    assert_eq!(buffer.is_empty(), false);
-    assert_eq!(buffer.is_full(), false);
-    assert_eq!(buffer.dequeue(), Some(4));
-    assert_eq!(buffer.is_empty(), false);
-    assert_eq!(buffer.is_full(), false);
-    assert_eq!(buffer.dequeue(), Some(5));
-    assert_eq!(buffer.is_empty(), true);
-    assert_eq!(buffer.is_full(), false);
-    assert_eq!(buffer.dequeue(), None);
-}
+        assert_eq!(buffer.peek().cloned(), Some('d'));
+        assert_eq!(buffer.peek().cloned(), Some('d'));
+        assert_eq!(buffer.next(), Some('d'));
+        assert_eq!(buffer.next(), Some('i'));
+        assert_eq!(buffer.next(), Some(' '));
+        assert_eq!(buffer.next(), Some('p'));
+        assert_eq!(buffer.next(), Some('r'));
+        assert_eq!(buffer.next(), Some('o'));
+        assert_eq!(buffer.next(), Some('v'));
+        assert_eq!(buffer.next(), Some('a'));
+        assert_eq!(buffer.peek(), None);
+        assert_eq!(buffer.peek(), None);
+        assert_eq!(buffer.next(), None);
+    }
 
-#[test]
-#[should_panic]
-fn test_circular_buffer_panic()
-{
-    let mut buffer: CircularBuffer<usize> = CircularBuffer::new(1);
-    buffer.enqueue(1);
-    buffer.enqueue(2);
-}
+    #[test]
+    fn test_peekable_nth()
+    {
+        let text = "testo di prova";
+        let mut buffer = NthPeekable::new(text.chars(), 5);
+        assert_eq!(buffer.peek_nth(0).cloned(), Some('t'));
+        assert_eq!(buffer.peek_nth(1).cloned(), Some('e'));
+        assert_eq!(buffer.peek_nth(2).cloned(), Some('s'));
+        assert_eq!(buffer.peek_nth(3).cloned(), Some('t'));
+        assert_eq!(buffer.peek_nth(4).cloned(), Some('o'));
 
-#[test]
-fn test_peekable_iter()
-{
-    let text = "testo di prova";
-    let mut buffer = NthPeekable::new(text.chars(), 5);
-    assert_eq!(buffer.peek().cloned(), Some('t'));
-    assert_eq!(buffer.peek().cloned(), Some('t'));
-    assert_eq!(buffer.peek().cloned(), Some('t'));
-    assert_eq!(buffer.peek().cloned(), Some('t'));
-    assert_eq!(buffer.peek().cloned(), Some('t'));
+        assert_eq!(buffer.next(), Some('t'));
+        assert_eq!(buffer.next(), Some('e'));
+        assert_eq!(buffer.next(), Some('s'));
+        assert_eq!(buffer.next(), Some('t'));
+        assert_eq!(buffer.next(), Some('o'));
+        assert_eq!(buffer.next(), Some(' '));
 
-    assert_eq!(buffer.next(), Some('t'));
-    assert_eq!(buffer.next(), Some('e'));
-    assert_eq!(buffer.next(), Some('s'));
-    assert_eq!(buffer.next(), Some('t'));
-    assert_eq!(buffer.next(), Some('o'));
-    assert_eq!(buffer.next(), Some(' '));
-
-    assert_eq!(buffer.peek().cloned(), Some('d'));
-    assert_eq!(buffer.peek().cloned(), Some('d'));
-    assert_eq!(buffer.next(), Some('d'));
-    assert_eq!(buffer.next(), Some('i'));
-    assert_eq!(buffer.next(), Some(' '));
-    assert_eq!(buffer.next(), Some('p'));
-    assert_eq!(buffer.next(), Some('r'));
-    assert_eq!(buffer.next(), Some('o'));
-    assert_eq!(buffer.next(), Some('v'));
-    assert_eq!(buffer.next(), Some('a'));
-    assert_eq!(buffer.peek(), None);
-    assert_eq!(buffer.peek(), None);
-    assert_eq!(buffer.next(), None);
-}
-
-#[test]
-fn test_peekable_nth()
-{
-    let text = "testo di prova";
-    let mut buffer = NthPeekable::new(text.chars(), 5);
-    assert_eq!(buffer.peek_nth(0).cloned(), Some('t'));
-    assert_eq!(buffer.peek_nth(1).cloned(), Some('e'));
-    assert_eq!(buffer.peek_nth(2).cloned(), Some('s'));
-    assert_eq!(buffer.peek_nth(3).cloned(), Some('t'));
-    assert_eq!(buffer.peek_nth(4).cloned(), Some('o'));
-
-    assert_eq!(buffer.next(), Some('t'));
-    assert_eq!(buffer.next(), Some('e'));
-    assert_eq!(buffer.next(), Some('s'));
-    assert_eq!(buffer.next(), Some('t'));
-    assert_eq!(buffer.next(), Some('o'));
-    assert_eq!(buffer.next(), Some(' '));
-
-    assert_eq!(buffer.peek_nth(0).cloned(), Some('d'));
-    assert_eq!(buffer.peek_nth(1).cloned(), Some('i'));
-    assert_eq!(buffer.next(), Some('d'));
-    assert_eq!(buffer.next(), Some('i'));
-    assert_eq!(buffer.next(), Some(' '));
-    assert_eq!(buffer.next(), Some('p'));
-    assert_eq!(buffer.next(), Some('r'));
-    assert_eq!(buffer.next(), Some('o'));
-    assert_eq!(buffer.next(), Some('v'));
-    assert_eq!(buffer.next(), Some('a'));
-    assert_eq!(buffer.peek_nth(0), None);
-    assert_eq!(buffer.peek_nth(1), None);
-    assert_eq!(buffer.next(), None);
+        assert_eq!(buffer.peek_nth(0).cloned(), Some('d'));
+        assert_eq!(buffer.peek_nth(1).cloned(), Some('i'));
+        assert_eq!(buffer.next(), Some('d'));
+        assert_eq!(buffer.next(), Some('i'));
+        assert_eq!(buffer.next(), Some(' '));
+        assert_eq!(buffer.next(), Some('p'));
+        assert_eq!(buffer.next(), Some('r'));
+        assert_eq!(buffer.next(), Some('o'));
+        assert_eq!(buffer.next(), Some('v'));
+        assert_eq!(buffer.next(), Some('a'));
+        assert_eq!(buffer.peek_nth(0), None);
+        assert_eq!(buffer.peek_nth(1), None);
+        assert_eq!(buffer.next(), None);
+    }
 }

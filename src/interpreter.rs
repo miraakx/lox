@@ -3,7 +3,7 @@ use std::{fmt::Debug, rc::Rc, cell::RefCell};
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::clock, value::{Value, is_truthy, is_equal, ClassInstance}, alias::{IdentifierSymbol, ExprId, SideTable}};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::{clock, assert_eq}, value::{Value, ClassInstance}, alias::{IdentifierSymbol, ExprId, SideTable}};
 
 pub struct Interpreter<'a>
 {
@@ -31,7 +31,9 @@ impl <'a> Interpreter<'a>
 
     fn define_native_functions(&mut self) {
         let clock_symbol  = self.string_interner.get_or_intern_static("clock");
+        let assert_eq_symbol  = self.string_interner.get_or_intern_static("assertEq");
         self.global_scope.define_variable(clock_symbol, Value::Callable(Callable::Clock));
+        self.global_scope.define_variable(assert_eq_symbol, Value::Callable(Callable::AssertEq));
     }
 
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
@@ -71,6 +73,7 @@ impl <'a> Interpreter<'a>
                             Callable::InitFunction(fun_decl, _) => println!("<fn (init): '{}'>", self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
                             Callable::Class(class_decl, _)         => println!("<class: '{}'>",     self.string_interner.resolve(class_decl.identifier.name).unwrap()),
                             Callable::Clock                                              => println!("<fn (native): 'clock'>"),
+                            Callable::AssertEq                                           => println!("<fn (native): 'assertEq'>"),
                         }
                     },
                     Value::ClassInstance(class_instance) => println!("Instance of class: '{}'", self.string_interner.resolve(class_instance.declaration.identifier.name).unwrap()),
@@ -123,7 +126,7 @@ impl <'a> Interpreter<'a>
             Stmt::If(if_stmt) =>
             {
                 let condition_value = self.evaluate(&if_stmt.condition, environment)?;
-                if is_truthy(&condition_value) {
+                if condition_value.is_truthy() {
                     self.execute_stmt(&if_stmt.then_stmt, environment)
                 } else {
                     Ok(State::Normal)
@@ -132,7 +135,7 @@ impl <'a> Interpreter<'a>
             Stmt::IfElse(if_else_stmt) =>
             {
                 let condition_value = self.evaluate(&if_else_stmt.condition, environment)?;
-                if is_truthy(&condition_value) {
+                if condition_value.is_truthy() {
                     self.execute_stmt(&if_else_stmt.then_stmt, environment)
                 } else {
                     self.execute_stmt(&if_else_stmt.else_stmt, environment)
@@ -140,7 +143,7 @@ impl <'a> Interpreter<'a>
             },
             Stmt::While(while_stmt) =>
             {
-                while is_truthy(&self.evaluate(&while_stmt.condition, environment)?)
+                while self.evaluate(&while_stmt.condition, environment)?.is_truthy()
                 {
                     let state = self.execute_stmt(&while_stmt.body, environment)?;
                     match state
@@ -172,7 +175,7 @@ impl <'a> Interpreter<'a>
                     self.execute_stmt(initializer, environment)?;
                 }
 
-                while is_truthy(&self.evaluate_or(&for_stmt.opt_condition, Value::Bool(true), environment)?)
+                while self.evaluate_or(&for_stmt.opt_condition, Value::Bool(true), environment)?.is_truthy()
                 {
                     let state = self.execute_stmt(&for_stmt.body, environment)?;
                     match state
@@ -255,7 +258,7 @@ impl <'a> Interpreter<'a>
                     },
                     UnaryOperatorKind::Bang =>
                     {
-                        Ok(Value::Bool(!is_truthy(&val_right)))
+                        Ok(Value::Bool(!val_right.is_truthy()))
                     }
                 }
             },
@@ -361,11 +364,11 @@ impl <'a> Interpreter<'a>
                     },
                     BinaryOperatorKind::EqualEqual =>
                     {
-                        Ok(Value::Bool(is_equal(val_left, val_right)))
+                        Ok(Value::Bool(val_left == val_right))
                     },
                     BinaryOperatorKind::BangEqual =>
                     {
-                        Ok(Value::Bool(!is_equal(val_left, val_right)))
+                        Ok(Value::Bool(val_left != val_right))
                     }
                 }
             }
@@ -383,7 +386,7 @@ impl <'a> Interpreter<'a>
             ExprKind::Assign(assign_expr) =>
             {
                 let value = self.evaluate(&assign_expr.expr, environment)?;
-                match self.assign_variable(environment, assign_expr.identifier.name, &value, expr.id)
+                match self.assign_variable(environment, assign_expr.identifier.name, &value, assign_expr.expr.id)
                 {
                     Ok(_) => {
                         Ok(value)
@@ -399,14 +402,14 @@ impl <'a> Interpreter<'a>
                 match logica_expr.operator.kind
                 {
                     LogicalOperatorKind::Or => {
-                        if is_truthy(&val_left) {
+                        if val_left.is_truthy() {
                             Ok(val_left)
                         } else {
                             self.evaluate(&logica_expr.right, environment)
                         }
                     },
                     LogicalOperatorKind::And => {
-                        if !is_truthy(&val_left) {
+                        if !val_left.is_truthy() {
                             Ok(val_left)
                         } else {
                             self.evaluate(&logica_expr.right, environment)
@@ -546,7 +549,8 @@ pub enum Callable
     Function(Rc<FunctionDeclaration>, Environment),
     InitFunction(Rc<FunctionDeclaration>, Environment),
     Class(Rc<ClassDeclaration>, Environment),
-    Clock
+    Clock,
+    AssertEq
 }
 
 impl Callable
@@ -572,6 +576,7 @@ impl Callable
                 }
             },
             Self::Clock => { 0 }
+            Self::AssertEq => { 2 },
         }
     }
 
@@ -624,6 +629,17 @@ impl Callable
                     Err(error) => Err(LoxError::interpreter_error(error, *position))
                 }
             },
+            Self::AssertEq =>
+            {
+                let actual   = interpreter.evaluate(&args_expr[0], interpreter_environment)?;
+                let expected = interpreter.evaluate(&args_expr[1], interpreter_environment)?;
+                match assert_eq(actual, expected) {
+                    Ok(_) => {
+                        Ok(Value::Nil)
+                    },
+                    Err(error) => Err(LoxError::interpreter_error(error, *position)),
+                }
+            },
         }
     }
 
@@ -652,4 +668,132 @@ fn function_call(
     function_environment.remove_local_scope();
 
     Ok(state)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn associativity() {
+        let code =
+        "
+            var a = \"a\";
+            var b = \"b\";
+            var c = \"c\";
+
+            // Assignment is right-associative.
+            a = b = c;
+
+            assertEq(c, \"c\");
+            assertEq(b, \"c\");
+            assertEq(a, \"c\");
+        ";
+        assert_eq!(crate::run::run(code), Ok(()));
+    }
+
+    #[test]
+    fn global() {
+        let code =
+        "
+            var a = \"before\";
+            assertEq(a, \"before\");
+
+            a = \"after\";
+            assertEq(a, \"after\");
+
+            assertEq(a = \"arg\", \"arg\"); // expect: arg
+            assertEq(a, \"arg\"); // expect: arg
+        ";
+        assert_eq!(crate::run::run(code), Ok(()));
+    }
+
+    #[test]
+    fn grouping() {
+        let code =
+        "
+            var a = \"a\";
+            (a) = \"value\"; // Error at '=': Invalid assignment target.
+        ";
+
+        let result = crate::run::run(code);
+        assert_eq!(result, Err(()));
+    }
+
+    #[test]
+    fn infix_operator() {
+        let code =
+
+"var a = \"a\";
+var b = \"b\";
+a + b = \"value\"; // Error at '=': Invalid assignment target.";
+
+        let result = crate::run::run(code);
+        assert_eq!(result, Err(()));
+    }
+
+    #[test]
+    fn local() {
+        let code =
+"{
+    var a = \"before\";
+    assertEq(a, \"before\"); // expect: before
+
+    a = \"after\";
+    assertEq(a, \"after\"); // expect: after
+
+    assertEq(a = \"arg\", \"arg\"); // expect: arg
+    assertEq(a, \"arg\"); // expect: arg
+}";
+        let result = crate::run::run(code);
+        assert_eq!(result, Ok(()));
+    }
+
+    #[test]
+    fn prefix_operator() {
+        let code =
+
+"var a = \"a\";
+!a = \"value\"; // Error at '=': Invalid assignment target.";
+
+        let result = crate::run::run(code);
+        assert_eq!(result, Err(()));
+    }
+
+    #[test]
+    fn syntax() {
+        let code =
+
+"// Assignment on RHS of variable.
+var a = \"before\";
+var c = a = \"var\";
+assertEq(a, \"var\"); // expect: var
+assertEq(c, \"var\"); // expect: var";
+
+        let result = crate::run::run(code);
+        assert_eq!(result, Ok(()));
+    }
+
+    #[test]
+    fn to_this() {
+        let code =
+
+"class Foo {
+    Foo() {
+      this = \"value\"; // Error at '=': Invalid assignment target.
+    }
+}
+Foo();";
+
+        let result = crate::run::run(code);
+        assert_eq!(result, Err(()));
+    }
+
+    #[test]
+    fn undefined() {
+        let code =
+
+"unknown = \"what\"; // expect runtime error: Undefined variable 'unknown'.";
+
+        let result = crate::run::run(code);
+        assert_eq!(result, Err(()));
+    }
 }

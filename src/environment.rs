@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{value::Value, alias::IdentifierSymbol, tiny_vec::TinyVec};
+use crate::{value::Value, alias::IdentifierSymbol};
 
 #[derive(Clone, Debug)]
 pub struct Environment
@@ -59,7 +59,7 @@ impl Environment
 
 #[derive(Clone, Debug)]
 pub struct Scope {
-    map: TinyVec<(IdentifierSymbol, Value), 1>
+    map: Vec<(IdentifierSymbol, Value)>
 }
 
 impl Default for Scope
@@ -74,7 +74,7 @@ impl Scope
     #[inline]
     pub const fn new() -> Self
     {
-        Self { map: TinyVec::<(IdentifierSymbol, Value), 1>::new() }
+        Self { map: Vec::<(IdentifierSymbol, Value)>::new() }
     }
 
     #[inline]
@@ -105,10 +105,9 @@ impl Scope
     #[inline]
     pub fn assign_variable(&mut self, variable: IdentifierSymbol, var_value: &Value) -> Result<(), ()>
     {
-        for (index, value) in self.map.into_iter().enumerate() {
-            if value.0 == variable {
-                let clone = var_value.clone();
-                self.map.set(index, (variable, clone));
+        for (index, (name, _)) in self.map.iter().enumerate() {
+            if *name == variable {
+                self.map[index] = (variable, var_value.clone());
                 return Ok(());
             }
         }

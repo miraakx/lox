@@ -157,72 +157,77 @@ impl<T: Clone, const SIZE: usize> Index<usize> for TinyVec<T, SIZE> {
     }
 }
 
-#[test]
-fn test_stack()
-{
-    let mut prova: TinyVec<i32, 3> = TinyVec::Stack([None, None, None], 0);
-    prova.push(1);
-    prova.push(2);
-    prova.push(3);
-    assert_eq!(prova[0], 1);
-    assert_eq!(prova[1], 2);
-    assert_eq!(prova[2], 3);
-}
+#[cfg(test)]
+mod tests {
+    use crate::tiny_vec::TinyVec;
 
-#[test]
-fn test_heap()
-{
-    let mut prova: TinyVec<i32, 3> = TinyVec::Stack([None, None, None], 0);
-    prova.push(1);
-    prova.push(2);
-    prova.push(3);
-    prova.push(4);
-    prova.push(5);
-    assert_eq!(prova[0], 1);
-    assert_eq!(prova[1], 2);
-    assert_eq!(prova[2], 3);
-    assert_eq!(prova[3], 4);
-    assert_eq!(prova[4], 5);
-}
+    #[test]
+    fn test_stack()
+    {
+        let mut prova: TinyVec<i32, 3> = TinyVec::Stack([None, None, None], 0);
+        prova.push(1);
+        prova.push(2);
+        prova.push(3);
+        assert_eq!(prova[0], 1);
+        assert_eq!(prova[1], 2);
+        assert_eq!(prova[2], 3);
+    }
 
-#[test]
-fn test_set()
-{
-    let mut prova: TinyVec<i32, 3> = TinyVec::Stack([None, None, None], 0);
-    prova.push(1);
-    prova.push(2);
-    prova.push(3);
-    prova.push(4);
-    prova.push(5);
-    prova.set(0, -1);
-    prova.set(1, -2);
-    prova.set(2, -3);
-    prova.set(3, -4);
-    prova.set(4, -5);
-    assert_eq!(prova[0], -1);
-    assert_eq!(prova[1], -2);
-    assert_eq!(prova[2], -3);
-    assert_eq!(prova[3], -4);
-    assert_eq!(prova[4], -5);
-}
+    #[test]
+    fn test_heap()
+    {
+        let mut prova: TinyVec<i32, 3> = TinyVec::Stack([None, None, None], 0);
+        prova.push(1);
+        prova.push(2);
+        prova.push(3);
+        prova.push(4);
+        prova.push(5);
+        assert_eq!(prova[0], 1);
+        assert_eq!(prova[1], 2);
+        assert_eq!(prova[2], 3);
+        assert_eq!(prova[3], 4);
+        assert_eq!(prova[4], 5);
+    }
 
-#[test]
-fn test_set_2()
-{
-    let mut prova: TinyVec<i32, 1> = TinyVec::Stack([None], 0);
-    prova.push(1);
-    prova.push(2);
-    prova.push(3);
-    prova.push(4);
-    prova.push(5);
-    prova.set(0, -1);
-    prova.set(4, -2);
-    prova.set(0, -3);
-    prova.set(0, -4);
-    prova.set(0, -5);
-    assert_eq!(prova[0], -5);
-    assert_eq!(prova[1], 2);
-    assert_eq!(prova[2], 3);
-    assert_eq!(prova[3], 4);
-    assert_eq!(prova[4], -2);
+    #[test]
+    fn test_set()
+    {
+        let mut prova: TinyVec<i32, 3> = TinyVec::Stack([None, None, None], 0);
+        prova.push(1);
+        prova.push(2);
+        prova.push(3);
+        prova.push(4);
+        prova.push(5);
+        prova.set(0, -1);
+        prova.set(1, -2);
+        prova.set(2, -3);
+        prova.set(3, -4);
+        prova.set(4, -5);
+        assert_eq!(prova[0], -1);
+        assert_eq!(prova[1], -2);
+        assert_eq!(prova[2], -3);
+        assert_eq!(prova[3], -4);
+        assert_eq!(prova[4], -5);
+    }
+
+    #[test]
+    fn test_set_2()
+    {
+        let mut prova: TinyVec<i32, 1> = TinyVec::Stack([None], 0);
+        prova.push(1);
+        prova.push(2);
+        prova.push(3);
+        prova.push(4);
+        prova.push(5);
+        prova.set(0, -1);
+        prova.set(4, -2);
+        prova.set(0, -3);
+        prova.set(0, -4);
+        prova.set(0, -5);
+        assert_eq!(prova[0], -5);
+        assert_eq!(prova[1], 2);
+        assert_eq!(prova[2], 3);
+        assert_eq!(prova[3], 4);
+        assert_eq!(prova[4], -2);
+    }
 }

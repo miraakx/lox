@@ -10,7 +10,7 @@ pub struct Token
     pub position: Position
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenKind
 {
     LeftParen,       RightParen,
@@ -38,7 +38,7 @@ pub enum TokenKind
     Eof
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Identifier {
     pub name: IdentifierSymbol,
     pub position: Position

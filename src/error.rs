@@ -99,7 +99,8 @@ pub enum InterpreterErrorKind
     InvalidPropertyAccess,
     UdefinedProperty(String),
     UdefinedVariableUsage(String),
-    UdefinedVariableAssignment(String)
+    UdefinedVariableAssignment(String),
+    AssertionFailure
 }
 
 impl fmt::Display for InterpreterErrorKind
@@ -107,15 +108,16 @@ impl fmt::Display for InterpreterErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match self {
-            Self::IncompatibleBinaryOpTypes                 => write!(f, "Both expressions side are not of the same type"),
-            Self::InvalidUnaryType                          => write!(f, "Invalid unary type"),
-            Self::NotCallable                               => write!(f, "Not a callable expression"),
-            Self::WrongArity(expected, found)   => write!(f, "Expected {} arguments, found {}", expected, found),
-            Self::NativeClockSysTimeError                   => write!(f, "System time error calling clock()"),
-            Self::InvalidPropertyAccess                     => write!(f, "Only instances have properties"),
-            Self::UdefinedProperty(value)       => write!(f, "Undefined property '{}'", value),
+            Self::IncompatibleBinaryOpTypes                   => write!(f, "Both expressions side are not of the same type"),
+            Self::InvalidUnaryType                            => write!(f, "Invalid unary type"),
+            Self::NotCallable                                 => write!(f, "Not a callable expression"),
+            Self::WrongArity(expected, found) => write!(f, "Expected {} arguments, found {}", expected, found),
+            Self::NativeClockSysTimeError                     => write!(f, "System time error calling clock()"),
+            Self::InvalidPropertyAccess                       => write!(f, "Only instances have properties"),
+            Self::UdefinedProperty(value)            => write!(f, "Undefined property '{}'", value),
             Self::UdefinedVariableUsage(value)       => write!(f, "Undefined variable. Tryng to evaluate undefined variable '{}'", value),
             Self::UdefinedVariableAssignment(value)  => write!(f, "Undefined variable. Tryng to assign to undefined variable '{}'", value),
+            Self::AssertionFailure                            => write!(f, "Assertion failure"),
         }
     }
 }
