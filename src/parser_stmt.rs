@@ -28,6 +28,50 @@ pub enum Stmt
     Print   (Expr),
 }
 
+
+#[derive(Clone, Debug)]
+pub struct FunctionDeclaration
+{
+    pub identifier: Identifier,
+    pub parameters: Vec<IdentifierSymbol>,
+    pub positions: Vec<Position>,
+    pub body: Stmt
+}
+
+impl FunctionDeclaration
+{
+    pub fn new(identifier: Identifier, parameters: Vec<Identifier>, body: Stmt) -> Self
+    {
+        Self
+        {
+            identifier,
+            parameters: parameters.iter().map(|p| p.name).collect(),
+            positions: parameters.iter().map(|p| p.position).collect(),
+            body
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ClassDeclaration
+{
+    pub identifier: Identifier,
+    pub methods: FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>
+}
+
+impl ClassDeclaration
+{
+    fn new(identifier: Identifier) -> Self
+    {
+        Self {identifier, methods: FxHashMap::default()}
+    }
+
+    fn insert_method(&mut self, name: IdentifierSymbol, method_declaration: FunctionDeclaration)
+    {
+        self.methods.insert(name, Rc::new(method_declaration));
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ForStmt {
     pub opt_initializer: Option<Stmt>,
@@ -360,48 +404,5 @@ impl Parser
         let expr = expression(token_source)?;
         consume(token_source, TokenKind::Semicolon)?;
         Ok(Stmt::Expr(expr))
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct FunctionDeclaration
-{
-    pub identifier: Identifier,
-    pub parameters: Vec<IdentifierSymbol>,
-    pub positions: Vec<Position>,
-    pub body: Stmt
-}
-
-impl FunctionDeclaration
-{
-    pub fn new(identifier: Identifier, parameters: Vec<Identifier>, body: Stmt) -> Self
-    {
-        Self
-        {
-            identifier,
-            parameters: parameters.iter().map(|p| p.name).collect(),
-            positions: parameters.iter().map(|p| p.position).collect(),
-            body
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct ClassDeclaration
-{
-    pub identifier: Identifier,
-    pub methods: FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>
-}
-
-impl ClassDeclaration
-{
-    fn new(identifier: Identifier) -> Self
-    {
-        Self {identifier, methods: FxHashMap::default()}
-    }
-
-    fn insert_method(&mut self, name: IdentifierSymbol, method_declaration: FunctionDeclaration)
-    {
-        self.methods.insert(name, Rc::new(method_declaration));
     }
 }

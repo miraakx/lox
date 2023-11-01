@@ -1,12 +1,10 @@
-use std::mem::size_of;
-
 use error::ConsoleErrorLogger;
 use interpreter::Interpreter;
 use parser_stmt::Parser;
 use resolver::Resolver;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::Stmt, parser_expr::Expr, tokens::{Position}, value::Value};
+use crate::parser_stmt::Stmt;
 
 mod common;
 mod error;

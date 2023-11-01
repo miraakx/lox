@@ -31,7 +31,7 @@ impl <'a> Interpreter<'a>
 
     fn define_native_functions(&mut self) {
         let clock_symbol  = self.string_interner.get_or_intern_static("clock");
-        self.global_scope.define_variable(clock_symbol, Value::Callable(Box::new(Callable::Clock)));
+        self.global_scope.define_variable(clock_symbol, Value::Callable(Callable::Clock));
     }
 
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
@@ -66,7 +66,7 @@ impl <'a> Interpreter<'a>
                     Value::Bool(boolean)          => println!("{}", boolean),
                     Value::Nil                          => println!("nil"),
                     Value::Callable(callable) => {
-                        match *callable {
+                        match callable {
                             Callable::Function(fun_decl, _)     => println!("<fn: '{}'>",        self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
                             Callable::InitFunction(fun_decl, _) => println!("<fn (init): '{}'>", self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
                             Callable::Class(class_decl, _)         => println!("<class: '{}'>",     self.string_interner.resolve(class_decl.identifier.name).unwrap()),
@@ -197,7 +197,7 @@ impl <'a> Interpreter<'a>
                 let function = Callable::Function(Rc::clone(declaration), environment.clone());
                 self.define_variable(environment,
                         declaration.identifier.name,
-                        Value::Callable(Box::new(function))
+                        Value::Callable(function)
                     );
                 Ok(State::Normal)
             },
@@ -207,7 +207,7 @@ impl <'a> Interpreter<'a>
                 let callable = Callable::Class(Rc::clone(class_declaration), environment.clone());
                 self.define_variable(environment,
                     class_declaration.identifier.name,
-                    Value::Callable(Box::new(callable))
+                    Value::Callable(callable)
                 );
                 Ok(State::Normal)
             },
@@ -457,7 +457,7 @@ impl <'a> Interpreter<'a>
                                 } else {
                                     Callable::Function(Rc::clone(method), environment_clone)
                                 };
-                                return Ok(Value::Callable(Box::new(callable)));
+                                return Ok(Value::Callable(callable));
                             }
                         }
                         return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(get_expr.identifier.name).unwrap().to_owned()), get_expr.identifier.position));
@@ -604,7 +604,7 @@ impl Callable
             Self::Class(declaration, environment) =>
             {
                 let instance = Value::ClassInstance(
-                    Box::new(ClassInstance { declaration: Rc::clone(declaration), attributes: Rc::new(RefCell::new(FxHashMap::default())) })
+                    ClassInstance { declaration: Rc::clone(declaration), attributes: Rc::new(RefCell::new(FxHashMap::default())) }
                 );
                 //>call init method (if it exists)
                 if let Some(init) = declaration.methods.get(&interpreter.init_symbol)

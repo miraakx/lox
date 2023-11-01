@@ -10,8 +10,8 @@ pub enum Value {
     Number(f64),
     Bool(bool),
     Nil,
-    Callable(Box<Callable>),
-    ClassInstance(Box<ClassInstance>)
+    Callable(Callable),
+    ClassInstance(ClassInstance)
 }
 
 impl Value
