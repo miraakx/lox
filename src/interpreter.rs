@@ -450,13 +450,13 @@ impl <'a> Interpreter<'a>
                                 //>define new closure for the current method
                                 let mut environment_clone = environment.clone();
                                 let scope: Rc<RefCell<Scope>> = environment_clone.new_local_scope();
-                                scope.borrow_mut().define_variable(self.this_symbol, instance.clone());
                                 let callable =
                                 if method.identifier.name == self.init_symbol {
                                     Callable::InitFunction(Rc::clone(method), environment_clone)
                                 } else {
                                     Callable::Function(Rc::clone(method), environment_clone)
                                 };
+                                scope.borrow_mut().define_variable(self.this_symbol, instance);
                                 return Ok(Value::Callable(callable));
                             }
                         }
