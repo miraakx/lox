@@ -3,7 +3,7 @@ use std::rc::Rc;
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind}, alias::{IdentifierSymbol, SideTable}, tokens::{Position, THIS}};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind, ExecutionResult}, alias::{IdentifierSymbol, SideTable}, tokens::{Position, THIS}};
 
 pub struct Resolver<'a>
 {
@@ -42,7 +42,7 @@ impl <'a> Resolver<'a>
         self.has_error = true;
     }
 
-    pub fn resolve(&mut self, stmts: &[Stmt]) -> Result<SideTable,()>
+    pub fn resolve(&mut self, stmts: &[Stmt]) -> Result<SideTable, ExecutionResult>
     {
         let mut side_table: SideTable = FxHashMap::default();
         for stmt in stmts
@@ -50,7 +50,7 @@ impl <'a> Resolver<'a>
             self.resolve_stmt(stmt, self.current_function, self.current_class, &mut side_table);
         }
         if self.has_error {
-            Err(())
+            Err(ExecutionResult::ResolverError)
         } else {
             Ok(side_table)
         }

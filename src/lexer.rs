@@ -1,8 +1,8 @@
-use std::{rc::Rc, cell::RefCell};
+use std::rc::Rc;
 
 use string_interner::StringInterner;
 
-use crate::{common::Scanner, tokens::*, error::*, value::Value, parser_stmt::Parser};
+use crate::{common::Scanner, tokens::*, error::*, value::Value};
 
 pub struct Lexer<'a>
 {

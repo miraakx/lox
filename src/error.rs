@@ -154,6 +154,11 @@ impl fmt::Display for ParserErrorKind
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ExecutionResult {
+    ParserError, ResolverError, RuntimeError, CannotReadFile
+ }
+
 pub trait ErrorLogger
 {
     fn log(&mut self, error: LoxError);

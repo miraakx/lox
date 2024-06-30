@@ -1,22 +1,23 @@
-use std::{fmt::Debug, rc::Rc, cell::RefCell};
+use std::{fmt::Debug, rc::Rc, cell::RefCell, io::Write};
 
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind}, parser_expr::{Expr, ExprKind}, native::{clock, assert_eq}, value::{Value, ClassInstance}, alias::{IdentifierSymbol, ExprId, SideTable}};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind, ExecutionResult}, parser_expr::{Expr, ExprKind}, native::{clock, assert_eq, to_string}, value::{Value, ClassInstance}, alias::{IdentifierSymbol, ExprId, SideTable}};
 
-pub struct Interpreter<'a>
+pub struct Interpreter<'a, 'b>
 {
     string_interner:   &'a mut StringInterner,
     side_table:        SideTable,
     global_scope:      Scope,
     this_symbol:       IdentifierSymbol,
-    init_symbol:       IdentifierSymbol
+    init_symbol:       IdentifierSymbol,
+    writer:            Box<&'b mut dyn Write>
 }
 
-impl <'a> Interpreter<'a>
+impl <'a, 'b> Interpreter<'a, 'b>
 {
-    pub fn new(string_interner: &'a mut StringInterner, side_table: SideTable) -> Self
+    pub fn new_with_writer(string_interner: &'a mut StringInterner, side_table: SideTable, writer: Box<&'b mut dyn Write>) -> Self
     {
         let this_symbol   = string_interner.get_or_intern_static("this");
         let init_symbol   = string_interner.get_or_intern_static("init");
@@ -25,18 +26,21 @@ impl <'a> Interpreter<'a>
             side_table,
             global_scope: Scope::new(),
             this_symbol,
-            init_symbol
+            init_symbol,
+            writer
         }
     }
 
     fn define_native_functions(&mut self) {
         let clock_symbol  = self.string_interner.get_or_intern_static("clock");
         let assert_eq_symbol  = self.string_interner.get_or_intern_static("assertEq");
+        let str_symbol  = self.string_interner.get_or_intern_static("str");
         self.global_scope.define_variable(clock_symbol, Value::Callable(Callable::Clock));
         self.global_scope.define_variable(assert_eq_symbol, Value::Callable(Callable::AssertEq));
+        self.global_scope.define_variable(str_symbol, Value::Callable(Callable::Str));
     }
 
-    pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ()>
+    pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ExecutionResult>
     {
         let mut environment = Environment::new();
 
@@ -49,11 +53,16 @@ impl <'a> Interpreter<'a>
                 Ok(_) => {}
                 Err(err) => {
                     println!("{}", err);
-                    return Err(());
+                    return Err(ExecutionResult::RuntimeError);
                 },
             }
         }
         Ok(())
+    }
+
+    #[inline]
+    fn write_line(&mut self, message: &str) {
+        let _ = writeln!(self.writer, "{}", message);
     }
 
     fn execute_stmt(&mut self, stmt: &Stmt, environment: &mut Environment) -> Result<State, LoxError>
@@ -62,22 +71,8 @@ impl <'a> Interpreter<'a>
         {
             Stmt::Print(expr) =>
             {
-                match self.evaluate(expr, environment)? {
-                    Value::String(string)   => println!("{}", string),
-                    Value::Number(number)          => println!("{}", number),
-                    Value::Bool(boolean)          => println!("{}", boolean),
-                    Value::Nil                          => println!("nil"),
-                    Value::Callable(callable) => {
-                        match callable {
-                            Callable::Function(fun_decl, _)     => println!("<fn: '{}'>",        self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
-                            Callable::InitFunction(fun_decl, _) => println!("<fn (init): '{}'>", self.string_interner.resolve(fun_decl.identifier.name).unwrap()),
-                            Callable::Class(class_decl, _)         => println!("<class: '{}'>",     self.string_interner.resolve(class_decl.identifier.name).unwrap()),
-                            Callable::Clock                                              => println!("<fn (native): 'clock'>"),
-                            Callable::AssertEq                                           => println!("<fn (native): 'assertEq'>"),
-                        }
-                    },
-                    Value::ClassInstance(class_instance) => println!("Instance of class: '{}'", self.string_interner.resolve(class_instance.declaration.identifier.name).unwrap()),
-                }
+                let val = self.evaluate(expr, environment)?;
+                self.write_line(&to_string(val, &self.string_interner));
                 Ok(State::Normal)
             },
             Stmt::Expr(expr) =>
@@ -550,7 +545,8 @@ pub enum Callable
     InitFunction(Rc<FunctionDeclaration>, Environment),
     Class(Rc<ClassDeclaration>, Environment),
     Clock,
-    AssertEq
+    AssertEq,
+    Str
 }
 
 impl Callable
@@ -577,6 +573,7 @@ impl Callable
             },
             Self::Clock => { 0 }
             Self::AssertEq => { 2 },
+            Self::Str => { 1 },
         }
     }
 
@@ -640,6 +637,10 @@ impl Callable
                     Err(error) => Err(LoxError::interpreter_error(error, *position)),
                 }
             },
+            Self::Str => {
+                let value   = interpreter.evaluate(&args_expr[0], interpreter_environment)?;
+                Ok(Value::String(Rc::new(to_string(value, &interpreter.string_interner))))
+            },
         }
     }
 
@@ -647,7 +648,7 @@ impl Callable
 
 #[inline]
 fn function_call(
-    interpreter:             &mut Interpreter<'_>,
+    interpreter:             &mut Interpreter<'_, '_>,
     interpreter_environment: &mut Environment,
     function_environment:    &mut Environment,
     declaration:             &mut Rc<FunctionDeclaration>,
@@ -672,128 +673,227 @@ fn function_call(
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn associativity() {
-        let code =
-        "
-            var a = \"a\";
-            var b = \"b\";
-            var c = \"c\";
+    use std::fs;
 
-            // Assignment is right-associative.
-            a = b = c;
+    use crate::run;
 
-            assertEq(c, \"c\");
-            assertEq(b, \"c\");
-            assertEq(a, \"c\");
-        ";
-        assert_eq!(crate::run::run(code), Ok(()));
+    mod assignment {
+
+        use super::test;
+
+        #[test]
+        fn associativity() {
+            test("./lox_test/assignment/associativity.lox")
+        }
+
+        #[test]
+        fn global() {
+            test("./lox_test/assignment/global.lox");
+        }
+
+        #[test]
+        fn grouping() {
+            test("./lox_test/assignment/grouping.lox");
+        }
+
+        #[test]
+        fn infix_operator() {
+            test("./lox_test/assignment/infix_operator.lox");
+        }
+
+        #[test]
+        fn local() {
+            test("./lox_test/assignment/local.lox");
+        }
+
+        #[test]
+        fn prefix_operator() {
+            test("./lox_test/assignment/prefix_operator.lox");
+        }
+
+        #[test]
+        fn syntax() {
+            test("./lox_test/assignment/syntax.lox");
+        }
+
+        #[test]
+        fn to_this() {
+            test("./lox_test/assignment/to_this.lox");
+        }
+
+        #[test]
+        fn undefined() {
+            test("./lox_test/assignment/undefined.lox");
+        }
+
     }
 
-    #[test]
-    fn global() {
-        let code =
-        "
-            var a = \"before\";
-            assertEq(a, \"before\");
+    mod block {
+        use super::test;
 
-            a = \"after\";
-            assertEq(a, \"after\");
+        #[test]
+        fn empty() {
+            test("./lox_test/block/empty.lox");
+        }
 
-            assertEq(a = \"arg\", \"arg\"); // expect: arg
-            assertEq(a, \"arg\"); // expect: arg
-        ";
-        assert_eq!(crate::run::run(code), Ok(()));
+        #[test]
+        fn scope() {
+            test("./lox_test/block/scope.lox");
+        }
     }
 
-    #[test]
-    fn grouping() {
-        let code =
-        "
-            var a = \"a\";
-            (a) = \"value\"; // Error at '=': Invalid assignment target.
-        ";
+    mod bool {
+        use super::test;
 
-        let result = crate::run::run(code);
-        assert_eq!(result, Err(()));
+        #[test]
+        fn equality() {
+            test("./lox_test/bool/equality.lox");
+        }
+
+        #[test]
+        fn scope() {
+            test("./lox_test/bool/not.lox");
+        }
     }
 
-    #[test]
-    fn infix_operator() {
-        let code =
+    mod call {
+        use super::test;
 
-"var a = \"a\";
-var b = \"b\";
-a + b = \"value\"; // Error at '=': Invalid assignment target.";
+        #[test]
+        fn bool() {
+            test("./lox_test/call/bool.lox");
+        }
 
-        let result = crate::run::run(code);
-        assert_eq!(result, Err(()));
+        #[test]
+        fn nil() {
+            test("./lox_test/call/nil.lox");
+        }
+
+        #[test]
+        fn num() {
+            test("./lox_test/call/num.lox");
+        }
+
+        #[test]
+        fn object() {
+            test("./lox_test/call/object.lox");
+        }
+
+        #[test]
+        fn string() {
+            test("./lox_test/call/string.lox");
+        }
     }
 
-    #[test]
-    fn local() {
-        let code =
-"{
-    var a = \"before\";
-    assertEq(a, \"before\"); // expect: before
+    mod class {
+        use super::test;
 
-    a = \"after\";
-    assertEq(a, \"after\"); // expect: after
+        #[test]
+        fn empty() {
+            test("./lox_test/class/empty.lox");
+        }
 
-    assertEq(a = \"arg\", \"arg\"); // expect: arg
-    assertEq(a, \"arg\"); // expect: arg
-}";
-        let result = crate::run::run(code);
-        assert_eq!(result, Ok(()));
+        #[test]
+        fn inherit_self() {
+            test("./lox_test/class/inherit_self.lox");
+        }
+
+        #[test]
+        fn inherited_method() {
+            test("./lox_test/class/inherited_method.lox");
+        }
+
+        #[test]
+        fn local_inherit_other() {
+            test("./lox_test/class/local_inherit_other.lox");
+        }
+
+        #[test]
+        fn local_inherit_self() {
+            test("./lox_test/class/local_inherit_self.lox");
+        }
+
+        #[test]
+        fn local_reference_self() {
+            test("./lox_test/class/local_reference_self.lox");
+        }
+
+        #[test]
+        fn reference_self() {
+            test("./lox_test/class/reference_self.lox");
+        }
     }
 
-    #[test]
-    fn prefix_operator() {
-        let code =
-
-"var a = \"a\";
-!a = \"value\"; // Error at '=': Invalid assignment target.";
-
-        let result = crate::run::run(code);
-        assert_eq!(result, Err(()));
+    enum Expect {
+        Output(Vec<String>), RuntimeError, ErrorAt
     }
 
-    #[test]
-    fn syntax() {
-        let code =
+    fn expected_result(file_path: &str) -> Expect
+    {
+        let code = fs::read_to_string(file_path).unwrap();
 
-"// Assignment on RHS of variable.
-var a = \"before\";
-var c = a = \"var\";
-assertEq(a, \"var\"); // expect: var
-assertEq(c, \"var\"); // expect: var";
+        let expect = regex::Regex::new(r"// expect: (\w+)").expect("Errore nell'espressione regolare 'expect'");
+        let error_at = regex::Regex::new(r" Error at ").expect("Errore nell'espressione regolare 'error_at'");
+        let runtime_error = regex::Regex::new(r"// expect runtime error: ").expect("Errore nell'espressione regolare 'runtime_error'");
 
-        let result = crate::run::run(code);
-        assert_eq!(result, Ok(()));
+        let mut vec = Vec::<String>::new();
+        for line in code.lines()
+        {
+            if let Some(captures) = expect.captures(&line)
+            {
+                if let Some(word) = captures.get(1)
+                {
+                    vec.push(word.as_str().to_owned());
+                }
+            }
+            if error_at.is_match(line)
+            {
+                if !vec.is_empty() {
+                    panic!("expected result got error_at");
+                }
+                return Expect::ErrorAt;
+            }
+            if runtime_error.is_match(line)
+            {
+                if !vec.is_empty() {
+                    panic!("expected result got runtime_error");
+                }
+                return Expect::RuntimeError;
+            }
+        }
+
+        return Expect::Output(vec);
     }
 
-    #[test]
-    fn to_this() {
-        let code =
-
-"class Foo {
-    Foo() {
-      this = \"value\"; // Error at '=': Invalid assignment target.
+    fn test(file_path: &str)
+    {
+        let mut buf_output = Vec::<u8>::new();
+        match expected_result(file_path)
+        {
+            Expect::Output(buf_expected) =>
+            {
+                run::run_file(file_path, Box::new(&mut buf_output)).expect(&format!("Expected test to be Ok but got Err at file: '{}'",file_path));
+                let lines = std::str::from_utf8(&buf_output).unwrap().lines();
+                if buf_expected.is_empty() {
+                    panic!("test buf_expected should not be empty");
+                }
+                if buf_output.is_empty() {
+                    panic!("test buf_output should not be empty");
+                }
+                for (expected_value, actual_value) in buf_expected.iter().zip(lines)
+                {
+                    assert_eq!(expected_value, actual_value);
+                }
+            },
+            Expect::RuntimeError =>
+            {
+                run::run_file(file_path, Box::new(&mut buf_output)).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'",file_path));
+            },
+            Expect::ErrorAt =>
+            {
+                run::run_file(file_path, Box::new(&mut buf_output)).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'",file_path));
+            },
+        }
     }
-}
-Foo();";
 
-        let result = crate::run::run(code);
-        assert_eq!(result, Err(()));
-    }
-
-    #[test]
-    fn undefined() {
-        let code =
-
-"unknown = \"what\"; // expect runtime error: Undefined variable 'unknown'.";
-
-        let result = crate::run::run(code);
-        assert_eq!(result, Err(()));
-    }
 }

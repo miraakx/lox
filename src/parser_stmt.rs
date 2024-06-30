@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
 use crate::alias::IdentifierSymbol;
-use crate::error::{LoxError, ParserErrorKind, ErrorLogger, ConsoleErrorLogger};
+use crate::error::{LoxError, ParserErrorKind, ErrorLogger, ConsoleErrorLogger, ExecutionResult};
 use crate::common::Peekable;
 use crate::lexer::Lexer;
 use crate::parser_expr::{Expr, expression};
@@ -135,7 +135,7 @@ impl Parser
         }
     }
 
-    pub fn parse(&mut self, code: &str) -> Result<(Vec<Stmt>, StringInterner), ()>
+    pub fn parse(&mut self, code: &str) -> Result<(Vec<Stmt>, StringInterner), ExecutionResult>
     {
         let mut statements: Vec<Stmt> = vec![];
         let mut interner  : StringInterner = StringInterner::default();
@@ -148,7 +148,7 @@ impl Parser
         loop {
             if is_at_end(&mut token_source) {
                 if is_error {
-                    return Err(());
+                    return Err(ExecutionResult::ParserError);
                 } else {
                     return Ok((statements, interner));
                 }
