@@ -559,7 +559,8 @@ impl Callable
             {
                 declaration.parameters.len()
             },
-            Self::InitFunction(declaration, _) => {
+            Self::InitFunction(declaration, _) =>
+            {
                 declaration.parameters.len()
             },
             Self::Class(rc_declaration, _) =>
@@ -637,7 +638,8 @@ impl Callable
                     Err(error) => Err(LoxError::interpreter_error(error, *position)),
                 }
             },
-            Self::Str => {
+            Self::Str =>
+            {
                 let value   = interpreter.evaluate(&args_expr[0], interpreter_environment)?;
                 Ok(Value::String(Rc::new(to_string(value, &interpreter.string_interner))))
             },

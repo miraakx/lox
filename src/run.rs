@@ -23,23 +23,14 @@ pub fn run_file<'a>(filepath: &'a str, writer: Box<&mut dyn Write>) -> Result<()
 pub fn run_prompt() -> Result<(), ()>
 {
    loop {
-      println!("(input): ");
+      print!(">>> ");
+      let _ = io::stdout().flush();
       let mut line = String::new();
       let result = io::stdin().read_line(&mut line);
       match result {
          Ok(_) => {
-            println!("(output): ");
-            let result = run(&line, Box::new(&mut io::stdout().lock()));
-            match result {
-               Ok(_) => {
-                  println!("\nProgram terminated successfully.\n");
-                  return Ok(());
-               },
-               Err(_) => {
-                  println!("\nProgram terminated with error(s). See above.\n");
-                  return Err(());
-               },
-            }
+            //println!("");
+            let _ = run(&line, Box::new(&mut io::stdout().lock()));
          },
          Err(error) => {
             println!("\nCannot read line: {}\n", error);
