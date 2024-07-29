@@ -2,6 +2,8 @@ use once_cell::sync::Lazy;
 use unique_id::{sequence::SequenceGenerator, Generator};
 
 use crate::{tokens::{Token, TokenKind, TokenSource, consume_if, consume, check, consume_identifier, Identifier, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, Operator, Position}, error::{LoxError, ParserErrorKind}, value::Value};
+use std::io;
+use std::io::Write;
 
 static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(SequenceGenerator::default);
 
@@ -304,6 +306,7 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
 fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
 {
     let token = token_source.next().unwrap();
+    //println!("found token kind 1: {}", token.kind);
     let position = token.position;
 
     match &token.kind {
@@ -320,10 +323,9 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
              Ok(Expr::new(ExprKind::Variable(identifier.clone())))
         },
         TokenKind::LeftParen => {
-            //consuma la parentesi appena trovata
-            token_source.consume();
             let expr: Expr = expression(token_source)?;
-            match token_source.next().unwrap().kind {
+            let token_kind = token_source.next().unwrap().kind;
+            match token_kind{
                 TokenKind::Eof => {
                     return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position));
                 },
@@ -341,7 +343,7 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             Ok(Expr::new(ExprKind::This(token.position)))
         },
         _ => {
-            Err(LoxError::parser_error(ParserErrorKind::LiteralExpected, position))
+            Err(LoxError::parser_error(ParserErrorKind::ExpectedLiteral(token.kind), position))
         }
     }
 }

@@ -38,6 +38,14 @@ pub enum TokenKind
     Eof
 }
 
+impl fmt::Display for TokenKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+        // or, alternatively:
+        // fmt::Debug::fmt(self, f)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Identifier {
     pub name: IdentifierSymbol,
@@ -275,7 +283,6 @@ pub type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
 
 impl<'a> TokenSource<'a>
 {
-
     pub fn consume(&mut self) {
         self.next();
     }
@@ -297,7 +304,7 @@ pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<
     } else if std::mem::discriminant(&token.kind) == std::mem::discriminant(&TokenKind::Eof) {
         Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
     } else {
-        Err(LoxError::parser_error(ParserErrorKind::ExpectedToken, token.position))
+        Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(token_kind, token.kind), token.position))
     }
 }
 
@@ -312,7 +319,7 @@ pub fn consume_identifier(token_source: &mut TokenSource) -> Result<Identifier,L
             Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
         },
         _ => {
-            Err(LoxError::parser_error(ParserErrorKind::ExpectedToken, token.position))
+            Err(LoxError::parser_error(ParserErrorKind::ExpectedIdentifier(token.kind), token.position))
         }
     }
 }

@@ -1,36 +1,48 @@
-use std::{fs, io::{self, Write}};
+use std::{fs, io::Write};
 
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, Parser}, error::{ConsoleErrorLogger, ExecutionResult}, resolver::Resolver, interpreter::Interpreter};
+use crate::{error::{ConsoleErrorLogger, ExecutionResult}, interpreter::Interpreter, parser_stmt::{Parser, Stmt}, resolver::Resolver};
 
 pub fn run_file<'a>(filepath: &'a str, writer: Box<&mut dyn Write>) -> Result<(), ExecutionResult>
 {
-    let r_code = fs::read_to_string(filepath);
-    match r_code {
-    Ok(code) => {
-        run(&code, writer)
-    },
-    Err(error) => {
-        println!("\nCannot read file: {}\n", error);
-        Err(ExecutionResult::CannotReadFile)
-    },
+   let r_code = fs::read_to_string(filepath);
+   match r_code {
+      Ok(code) => {
+         run(&code, writer)
+      },
+      Err(error) => {
+         println!("\nCannot read file: {}\n", error);
+         Err(ExecutionResult::CannotReadFile)
+      },
+   }
 }
 
-
-}
-
-pub fn run_prompt() -> Result<(), ()>
+/*pub fn run_prompt() -> Result<(), ()>
 {
+   let mut string_interner: StringInterner = StringInterner::default();
+   let mut resolver: Resolver = Resolver::new(ConsoleErrorLogger{}, &mut string_interner);
+   let mut tokens: Vec<Token> = vec![];
+   //let side_table = resolver.resolve(&stmts)?;
    loop {
-      print!(">>> ");
-      let _ = io::stdout().flush();
+      println!("(input): ");
       let mut line = String::new();
       let result = io::stdin().read_line(&mut line);
+      let error_logger: ConsoleErrorLogger = ConsoleErrorLogger{};
       match result {
          Ok(_) => {
-            //println!("");
-            let _ = run(&line, Box::new(&mut io::stdout().lock()));
+            println!("(output): ");
+            let result = run(&line, Box::new(&mut io::stdout().lock()));
+            match result {
+               Ok(_) => {
+                  println!("\nProgram terminated successfully.\n");
+                  return Ok(());
+               },
+               Err(_) => {
+                  println!("\nProgram terminated with error(s). See above.\n");
+                  return Err(());
+               },
+            }
          },
          Err(error) => {
             println!("\nCannot read line: {}\n", error);
@@ -38,7 +50,7 @@ pub fn run_prompt() -> Result<(), ()>
          },
       }
    }
-}
+}*/
 
 pub fn run(code: &str, writer: Box<&mut dyn Write>) -> Result<(), ExecutionResult>
 {

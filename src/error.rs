@@ -1,9 +1,9 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::tokens::Position;
+use crate::tokens::{Position, TokenKind};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LoxError
 {
     pub kind: LoxErrorKind,
@@ -38,7 +38,7 @@ impl fmt::Display for LoxError
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum LoxErrorKind
 {
     Parser(ParserErrorKind),
@@ -122,7 +122,7 @@ impl fmt::Display for InterpreterErrorKind
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ParserErrorKind
 {
     UnexpectedToken(char),
@@ -131,9 +131,10 @@ pub enum ParserErrorKind
     InvalidEscapeCharacter,
     UnexpectedEndOfFile,
     MissingClosingParenthesis,
-    LiteralExpected,
-    ExpectedToken,
+    ExpectedLiteral(TokenKind),
+    ExpectedToken(TokenKind, TokenKind),
     BreakOutsideLoop,
+    ExpectedIdentifier(TokenKind)
 }
 
 impl fmt::Display for ParserErrorKind
@@ -141,15 +142,16 @@ impl fmt::Display for ParserErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match &self {
-            Self::UnexpectedToken(ch)       => write!(f, "Unexpected token '{}'", ch),
-            Self::ParseFloatError(value)  => write!(f, "Cannot parse float '{}'", value),
-            Self::UnterminatedString               => write!(f, "Unterminated string"),
-            Self::InvalidEscapeCharacter           => write!(f, "Invalid escape character"),
-            Self::UnexpectedEndOfFile              => write!(f, "Unexpected end of file"),
-            Self::MissingClosingParenthesis        => write!(f, "Missing closing parenthesis ')'"),
-            Self::LiteralExpected                  => write!(f, "Expected literal, found '?'"),
-            Self::ExpectedToken                    => write!(f, "Expected token '?'"),
-            Self::BreakOutsideLoop                 => write!(f, "Found 'break' keyword outside a loop"),
+            Self::UnexpectedToken(ch)                => write!(f, "Unexpected token '{}'", ch),
+            Self::ParseFloatError(value)           => write!(f, "Cannot parse float '{}'", value),
+            Self::UnterminatedString                        => write!(f, "Unterminated string"),
+            Self::InvalidEscapeCharacter                    => write!(f, "Invalid escape character"),
+            Self::UnexpectedEndOfFile                       => write!(f, "Unexpected end of file"),
+            Self::MissingClosingParenthesis                 => write!(f, "Missing closing parenthesis ')'"),
+            Self::ExpectedLiteral(token_kind)   => write!(f, "Expected literal, found '{}'", token_kind),
+            Self::ExpectedToken(expected, found)    => write!(f, "Expected token '{}', found '{}'", expected, found),
+            Self::BreakOutsideLoop                          => write!(f, "Found 'break' keyword outside a loop"),
+            Self::ExpectedIdentifier(found)     => write!(f, "Found identifier found {}", found),
         }
     }
 }
