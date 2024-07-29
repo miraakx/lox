@@ -162,34 +162,6 @@ impl <'a, 'b> Interpreter<'a, 'b>
             Stmt::Continue => {
                 Ok(State::Continue)
             },
-            Stmt::For(for_stmt) =>
-            {
-                environment.new_local_scope();
-
-                if let Some(initializer) = &for_stmt.opt_initializer {
-                    self.execute_stmt(initializer, environment)?;
-                }
-
-                while self.evaluate_or(&for_stmt.opt_condition, Value::Bool(true), environment)?.is_truthy()
-                {
-                    let state = self.execute_stmt(&for_stmt.body, environment)?;
-                    match state
-                    {
-                        State::Normal | State::Continue =>
-                        {
-                            self.evaluate_or(&for_stmt.opt_increment, Value::Bool(true), environment)?;
-                            continue;
-                        },
-                        State::Break =>
-                        {
-                            break;
-                        },
-                        State::Return(_) => return Ok(state),
-                    }
-                }
-                environment.remove_local_scope();
-                Ok(State::Normal)
-            },
             //Interpret a function declariation (fun my_function(...) {...}) by converting its compile time represtation 'FunctionDeclaration' to its runtime representation 'Callable::Function'
             Stmt::FunctionDeclaration(declaration) =>
             {
@@ -220,11 +192,6 @@ impl <'a, 'b> Interpreter<'a, 'b>
                 Ok(State::Return(value))
             },
         }
-    }
-
-    fn evaluate_or(&mut self, opt_expr: &Option<Expr>, or_value: Value, environment: &mut Environment) ->  Result<Value, LoxError>
-    {
-        opt_expr.as_ref().map_or_else(|| Ok(or_value), |expr| self.evaluate(expr, environment))
     }
 
     fn evaluate(&mut self, expr: &Expr, environment:&mut Environment) -> Result<Value, LoxError>

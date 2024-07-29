@@ -7,7 +7,7 @@ use crate::alias::IdentifierSymbol;
 use crate::error::{LoxError, ParserErrorKind, ErrorLogger, ConsoleErrorLogger, ExecutionResult};
 use crate::common::Peekable;
 use crate::lexer::Lexer;
-use crate::parser_expr::{Expr, expression};
+use crate::parser_expr::{expression, Expr, ExprKind};
 use crate::tokens::{TokenKind, TokenSource, consume, check, consume_if, check_end_of_file, is_at_end, consume_identifier, Identifier, Position};
 
 #[derive(Clone, Debug)]
@@ -19,7 +19,6 @@ pub enum Stmt
     If      (Box<IfStmt>),
     IfElse  (Box<IfElseStmt>),
     While   (Box<WhileStmt>),
-    For     (Box<ForStmt>),
     Return  (Option<Expr>, Position),
     Break,
     Continue,
@@ -70,14 +69,6 @@ impl ClassDeclaration
     {
         self.methods.insert(name, Rc::new(method_declaration));
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct ForStmt {
-    pub opt_initializer: Option<Stmt>,
-    pub opt_condition: Option<Expr>,
-    pub opt_increment: Option<Expr>,
-    pub body: Stmt
 }
 
 #[derive(Clone, Debug)]
@@ -329,29 +320,63 @@ impl Parser
 
         //parse initializer
         let opt_initializer =
-        if !check(token_source, TokenKind::Semicolon) {
-            if consume_if(token_source, TokenKind::Var) {
-                Some(self.var_declaration(token_source)?)
+            if !check(token_source, TokenKind::Semicolon) {
+                if consume_if(token_source, TokenKind::Var) {
+                    Some(self.var_declaration(token_source)?)
+                } else {
+                    Some(self.expression_statement(token_source)?)
+                }
             } else {
-                Some(self.expression_statement(token_source)?)
-            }
-        } else {
-           None
-        };
-        //consume(token_source, TokenKind::Semicolon)?;
+                consume(token_source, TokenKind::Semicolon)?;
+                None
+            };
 
         //parse condition
-        let opt_condition = if !check(token_source, TokenKind::Semicolon) { Some(expression(token_source)?) } else { None };
+        let opt_condition =
+            if !check(token_source, TokenKind::Semicolon) {
+                Some(expression(token_source)?)
+            } else {
+                None
+            };
         consume(token_source, TokenKind::Semicolon)?;
 
         //parse increment
-        let opt_increment = if !check(token_source, TokenKind::RightParen) { Some(expression(token_source)?) } else { None };
+        let opt_increment =
+            if !check(token_source, TokenKind::RightParen) {
+                Some(expression(token_source)?)
+            } else {
+                None
+            };
         consume(token_source, TokenKind::RightParen)?;
 
         //parse body
         let body = self.statement(token_source)?;
 
-        Ok(Stmt::For(Box::new(ForStmt { opt_initializer, opt_condition, opt_increment, body })))
+        //desugaring phase
+        let body_plus_increment =
+            if opt_increment.is_some() {
+                Stmt::Block(vec![body, Stmt::Expr(opt_increment.unwrap())])
+            } else {
+                body
+            };
+
+        let condition_expr =
+            if opt_condition.is_none() {
+                Expr::new(ExprKind::Literal(crate::value::Value::Bool(true)))
+            } else {
+                opt_condition.unwrap()
+            };
+
+        let while_stmt = Stmt::While(Box::new(WhileStmt {condition: condition_expr, body: body_plus_increment })) ;
+
+        let  initializer_plus_while =
+            if opt_initializer.is_some() {
+                Stmt::Block(vec![opt_initializer.unwrap(), while_stmt])
+            } else {
+                while_stmt
+            };
+
+        Ok(initializer_plus_while)
 
     }
 
@@ -370,8 +395,6 @@ impl Parser
         let condition = expression(token_source)?;
         consume(token_source, TokenKind::RightParen)?;
         let then_stmt = self.statement(token_source)?;
-
-        check_end_of_file(token_source)?;
 
         if consume_if(token_source, TokenKind::Else) {
             Ok(Stmt::IfElse(Box::new(IfElseStmt { condition, then_stmt, else_stmt: self.statement(token_source)? })))

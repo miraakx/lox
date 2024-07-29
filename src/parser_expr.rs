@@ -2,8 +2,6 @@ use once_cell::sync::Lazy;
 use unique_id::{sequence::SequenceGenerator, Generator};
 
 use crate::{tokens::{Token, TokenKind, TokenSource, consume_if, consume, check, consume_identifier, Identifier, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, Operator, Position}, error::{LoxError, ParserErrorKind}, value::Value};
-use std::io;
-use std::io::Write;
 
 static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(SequenceGenerator::default);
 
@@ -16,7 +14,7 @@ pub struct Expr
 
 impl Expr
 {
-    fn new(kind: ExprKind) -> Self {
+    pub fn new(kind: ExprKind) -> Self {
         Self { id: ID_GENERATOR.next_id(), kind }
     }
 }

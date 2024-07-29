@@ -108,22 +108,6 @@ impl <'a> Resolver<'a>
                 self.resolve_expr(&while_stmt.condition, side_table);
                 self.resolve_stmt(&while_stmt.body, self.current_function, self.current_class, side_table);
             },
-            Stmt::For(for_stmt) =>
-            {
-                if let Some(initializer) = for_stmt.opt_initializer.as_ref()
-                {
-                    self.resolve_stmt(initializer, self.current_function, self.current_class, side_table);
-                }
-                if let Some(condition) = &for_stmt.opt_condition
-                {
-                    self.resolve_expr(condition, side_table);
-                }
-                if let Some(increment) = &for_stmt.opt_increment
-                {
-                    self.resolve_expr(increment, side_table);
-                }
-                self.resolve_stmt(&for_stmt.body, self.current_function, self.current_class, side_table);
-            },
             Stmt::Break     => { /*do nothing*/ },
             Stmt::Continue  => { /*do nothing*/ },
             Stmt::FunctionDeclaration(func_decl) =>
