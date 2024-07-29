@@ -303,6 +303,7 @@ impl <'a> Resolver<'a>
             if scope.contains_key(&identifier)
             {
                 side_table.insert(expr.id, index);
+                return;
             }
         }
     }
