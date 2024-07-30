@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use unique_id::{sequence::SequenceGenerator, Generator};
 
-use crate::{error::{LoxError, LoxErrorKind, ParserErrorKind}, tokens::{check, consume, consume_identifier, consume_if, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind}, value::Value};
+use crate::{error::{LoxError, ParserErrorKind}, tokens::{consume, consume_identifier, consume_if, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind}, value::Value};
 
 static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(SequenceGenerator::default);
 
@@ -269,34 +269,37 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
 {
     let mut expr = primary(token_source)?;
     loop {
-        if !check(token_source, TokenKind::LeftParen) && !check(token_source, TokenKind::Dot) {
-            return Ok(expr);
-        }
-        if check(token_source, TokenKind::LeftParen)
-        {
-            let left_paren = token_source.next().unwrap();
-            if consume_if(token_source, TokenKind::RightParen) {
-                expr = Expr::new(ExprKind::Call(Box::new(CallExpr { callee: expr, arguments: Vec::new(), position: left_paren.position })));
-                continue;
-            }
-            let mut args: Vec<Expr> = Vec::new();
-            loop {
-                args.push(expression(token_source)?);
-                if !consume_if(token_source, TokenKind::Comma) {
-                    break;
+        let token = token_source.peek().unwrap();
+        //println!("call {}", token.kind);
+        match token.kind {
+            TokenKind::LeftParen => {
+                let left_paren = token_source.next().unwrap();
+                if consume_if(token_source, TokenKind::RightParen) {
+                    expr = Expr::new(ExprKind::Call(Box::new(CallExpr { callee: expr, arguments: Vec::new(), position: left_paren.position })));
+                    continue;
                 }
+                let mut args: Vec<Expr> = Vec::new();
+                loop {
+                    args.push(expression(token_source)?);
+                    if !consume_if(token_source, TokenKind::Comma) {
+                        break;
+                    }
+                }
+                consume(token_source, TokenKind::RightParen)?;
+                if args.len() < 255 {
+                    expr = Expr::new(ExprKind::Call(Box::new(CallExpr { callee: expr, arguments: args, position: left_paren.position })));
+                } else {
+                    return Err(LoxError::parser_error(ParserErrorKind::TooManyArguments, left_paren.position));
+                }
+            },
+            TokenKind::Dot => {
+                token_source.consume();
+                let identifier: crate::tokens::Identifier = consume_identifier(token_source)?;
+                expr = Expr::new(ExprKind::Get(Box::new(GetExpr { expr, identifier })));
+            },
+            _ => {
+                return Ok(expr);
             }
-            consume(token_source, TokenKind::RightParen)?;
-            if args.len() < 255 {
-                expr = Expr::new(ExprKind::Call(Box::new(CallExpr { callee: expr, arguments: args, position: left_paren.position })));
-            } else {
-                return Err(LoxError::parser_error(ParserErrorKind::TooManyArguments, left_paren.position));
-            }
-        }
-        else if consume_if(token_source, TokenKind::Dot)
-        {
-            let identifier: crate::tokens::Identifier = consume_identifier(token_source)?;
-            expr = Expr::new(ExprKind::Get(Box::new(GetExpr { expr, identifier })));
         }
     }
 }
@@ -304,7 +307,6 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
 fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
 {
     let token = token_source.next().unwrap();
-    //println!("found token kind 1: {}", token.kind);
     let position = token.position;
 
     match &token.kind {
@@ -337,7 +339,7 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             Ok(Expr::new(ExprKind::Grouping(Box::new(expr))))
         },
         TokenKind::This => {
-            let token = token_source.next().unwrap();
+            //println!("THIS: {}", token.kind);
             Ok(Expr::new(ExprKind::This(token.position)))
         },
         _ => {
