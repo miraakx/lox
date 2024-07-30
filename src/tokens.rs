@@ -1,6 +1,8 @@
 
 use std::fmt;
 
+use string_interner::Symbol;
+
 use crate::{common::Peekable, error::{ParserErrorKind, LoxError}, alias::IdentifierSymbol, value::Value};
 
 #[derive(Clone, Debug)]
@@ -23,7 +25,6 @@ pub enum TokenKind
     Equal,           EqualEqual,
     Greater,         GreaterEqual,
     Less,            LessEqual,
-
     If,              Else,
     For,             While,
     And,             Or,
@@ -40,9 +41,50 @@ pub enum TokenKind
 
 impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-        // or, alternatively:
-        // fmt::Debug::fmt(self, f)
+        match self {
+            TokenKind::LeftParen        => { write!(f, "LeftParen") },
+            TokenKind::RightParen       => { write!(f, "RightParen") },
+            TokenKind::LeftBrace        => { write!(f, "LeftBrace") },
+            TokenKind::RightBrace       => { write!(f, "RightBrace") },
+            TokenKind::Comma            => { write!(f, "Comma") },
+            TokenKind::Dot              => { write!(f, "Dot") },
+            TokenKind::Semicolon        => { write!(f, "Semicolon") },
+            TokenKind::Minus            => { write!(f, "Minus") },
+            TokenKind::Plus             => { write!(f, "Plus") },
+            TokenKind::Slash            => { write!(f, "Slash") },
+            TokenKind::Star             => { write!(f, "Star") },
+            TokenKind::Bang             => { write!(f, "Bang") },
+            TokenKind::BangEqual        => { write!(f, "BangEqual") },
+            TokenKind::Equal            => { write!(f, "Equal") },
+            TokenKind::EqualEqual       => { write!(f, "EqualEqual") },
+            TokenKind::Greater          => { write!(f, "Greater") },
+            TokenKind::GreaterEqual     => { write!(f, "GreaterEqual") },
+            TokenKind::Less             => { write!(f, "Less") },
+            TokenKind::LessEqual        => { write!(f, "LessEqual") },
+            TokenKind::If               => { write!(f, "If") },
+            TokenKind::Else             => { write!(f, "Else") },
+            TokenKind::For              => { write!(f, "For") },
+            TokenKind::While            => { write!(f, "While") },
+            TokenKind::And              => { write!(f, "And") },
+            TokenKind::Or               => { write!(f, "Or") },
+            TokenKind::Class            => { write!(f, "Class") },
+            TokenKind::Fun              => { write!(f, "Fun") },
+            TokenKind::Super            => { write!(f, "Super") },
+            TokenKind::This             => { write!(f, "This") },
+            TokenKind::Var              => { write!(f, "Var") },
+            TokenKind::Nil              => { write!(f, "Nil") },
+            TokenKind::Print            => { write!(f, "Print") },
+            TokenKind::Return           => { write!(f, "Return") },
+            TokenKind::True(_)          => { write!(f, "True") },
+            TokenKind::False(_)         => { write!(f, "False") },
+            TokenKind::String(_)        => { write!(f, "String") },
+            TokenKind::Number(_)        => { write!(f, "Number") },
+            TokenKind::Identifier(id)   => { write!(f, "{}", id) },
+            TokenKind::Break            => { write!(f, "Break") },
+            TokenKind::Continue         => { write!(f, "Continue") },
+            TokenKind::UnexpectedToken  => { write!(f, "UnexpectedToken") },
+            TokenKind::Eof              => { write!(f, "EndOfFile") },
+        }
     }
 }
 
@@ -52,39 +94,13 @@ pub struct Identifier {
     pub position: Position
 }
 
-/*
-#[derive(Clone, Debug)]
-pub struct Literal {
-    pub kind: LiteralKind,
-    pub position: Position
-}
+impl fmt::Display for Identifier {
 
-
-#[derive(Clone, Debug)]
-pub enum LiteralKind
-{
-    Nil, Boolean(Value), Number(Value), String(Value)
-}
-
-impl Literal
-{
-    pub fn from_token(token: &Token) -> Self
-    {
-        let literal_kind = match &token.kind
-        {
-            TokenKind::Nil                  => LiteralKind::Nil,
-            TokenKind::False(value)  => LiteralKind::Boolean(value.clone()),
-            TokenKind::True(value)   => LiteralKind::Boolean(value.clone()),
-            TokenKind::Number(value) => LiteralKind::Number(value.clone()),
-            TokenKind::String(value) => LiteralKind::String(value.clone()),
-            _ => {
-                panic!("Internal error, unexpecter operator type");
-            }
-        };
-        Self { kind: literal_kind, position: token.position }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Identifier (Symbol={})", self.name.to_usize())
     }
 }
- */
+
 #[derive(Clone, Debug)]
 pub struct Operator<Kind>
 {
@@ -299,6 +315,7 @@ fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
 pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<Token,LoxError>
 {
     let token = token_source.next().unwrap();
+    //println!("consume {} {}", token.kind, token_kind);
     if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
         Ok(token)
     } else if std::mem::discriminant(&token.kind) == std::mem::discriminant(&TokenKind::Eof) {
