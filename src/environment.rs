@@ -1,5 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
+use rustc_hash::FxHashMap;
+
 use crate::{value::Value, alias::IdentifierSymbol};
 
 #[derive(Clone, Debug)]
@@ -59,7 +61,7 @@ impl Environment
 
 #[derive(Clone, Debug)]
 pub struct Scope {
-    map: Vec<(IdentifierSymbol, Value)>
+    map: FxHashMap<IdentifierSymbol, Value>
 }
 
 impl Default for Scope
@@ -72,24 +74,25 @@ impl Default for Scope
 impl Scope
 {
     #[inline]
-    pub const fn new() -> Self
+    pub fn new() -> Self
     {
-        Self { map: Vec::<(IdentifierSymbol, Value)>::new() }
+        Self { map: FxHashMap::default() }
     }
 
     #[inline]
     pub fn define_variable(&mut self, variable: IdentifierSymbol, var_value: Value)
     {
-        self.map.push((variable, var_value));
+        //println!("VARIABLE {:?} = {:?}", variable, var_value);
+        self.map.insert(variable, var_value);
     }
 
-    #[inline]
+    /*#[inline]
     pub fn define_variables(&mut self, variables: &[IdentifierSymbol], mut var_values: Vec<Value>)
     {
         for variable in variables.iter().rev() {
-            self.map.push((*variable, var_values.pop().unwrap()));
+            self.map.insert(*variable, var_values.pop().unwrap());
         }
-    }
+    }*/
 
     #[inline]
     pub fn get_variable(&self, variable: IdentifierSymbol) -> Option<Value>
@@ -105,11 +108,9 @@ impl Scope
     #[inline]
     pub fn assign_variable(&mut self, variable: IdentifierSymbol, var_value: &Value) -> Result<(), ()>
     {
-        for (index, (name, _)) in self.map.iter().enumerate() {
-            if *name == variable {
-                self.map[index] = (variable, var_value.clone());
-                return Ok(());
-            }
+        if self.map.contains_key(&variable) {
+            self.map.insert(variable, var_value.clone());
+            return Ok(());
         }
         Err(())
     }
