@@ -46,18 +46,36 @@ impl <'a, 'b> Interpreter<'a, 'b>
 
         self.define_native_functions();
 
-        for stmt in stmts
+        match self.execute_stmts(stmts, &mut environment)
         {
-            match self.execute_stmt(stmt, &mut environment)
-            {
-                Ok(_) => {}
-                Err(err) => {
-                    println!("{}", err);
-                    return Err(ExecutionResult::RuntimeError);
-                },
-            }
+            Ok(_) => {}
+            Err(err) => {
+                println!("{}", err);
+                return Err(ExecutionResult::RuntimeError);
+            },
         }
         Ok(())
+    }
+
+    pub fn execute_stmts(&mut self, stmts: &[Stmt], environment: &mut Environment) -> Result<State, LoxError>
+    {
+        for stmt in stmts
+        {
+            let state = self.execute_stmt(stmt, environment)?;
+            match state {
+                State::Normal => {
+                    continue;
+                },
+                State::Break => {
+                    return Ok(State::Break);
+                },
+                State::Continue => {
+                    return Ok(State::Continue);
+                },
+                State::Return(_) => return Ok(state),
+            };
+        }
+        Ok(State::Normal)
     }
 
     #[inline]
@@ -349,7 +367,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
             ExprKind::Assign(assign_expr) =>
             {
                 let value = self.evaluate(&assign_expr.expr, environment)?;
-                match self.assign_variable(environment, assign_expr.identifier.name, &value, assign_expr.expr.id)
+                match self.assign_variable(environment, assign_expr.identifier.name, &value, expr.id)
                 {
                     Ok(_) => {
                         Ok(value)
@@ -478,7 +496,8 @@ impl <'a, 'b> Interpreter<'a, 'b>
     #[inline]
     pub fn assign_variable(&mut self, environment: &mut Environment, variable: IdentifierSymbol, var_value: &Value, expr_id: i64) -> Result<(), ()>
     {
-        match self.side_table.get(&expr_id) {
+        let opt_index = self.side_table.get(&expr_id);
+        match opt_index {
             Some(index) => {
                 environment.assign_variable_to_local_at(*index, variable, var_value)
             },
@@ -638,7 +657,7 @@ fn function_call(
         rc_scope.borrow_mut().define_variable(*name, value);
     }
 
-    let state = interpreter.execute_stmt(&declaration.body, function_environment)?;
+    let state = interpreter.execute_stmts(&declaration.body, function_environment)?;
 
     function_environment.remove_local_scope();
 
@@ -1112,13 +1131,6 @@ mod tests {
         #[test]
         fn missing_comma_in_parameters() {
             test("./lox_test/function/missing_comma_in_parameters.lox");
-        }
-    }
-    mod zzz_mine {
-        use super::test;
-        #[test]
-        fn grouping() {
-            test("./lox_test/zzz_mine/grouping.lox");
         }
     }
     mod comments {
@@ -1745,6 +1757,21 @@ mod tests {
         #[test]
         fn nan_equality() {
             test("./lox_test/number/nan_equality.lox");
+        }
+    }
+    mod zzz {
+        use super::test;
+        #[test]
+        fn grouping() {
+            test("./lox_test/zzz/grouping.lox");
+        }
+        #[test]
+        fn scope_local() {
+            test("./lox_test/zzz/scope_local.lox");
+        }
+        #[test]
+        fn scope_global() {
+            test("./lox_test/zzz/scope_global.lox");
         }
     }
 

@@ -34,12 +34,13 @@ pub struct FunctionDeclaration
     pub identifier: Identifier,
     pub parameters: Vec<IdentifierSymbol>,
     pub positions: Vec<Position>,
-    pub body: Stmt
+    //Attenzione! non puo' essere uno Stmt altrimenti i parametri della funzione verrebbero definiti in uno scope esterno rispetto al body e l'utente potrebbe ridefinirli nel body!
+    pub body: Vec<Stmt>
 }
 
 impl FunctionDeclaration
 {
-    pub fn new(identifier: Identifier, parameters: Vec<Identifier>, body: Stmt) -> Self
+    pub fn new(identifier: Identifier, parameters: Vec<Identifier>, body: Vec<Stmt>) -> Self
     {
         Self
         {
@@ -219,7 +220,15 @@ impl Parser
         if args.len() > 255 {
             return Err(LoxError::parser_error(ParserErrorKind::TooManyParameters, right_paren_position));
         }
-        let declaration = FunctionDeclaration::new(identifier, args, body);
+        let stmts = match body {
+            Stmt::Block(stmts) => {
+                stmts
+            },
+            _ => {
+                return Err(LoxError::parser_error(ParserErrorKind::ExpectedBlock, right_paren_position));
+            }
+        };
+        let declaration = FunctionDeclaration::new(identifier, args, stmts);
         Ok(declaration)
     }
 

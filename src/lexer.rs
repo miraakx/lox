@@ -237,6 +237,7 @@ impl<'a> Iterator for Lexer<'a>
                 {
                     let mut flg_decimal = false;
                     let mut number_string = String::from(ch);
+                    //let mut flg_error = false;
                     loop {
                         let opt_next_ch: Option<char> = self.scanner.peek();
 
@@ -249,6 +250,11 @@ impl<'a> Iterator for Lexer<'a>
 
                         if is_number(next_ch) {
                             number_string.push(self.scanner.next().unwrap());
+                        } else if next_ch == '.' && opt_next_next_ch.is_none(){
+                            //flg_error = true;
+                            //self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, Position { line: self.scanner.line(), column: self.scanner.column() }));
+                            self.scanner.next();
+                            self.scanner.next();
                         } else if next_ch == '.' && opt_next_next_ch.is_some() && is_number(opt_next_next_ch.unwrap()) && !flg_decimal {
                             flg_decimal = true;
                             number_string.push(self.scanner.next().unwrap());
@@ -267,6 +273,7 @@ impl<'a> Iterator for Lexer<'a>
                             opt_token_kind = Some(TokenKind::Number(Value::Number(f64::NAN)));
                         }
                     }
+
                 },
                 ch if is_identifier(ch) =>
                 {

@@ -56,6 +56,13 @@ impl <'a> Resolver<'a>
         }
     }
 
+    fn resolve_stmts(&mut self, stmts: &[Stmt], function_type: FunctionType, class_type: ClassType, side_table: &mut SideTable) {
+        for stmt in stmts
+        {
+            self.resolve_stmt(stmt, function_type, class_type, side_table);
+        }
+    }
+
     fn resolve_stmt(&mut self, stmt: &Stmt, function_type: FunctionType, class_type: ClassType, side_table: &mut SideTable)
     {
         let enclosing_function = self.current_function;
@@ -184,7 +191,7 @@ impl <'a> Resolver<'a>
             self.define(*param);
         }
         //>Inside a function stmt set current function to FunctionType::Function
-        self.resolve_stmt(&func_decl.body, function_type, class_type, side_table);
+        self.resolve_stmts(&func_decl.body, function_type, class_type, side_table);
         //<Inside a function stmt set current function to FunctionType::Function
         self.end_scope();
     }
@@ -225,7 +232,7 @@ impl <'a> Resolver<'a>
             ExprKind::Assign(assign_expr) =>
             {
                 self.resolve_expr(&assign_expr.expr, side_table);
-                self.resolve_local(&assign_expr.expr, assign_expr.identifier.name, side_table);
+                self.resolve_local(expr, assign_expr.identifier.name, side_table);
             },
             ExprKind::Logical(logical_expr) =>
             {
