@@ -39,7 +39,7 @@ pub fn to_string(value: Value, string_interner: &StringInterner) -> String {
             }
         },
         Value::ClassInstance(class_instance) => {
-            format!("<inst: '{}'", string_interner.resolve(class_instance.declaration.identifier.name).unwrap())
+            format!("{} instance", string_interner.resolve(class_instance.declaration.identifier.name).unwrap())
         }
     }
 }
