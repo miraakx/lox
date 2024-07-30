@@ -82,7 +82,7 @@ impl fmt::Display for ResolverErrorKind
             Self::LocalVariableNotFound(value) => write!(f, "Can't read local variable {} in its own initializer", value),
             Self::VariableAlreadyExists(value) => write!(f, "Already a variable with name '{}' in this scope", value),
             Self::ReturnFromTopLevelCode => write!(f, "Can't return from top-level code"),
-            Self::InvalidThisUsage => write!(f, "Can't use 'this' keyword outside of a class"),
+            Self::InvalidThisUsage => write!(f, "Can't use 'this' outside of a class."),
             Self::ReturnFromInitializer => write!(f, "Can't return a value from an initializer"),
         }
     }
@@ -154,7 +154,7 @@ impl fmt::Display for ParserErrorKind
             Self::ExpectedLiteral(token_kind)   => write!(f, "Expected literal, found '{}'", token_kind),
             Self::ExpectedToken(expected, found)    => write!(f, "Expected token '{}', found '{}'", expected, found),
             Self::BreakOutsideLoop                          => write!(f, "Found 'break' keyword outside a loop"),
-            Self::ExpectedIdentifier(found)     => write!(f, "Found identifier found {}", found),
+            Self::ExpectedIdentifier(found)     => write!(f, "Expected identifier, found {}", found),
             Self::TooManyArguments                          => write!(f, "Can't have more than 255 arguments."),
             Self::TooManyParameters                         => write!(f, "Can't have more than 255 parameters."),
             Self::ExpectedBlock                             => write!(f, "Internal error: Expected block found something else.")
