@@ -134,7 +134,9 @@ pub enum ParserErrorKind
     ExpectedLiteral(TokenKind),
     ExpectedToken(TokenKind, TokenKind),
     BreakOutsideLoop,
-    ExpectedIdentifier(TokenKind)
+    ExpectedIdentifier(TokenKind),
+    TooManyArguments,
+    TooManyParameters
 }
 
 impl fmt::Display for ParserErrorKind
@@ -152,6 +154,8 @@ impl fmt::Display for ParserErrorKind
             Self::ExpectedToken(expected, found)    => write!(f, "Expected token '{}', found '{}'", expected, found),
             Self::BreakOutsideLoop                          => write!(f, "Found 'break' keyword outside a loop"),
             Self::ExpectedIdentifier(found)     => write!(f, "Found identifier found {}", found),
+            Self::TooManyArguments                          => write!(f, "Can't have more than 255 arguments."),
+            Self::TooManyParameters                         => write!(f, "Can't have more than 255 parameters.")
         }
     }
 }

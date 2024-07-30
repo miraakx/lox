@@ -213,9 +213,12 @@ impl Parser
                 }
             }
         }
-        consume(token_source, TokenKind::RightParen)?;
+        let right_paren_position = consume(token_source, TokenKind::RightParen)?.position;
         consume(token_source, TokenKind::LeftBrace)?;
         let body = self.block_statement(token_source)?;
+        if args.len() > 255 {
+            return Err(LoxError::parser_error(ParserErrorKind::TooManyParameters, right_paren_position));
+        }
         let declaration = FunctionDeclaration::new(identifier, args, body);
         Ok(declaration)
     }

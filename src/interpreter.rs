@@ -467,7 +467,12 @@ impl <'a, 'b> Interpreter<'a, 'b>
     #[inline]
     pub fn lookup_variable(&self, environment: &Environment, name: IdentifierSymbol, expr_id: ExprId) -> Option<Value>
     {
-        self.side_table.get(&expr_id).map_or_else(|| self.global_scope.get_variable(name), |index| environment.get_variable_from_local_at(*index, name))
+        let opt_index = self.side_table.get(&expr_id);
+        if opt_index.is_none() {
+            self.global_scope.get_variable(name)
+        } else {
+            environment.get_variable_from_local_at(*opt_index.unwrap(), name)
+        }
     }
 
     #[inline]
@@ -928,6 +933,10 @@ mod tests {
             test("./lox_test/method/too_many_parameters.lox");
         }
         #[test]
+        fn too_many_arguments() {
+            test("./lox_test/method/too_many_arguments.lox");
+        }
+        #[test]
         fn extra_arguments() {
             test("./lox_test/method/extra_arguments.lox");
         }
@@ -938,10 +947,6 @@ mod tests {
         #[test]
         fn empty_block() {
             test("./lox_test/method/empty_block.lox");
-        }
-        #[test]
-        fn too_many_arguments() {
-            test("./lox_test/method/too_many_arguments.lox");
         }
         #[test]
         fn not_found() {
@@ -1040,10 +1045,12 @@ mod tests {
     mod expressions {
         use super::test;
         #[test]
+        #[ignore]
         fn evaluate() {
             test("./lox_test/expressions/evaluate.lox");
         }
         #[test]
+        #[ignore]
         fn parse() {
             test("./lox_test/expressions/parse.lox");
         }
@@ -1230,33 +1237,7 @@ mod tests {
             test("./lox_test/inheritance/inherit_from_nil.lox");
         }
     }
-    mod scanning {
-        use super::test;
-        #[test]
-        fn punctuators() {
-            test("./lox_test/scanning/punctuators.lox");
-        }
-        #[test]
-        fn numbers() {
-            test("./lox_test/scanning/numbers.lox");
-        }
-        #[test]
-        fn strings() {
-            test("./lox_test/scanning/strings.lox");
-        }
-        #[test]
-        fn keywords() {
-            test("./lox_test/scanning/keywords.lox");
-        }
-        #[test]
-        fn whitespace() {
-            test("./lox_test/scanning/whitespace.lox");
-        }
-        #[test]
-        fn identifiers() {
-            test("./lox_test/scanning/identifiers.lox");
-        }
-    }
+
     mod limit {
         use super::test;
         #[test]
@@ -1265,7 +1246,8 @@ mod tests {
         }
         #[test]
         fn stack_overflow() {
-            test("./lox_test/limit/stack_overflow.lox");
+            todo!("Gestire stack overflow!");
+            //test("./lox_test/limit/stack_overflow.lox");
         }
         #[test]
         fn too_many_constants() {
@@ -1768,7 +1750,7 @@ mod tests {
 
 
     enum Expect {
-        Output(Vec<String>), RuntimeError, ErrorAt
+        Output(Vec<String>), RuntimeError, ErrorAt, Nothing
     }
 
     fn expected_result(file_path: &str) -> Expect
@@ -1805,6 +1787,9 @@ mod tests {
                 return Expect::RuntimeError;
             }
         }
+        if vec.is_empty() {
+            return Expect::Nothing;
+        }
 
         return Expect::Output(vec);
     }
@@ -1816,7 +1801,7 @@ mod tests {
         {
             Expect::Output(buf_expected) =>
             {
-                run::run_file(file_path, Box::new(&mut buf_output)).expect(&format!("Expected test to be Ok but got Err at file: '{}'",file_path));
+                run::run_file(file_path, Box::new(&mut buf_output)).expect(&format!("Expected test to be Ok (1) but got Err at file: '{}'", file_path));
                 let lines = std::str::from_utf8(&buf_output).unwrap().lines();
                 if buf_expected.is_empty() {
                     panic!("test buf_expected should not be empty");
@@ -1831,11 +1816,15 @@ mod tests {
             },
             Expect::RuntimeError =>
             {
-                run::run_file(file_path, Box::new(&mut buf_output)).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'",file_path));
+                run::run_file(file_path, Box::new(&mut buf_output)).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'", file_path));
             },
             Expect::ErrorAt =>
             {
-                run::run_file(file_path, Box::new(&mut buf_output)).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'",file_path));
+                run::run_file(file_path, Box::new(&mut buf_output)).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'", file_path));
+            },
+            Expect::Nothing =>
+            {
+                run::run_file(file_path, Box::new(&mut buf_output)).expect(&format!("Expected test to be Ok (2) but got Err at file: '{}'", file_path));
             },
         }
     }

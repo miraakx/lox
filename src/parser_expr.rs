@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use unique_id::{sequence::SequenceGenerator, Generator};
 
-use crate::{tokens::{Token, TokenKind, TokenSource, consume_if, consume, check, consume_identifier, Identifier, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind, Operator, Position}, error::{LoxError, ParserErrorKind}, value::Value};
+use crate::{error::{LoxError, LoxErrorKind, ParserErrorKind}, tokens::{check, consume, consume_identifier, consume_if, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind}, value::Value};
 
 static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(SequenceGenerator::default);
 
@@ -290,7 +290,7 @@ fn call(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             if args.len() < 255 {
                 expr = Expr::new(ExprKind::Call(Box::new(CallExpr { callee: expr, arguments: args, position: left_paren.position })));
             } else {
-                todo!("Segnalare errore se più di 255 argomenti");
+                return Err(LoxError::parser_error(ParserErrorKind::TooManyArguments, left_paren.position));
             }
         }
         else if consume_if(token_source, TokenKind::Dot)

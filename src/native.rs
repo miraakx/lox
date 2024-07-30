@@ -30,12 +30,12 @@ pub fn to_string(value: Value, string_interner: &StringInterner) -> String {
         Value::Nil                          => format!("nil"),
         Value::Callable(callable) => {
             match callable {
-                Callable::Function(fun_decl, _)     => format!("<fn: '{}'>",        string_interner.resolve(fun_decl.identifier.name).unwrap()),
-                Callable::InitFunction(fun_decl, _) => format!("<fn: '{}'>",        string_interner.resolve(fun_decl.identifier.name).unwrap()),
+                Callable::Function(fun_decl, _)     => format!("<fn {}>",        string_interner.resolve(fun_decl.identifier.name).unwrap()),
+                Callable::InitFunction(fun_decl, _) => format!("<fn {}>",        string_interner.resolve(fun_decl.identifier.name).unwrap()),
                 Callable::Class(class_decl, _)         => format!("{}",     string_interner.resolve(class_decl.identifier.name).unwrap()),
-                Callable::Clock                                              => format!("<fn (native): 'clock'>"),
-                Callable::AssertEq                                           => format!("<fn (native): 'assertEq'>"),
-                Callable::Str                                                => format!("<fn (native): 'str'>"),
+                Callable::Clock                                              => format!("<native fn>"),
+                Callable::AssertEq                                           => format!("<native fn>"),
+                Callable::Str                                                => format!("<native fn>"),
             }
         },
         Value::ClassInstance(class_instance) => {
