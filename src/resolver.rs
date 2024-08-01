@@ -145,29 +145,39 @@ impl <'a> Resolver<'a>
                 if let Err(err_kind) = self.declare(class_declaration.identifier.name) {
                     self.error(err_kind, &class_declaration.identifier.position);
                 }
-
                 self.define(class_declaration.identifier.name);
 
-                //>start THIS scope wrapping around methods declarations
+                //If superclass is present resolve it
+                if let Some(superclass_expr) = &class_declaration.superclass_expr {
+
+                    //A class cannot inherit from itself!
+                    if let ExprKind::Variable(superclass_identifier) = &superclass_expr.kind {
+                        if superclass_identifier.name ==  class_declaration.identifier.name {
+                            self.error(ResolverErrorKind::ClassCantInheritFromItslef, &superclass_identifier.position);
+                        }
+                    }
+
+                    self.resolve_expr(superclass_expr, side_table);
+                }
+
+                //Start THIS scope wrapping around methods declarations
                 self.begin_scope();
 
                 self.define(self.this_symbol);
 
-                //>resolve methods
+                //Resolve methods
                 let methods = &class_declaration.methods;
-                for (_, rc_method) in methods.iter() {
-
-                    let function_type = if rc_method.identifier.name == self.init_symbol {
-                        FunctionType::Initializer
-                    } else {
-                        FunctionType::Method
-                    };
+                for (_, rc_method) in methods.borrow().iter() {
+                    let function_type =
+                        if rc_method.identifier.name == self.init_symbol {
+                            FunctionType::Initializer
+                        } else {
+                            FunctionType::Method
+                        };
                     self.resolve_function(rc_method, function_type, ClassType::Class, side_table);
                 }
-                //<resolve methods
 
                 self.end_scope();
-                //<end THIS scope wrapping around methods declarations
             },
         }
         //> restore-current-function

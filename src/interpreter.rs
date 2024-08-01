@@ -3,7 +3,41 @@ use std::{fmt::Debug, rc::Rc, cell::RefCell, io::Write};
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration, ClassDeclaration}, tokens::{Position, BinaryOperatorKind, UnaryOperatorKind, LogicalOperatorKind}, environment::{Environment, Scope}, error::{LoxError, InterpreterErrorKind, ExecutionResult}, parser_expr::{Expr, ExprKind}, native::{clock, assert_eq, to_string}, value::{Value, ClassInstance}, alias::{IdentifierSymbol, ExprId, SideTable}};
+use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, environment::{Environment, Scope}, error::{ExecutionResult, InterpreterErrorKind, LoxError}, native::{assert_eq, clock, to_string}, parser_expr::{Expr, ExprKind}, parser_stmt::{FunctionDeclaration, Stmt}, tokens::{BinaryOperatorKind, Identifier, LogicalOperatorKind, Position, UnaryOperatorKind}, value::{LoxInstance, Value}};
+
+#[derive(Clone, Debug)]
+pub struct LoxClass
+{
+    pub identifier: Identifier,
+    pub methods: Rc<RefCell<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>>,
+    pub super_class: Option<Box<LoxClass>>
+}
+
+impl LoxClass
+{
+    fn new(
+        identifier:     Identifier,
+        methods:        Rc<RefCell<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>>,
+        super_class:    Option<Box<LoxClass>>
+    ) -> Self
+    {
+        Self {
+            identifier,
+            methods,
+            super_class: super_class
+        }
+    }
+
+    /*fn insert_method(&mut self, name: IdentifierSymbol, method_declaration: FunctionDeclaration)
+    {
+        self.methods.insert(name, Rc::new(method_declaration));
+    }*/
+
+    /*fn find_method(&mut self, name: IdentifierSymbol)  -> Option<&Rc<FunctionDeclaration>>
+    {
+        self.methods.get(&name)
+    }*/
+}
 
 pub struct Interpreter<'a, 'b>
 {
@@ -190,13 +224,37 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     );
                 Ok(State::Normal)
             },
-            Stmt::ClassDeclaration(class_declaration) =>
+            Stmt::ClassDeclaration(class_stmt) =>
             {
+                //Evaluate the superclass expression and check if it's really a class and not something else.
+                match &class_stmt.superclass_expr
+                {
+                    Some(superclass_var) =>
+                    {
+                        let superclass_value = self.evaluate(superclass_var, environment)?;
+
+                        match superclass_value
+                        {
+                            Value::Callable(_) =>
+                            {
+                                //opt_superclass_value = Some(superclass_value);
+                            },
+                            _ =>
+                            {
+                                return Err(LoxError::interpreter_error(InterpreterErrorKind::SuperclassMustBeAClass, class_stmt.identifier.position));
+                            }
+                        }
+                    },
+                    None =>
+                    {
+                        //opt_superclass_value = None
+                    }
+                };
+                let lox_class = LoxClass::new(class_stmt.identifier.clone(), class_stmt.methods.clone(), None);
                 //class is callable to construct a new instance. The new instance must have its own class template.
-                let callable = Callable::Class(Rc::clone(class_declaration), environment.clone());
-                self.define_variable(environment,
-                    class_declaration.identifier.name,
-                    Value::Callable(callable)
+                let callable = Callable::Class(Rc::new(lox_class), environment.clone());
+                self.define_variable(
+                    environment, class_stmt.identifier.name, Value::Callable(callable)
                 );
                 Ok(State::Normal)
             },
@@ -419,31 +477,40 @@ impl <'a, 'b> Interpreter<'a, 'b>
             },
             ExprKind::Get(get_expr) =>
             {
+                //Valuta l'Expr su cui agisce il punto (Get)
                 let instance = self.evaluate(&get_expr.expr, environment)?;
+
+                //L'uso del punto (Get) ha senso solo se agisce sull'istanza di una classe ( Value::ClassInstance(LoxClass) )
                 match &instance
                 {
                     Value::ClassInstance(class_instance) =>
                     {
-                        {
-                            if let Some(value) = class_instance.attributes.borrow().get(&get_expr.identifier.name) {
-                                return Ok(value.clone());
-                            }
+                        //Verifica se sia stato richiamato un attributo
+                        if let Some(value) = class_instance.attributes.borrow().get(&get_expr.identifier.name) {
+                            return Ok(value.clone());
                         }
-                        {
-                            if let Some(method) = class_instance.declaration.methods.get(&get_expr.identifier.name) {
-                                //>define new closure for the current method
-                                let mut environment_clone = environment.clone();
-                                let scope: Rc<RefCell<Scope>> = environment_clone.new_local_scope();
-                                let callable =
-                                if method.identifier.name == self.init_symbol {
-                                    Callable::InitFunction(Rc::clone(method), environment_clone)
-                                } else {
-                                    Callable::Function(Rc::clone(method), environment_clone)
-                                };
-                                scope.borrow_mut().define_variable(self.this_symbol, instance);
-                                return Ok(Value::Callable(callable));
+
+                        //Verifica se sia stato richiamato un metodo
+                        if let Some(method) = class_instance.declaration.methods.borrow().get(&get_expr.identifier.name) {
+
+                            //define new closure for the current method
+                            let mut environment_clone = environment.clone();
+                            let scope: Rc<RefCell<Scope>> = environment_clone.new_local_scope();
+
+                            //Crea un Value::Callable a partire dal metodo richiamato a seconda che sia l'init o un altro metodo
+                            let callable;
+                            if method.identifier.name == self.init_symbol {
+                                callable = Callable::InitFunction(Rc::clone(method), environment_clone);
+                            } else {
+                                callable = Callable::Function(Rc::clone(method), environment_clone);
                             }
+
+                            //Definisce la variabile 'this' associandola all'istanza della classe
+                            scope.borrow_mut().define_variable(self.this_symbol, Value::ClassInstance(class_instance.clone()));
+
+                            return Ok(Value::Callable(callable));
                         }
+
                         return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(get_expr.identifier.name).unwrap().to_owned()), get_expr.identifier.position));
                     },
                     _ =>
@@ -535,7 +602,7 @@ pub enum Callable
 {
     Function(Rc<FunctionDeclaration>, Environment),
     InitFunction(Rc<FunctionDeclaration>, Environment),
-    Class(Rc<ClassDeclaration>, Environment),
+    Class(Rc<LoxClass>, Environment),
     Clock,
     AssertEq,
     Str
@@ -558,7 +625,7 @@ impl Callable
             Self::Class(rc_declaration, _) =>
             {
                 //>If class has an initializer determine the number of parameters of the initializer to be passed to the class contructor
-                if let Some(init) = rc_declaration.methods.get(&init_symbol) {
+                if let Some(init) = rc_declaration.methods.borrow().get(&init_symbol) {
                     init.parameters.len()
                 } else {
                     0
@@ -594,20 +661,27 @@ impl Callable
                 return Ok(function_environment.last_scope().unwrap().borrow().get_variable(interpreter.this_symbol).unwrap());
             },
 
-            /* Call on class name construct a new instance of the given class (there is no 'new' keyword in Lox) */
-            Self::Class(declaration, environment) =>
+            /* Construct a new class instance. Calls on class identifier construct a new instance of the given class (there is no 'new' keyword in Lox) */
+            Self::Class(lox_class, environment) =>
             {
+                //Create the new instance Value
                 let instance = Value::ClassInstance(
-                    ClassInstance { declaration: Rc::clone(declaration), attributes: Rc::new(RefCell::new(FxHashMap::default())) }
+                    Rc::new(
+                        LoxInstance {
+                            declaration: Rc::clone(lox_class),
+                            attributes: Rc::new(RefCell::new(FxHashMap::default()))
+                        }
+                    )
                 );
-                //>call init method (if it exists)
-                if let Some(init) = declaration.methods.get(&interpreter.init_symbol)
+
+                //Call the init method (if it exists)
+                if let Some(init) = lox_class.methods.borrow().get(&interpreter.init_symbol)
                 {
                     let mut cloned_environment = environment.clone();
                     let scope = cloned_environment.new_local_scope();
                     scope.borrow_mut().define_variable(interpreter.this_symbol, instance.clone());
                     let mut callable = Self::InitFunction(Rc::clone(init), cloned_environment);
-                    callable.call(interpreter, interpreter_environment, args_expr, &declaration.identifier.position)?;
+                    callable.call(interpreter, interpreter_environment, args_expr, &lox_class.identifier.position)?;
                 }
                 Ok(instance)
             },

@@ -2,7 +2,14 @@ use std::{rc::Rc, cell::RefCell};
 
 use rustc_hash::FxHashMap;
 
-use crate::{interpreter::Callable, parser_stmt::ClassDeclaration, alias::IdentifierSymbol, tokens::{Token, TokenKind}};
+use crate::{alias::IdentifierSymbol, interpreter::{Callable, LoxClass}, tokens::{Token, TokenKind}};
+
+#[derive(Clone, Debug)]
+pub struct LoxInstance {
+    pub declaration: Rc<LoxClass>,
+    pub attributes: Rc<RefCell<FxHashMap<IdentifierSymbol, Value>>>
+}
+
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -11,7 +18,7 @@ pub enum Value {
     Bool(bool),
     Nil,
     Callable(Callable),
-    ClassInstance(ClassInstance)
+    ClassInstance(Rc<LoxInstance>)
 }
 
 impl PartialEq for Value
@@ -72,10 +79,4 @@ impl Value
             Value::ClassInstance(_)     => true,
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct ClassInstance {
-    pub declaration: Rc<ClassDeclaration>,
-    pub attributes: Rc<RefCell<FxHashMap<IdentifierSymbol, Value>>>
 }

@@ -71,7 +71,8 @@ pub enum ResolverErrorKind
     VariableAlreadyExists(String),
     ReturnFromTopLevelCode,
     InvalidThisUsage,
-    ReturnFromInitializer
+    ReturnFromInitializer,
+    ClassCantInheritFromItslef
 }
 
 impl fmt::Display for ResolverErrorKind
@@ -84,6 +85,7 @@ impl fmt::Display for ResolverErrorKind
             Self::ReturnFromTopLevelCode => write!(f, "Can't return from top-level code"),
             Self::InvalidThisUsage => write!(f, "Can't use 'this' outside of a class."),
             Self::ReturnFromInitializer => write!(f, "Can't return a value from an initializer"),
+            Self::ClassCantInheritFromItslef => write!(f, "A class can't inherit from itself.")
         }
     }
 }
@@ -100,7 +102,8 @@ pub enum InterpreterErrorKind
     UdefinedProperty(String),
     UdefinedVariableUsage(String),
     UdefinedVariableAssignment(String),
-    AssertionFailure
+    AssertionFailure,
+    SuperclassMustBeAClass
 }
 
 impl fmt::Display for InterpreterErrorKind
@@ -118,6 +121,7 @@ impl fmt::Display for InterpreterErrorKind
             Self::UdefinedVariableUsage(value)       => write!(f, "Undefined variable. Tryng to evaluate undefined variable '{}'", value),
             Self::UdefinedVariableAssignment(value)  => write!(f, "Undefined variable. Tryng to assign to undefined variable '{}'", value),
             Self::AssertionFailure                            => write!(f, "Assertion failure"),
+            Self::SuperclassMustBeAClass                      => write!(f, "Superclass must be a class."),
         }
     }
 }

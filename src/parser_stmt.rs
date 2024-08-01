@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
@@ -23,7 +24,7 @@ pub enum Stmt
     Break,
     Continue,
     FunctionDeclaration (Rc<FunctionDeclaration>),
-    ClassDeclaration    (Rc<ClassDeclaration>),
+    ClassDeclaration    (ClassStmt),
     Print   (Expr),
 }
 
@@ -53,23 +54,27 @@ impl FunctionDeclaration
 }
 
 #[derive(Clone, Debug)]
-pub struct ClassDeclaration
+pub struct ClassStmt
 {
     pub identifier: Identifier,
-    pub methods: FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>
+    pub methods: Rc<RefCell<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>>,
+    pub superclass_expr: Option<Expr>
 }
 
-impl ClassDeclaration
+impl ClassStmt
 {
-    fn new(identifier: Identifier) -> Self
+    fn new(identifier: Identifier, superclass_expr: Option<Expr>) -> Self
     {
-        Self {identifier, methods: FxHashMap::default()}
+        Self {
+            identifier,
+            methods: Rc::new(RefCell::new(FxHashMap::default())),
+            superclass_expr: superclass_expr}
     }
 
-    fn insert_method(&mut self, name: IdentifierSymbol, method_declaration: FunctionDeclaration)
+    /*fn find_method(&mut self, name: IdentifierSymbol)  -> Option<&Rc<FunctionDeclaration>>
     {
-        self.methods.insert(name, Rc::new(method_declaration));
-    }
+        self.methods.get(&name)
+    }*/
 }
 
 #[derive(Clone, Debug)]
@@ -181,16 +186,32 @@ impl Parser
 
     fn class_declaration(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
-        let identifier = consume_identifier(token_source)?;
-        let mut class_declaration = ClassDeclaration::new(identifier);
+        let class_name = consume_identifier(token_source)?;
+        let class_stmt;
+
+        //Check if a superclass is present (superclass are declared with a 'less then' sign after the class name: class Klass < Super {} )
+        if check(token_source, TokenKind::Less)
+        {
+            token_source.consume();
+            let superclass_name = consume_identifier(token_source)?;
+            let superclass_expr = Expr::new(ExprKind::Variable(superclass_name));
+            class_stmt = ClassStmt::new(class_name, Some(superclass_expr));
+        }
+        else
+        {
+            class_stmt = ClassStmt::new(class_name, None);
+        }
         consume(token_source, TokenKind::LeftBrace)?;
 
-        while !check(token_source, TokenKind::RightBrace) && !is_at_end(token_source) {
+        //Declares all the methods found in the class (properties are not declared).
+        while !check(token_source, TokenKind::RightBrace) && !is_at_end(token_source)
+        {
             let method_declaration = self.create_fun_declaration(token_source)?;
-            class_declaration.insert_method(method_declaration.identifier.name, method_declaration);
+            class_stmt.methods.borrow_mut().insert(method_declaration.identifier.name, Rc::new(method_declaration));
         }
         consume(token_source, TokenKind::RightBrace)?;
-        Ok(Stmt::ClassDeclaration(Rc::new(class_declaration)))
+
+        Ok(Stmt::ClassDeclaration(class_stmt))
     }
 
     fn fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
