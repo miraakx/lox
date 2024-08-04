@@ -250,7 +250,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         //opt_superclass_value = None
                     }
                 };
-                let lox_class = LoxClass::new(class_stmt.identifier.clone(), class_stmt.methods.clone(), None);
+                let lox_class = LoxClass::new(class_stmt.identifier.clone(), Rc::clone(&class_stmt.methods), None);
                 //class is callable to construct a new instance. The new instance must have its own class template.
                 let callable = Callable::Class(Rc::new(lox_class), environment.clone());
                 self.define_variable(
@@ -506,7 +506,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                             }
 
                             //Definisce la variabile 'this' associandola all'istanza della classe
-                            scope.borrow_mut().define_variable(self.this_symbol, Value::ClassInstance(class_instance.clone()));
+                            scope.borrow_mut().define_variable(self.this_symbol, Value::ClassInstance(Rc::clone(class_instance)));
 
                             return Ok(Value::Callable(callable));
                         }
