@@ -24,7 +24,7 @@ pub enum Stmt
     Break,
     Continue,
     FunctionDeclaration (Rc<FunctionDeclaration>),
-    ClassDeclaration    (ClassStmt),
+    ClassDeclaration    (ClassDeclaration),
     Print   (Expr),
 }
 
@@ -54,14 +54,14 @@ impl FunctionDeclaration
 }
 
 #[derive(Clone, Debug)]
-pub struct ClassStmt
+pub struct ClassDeclaration
 {
     pub identifier: Identifier,
     pub methods: Rc<RefCell<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>>,
     pub superclass_expr: Option<Expr>
 }
 
-impl ClassStmt
+impl ClassDeclaration
 {
     fn new(identifier: Identifier, superclass_expr: Option<Expr>) -> Self
     {
@@ -195,11 +195,11 @@ impl Parser
             token_source.consume();
             let superclass_name = consume_identifier(token_source)?;
             let superclass_expr = Expr::new(ExprKind::Variable(superclass_name));
-            class_stmt = ClassStmt::new(class_name, Some(superclass_expr));
+            class_stmt = ClassDeclaration::new(class_name, Some(superclass_expr));
         }
         else
         {
-            class_stmt = ClassStmt::new(class_name, None);
+            class_stmt = ClassDeclaration::new(class_name, None);
         }
         consume(token_source, TokenKind::LeftBrace)?;
 
