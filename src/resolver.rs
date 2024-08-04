@@ -149,10 +149,9 @@ impl <'a> Resolver<'a>
 
                 //If superclass is present resolve it
                 if let Some(superclass_expr) = &class_declaration.superclass_expr {
-
                     //A class cannot inherit from itself!
                     if let ExprKind::Variable(superclass_identifier) = &superclass_expr.kind {
-                        if superclass_identifier.name ==  class_declaration.identifier.name {
+                        if superclass_identifier.name == class_declaration.identifier.name {
                             self.error(ResolverErrorKind::ClassCantInheritFromItslef, &superclass_identifier.position);
                         }
                     }

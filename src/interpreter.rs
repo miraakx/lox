@@ -10,7 +10,7 @@ pub struct LoxClass
 {
     pub identifier: Identifier,
     pub methods: Rc<RefCell<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>>,
-    pub super_class: Option<Box<LoxClass>>
+    pub super_class: Option<Rc<LoxClass>>
 }
 
 impl LoxClass
@@ -18,13 +18,13 @@ impl LoxClass
     fn new(
         identifier:     Identifier,
         methods:        Rc<RefCell<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>>,
-        super_class:    Option<Box<LoxClass>>
+        super_class:    Option<Rc<LoxClass>>
     ) -> Self
     {
         Self {
             identifier,
             methods,
-            super_class: super_class
+            super_class
         }
     }
 
@@ -226,31 +226,36 @@ impl <'a, 'b> Interpreter<'a, 'b>
             },
             Stmt::ClassDeclaration(class_stmt) =>
             {
-                //Evaluate the superclass expression and check if it's really a class and not something else.
-                match &class_stmt.superclass_expr
+                let opt_superclass: Option<Rc<LoxClass>>;
+                if let Some(superclass_var) = &class_stmt.superclass_expr
                 {
-                    Some(superclass_var) =>
-                    {
-                        let superclass_value = self.evaluate(superclass_var, environment)?;
+                    //Evaluate super class expression
+                    let superclass_value = self.evaluate(superclass_var, environment)?;
 
-                        match superclass_value
-                        {
-                            Value::Callable(_) =>
-                            {
-                                //opt_superclass_value = Some(superclass_value);
-                            },
-                            _ =>
-                            {
-                                return Err(LoxError::interpreter_error(InterpreterErrorKind::SuperclassMustBeAClass, class_stmt.identifier.position));
-                            }
-                        }
-                    },
-                    None =>
+                    //Check if super class expression refers to a class
+                    match &superclass_value
                     {
-                        //opt_superclass_value = None
+                        Value::Callable(callable) =>
+                        {
+                            match callable
+                            {
+                                Callable::Class(rc_lox_class, _) => {
+                                    opt_superclass = Some(Rc::clone(rc_lox_class));
+                                },
+                                _ => {
+                                    return Err(LoxError::interpreter_error(InterpreterErrorKind::SuperclassMustBeAClass, class_stmt.identifier.position));
+                                }
+                            }
+                        },
+                        _ => {
+                            return Err(LoxError::interpreter_error(InterpreterErrorKind::SuperclassMustBeAClass, class_stmt.identifier.position));
+                        }
                     }
-                };
-                let lox_class = LoxClass::new(class_stmt.identifier.clone(), Rc::clone(&class_stmt.methods), None);
+                } else {
+                    opt_superclass = None;
+                }
+
+                let lox_class = LoxClass::new(class_stmt.identifier.clone(), Rc::clone(&class_stmt.methods), opt_superclass);
                 //class is callable to construct a new instance. The new instance must have its own class template.
                 let callable = Callable::Class(Rc::new(lox_class), environment.clone());
                 self.define_variable(
