@@ -33,10 +33,19 @@ impl LoxClass
         self.methods.insert(name, Rc::new(method_declaration));
     }*/
 
-    /*fn find_method(&mut self, name: &IdentifierSymbol)  -> Option<&Rc<FunctionDeclaration>>
+    fn find_method(&self, name: &IdentifierSymbol)  -> Option<&Rc<FunctionDeclaration>>
     {
-        self.methods.borrow().get(name)
-    }*/
+        let method: Option<&Rc<FunctionDeclaration>> = self.methods.get(name);
+        if method.is_some() {
+            return method;
+        }
+
+        if let Some(super_class) = &self.super_class {
+            return super_class.find_method(name);
+        }
+
+        return None;
+    }
 }
 
 pub struct Interpreter<'a, 'b>
@@ -496,7 +505,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         }
 
                         //Verifica se sia stato richiamato un metodo
-                        if let Some(method) = class_instance.declaration.methods.get(&get_expr.identifier.name) {
+                        if let Some(method) = class_instance.declaration.find_method(&get_expr.identifier.name) {
 
                             //define new closure for the current method
                             let mut environment_clone = environment.clone();
@@ -618,8 +627,8 @@ impl Callable
             },
             Self::Class(rc_declaration, _) =>
             {
-                //>If class has an initializer determine the number of parameters of the initializer to be passed to the class contructor
-                if let Some(init) = rc_declaration.methods.get(&init_symbol) {
+                //If class has an initializer determine the number of parameters of the initializer to be passed to the class contructor
+                if let Some(init) = rc_declaration.find_method(&init_symbol) {
                     init.parameters.len()
                 } else {
                     0
@@ -666,7 +675,7 @@ impl Callable
                 );
 
                 //Call the init method (if it exists)
-                if let Some(init) = lox_class.methods.get(&interpreter.init_symbol)
+                if let Some(init) = lox_class.find_method(&interpreter.init_symbol)
                 {
                     let mut cloned_environment = environment.clone();
                     let scope = cloned_environment.new_local_scope();
