@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
@@ -59,7 +58,7 @@ impl FunctionDeclaration
 pub struct ClassDeclaration
 {
     pub identifier: Identifier,
-    pub methods: Rc<RefCell<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>>,
+    pub methods: Rc<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>,
     pub superclass_expr: Option<Expr>
 }
 
@@ -69,7 +68,7 @@ impl ClassDeclaration
     {
         Self {
             identifier,
-            methods: Rc::new(RefCell::new(FxHashMap::default())),
+            methods: Rc::new(FxHashMap::default()),
             superclass_expr: superclass_expr}
     }
 
@@ -189,7 +188,7 @@ impl Parser
     fn class_declaration(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let class_name = consume_identifier(token_source)?;
-        let class_stmt;
+        let mut class_stmt;
 
         //Check if a superclass is present (superclass are declared with a 'less then' sign after the class name: class Klass < Super {} )
         if check(token_source, TokenKind::Less)
@@ -204,13 +203,14 @@ impl Parser
             class_stmt = ClassDeclaration::new(class_name, None);
         }
         consume(token_source, TokenKind::LeftBrace)?;
-
+        let mut methods: FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>> = FxHashMap::default();
         //Declares all the methods found in the class (properties are not declared).
         while !check(token_source, TokenKind::RightBrace) && !is_at_end(token_source)
         {
             let method_declaration = self.create_fun_declaration(token_source, true)?;
-            class_stmt.methods.borrow_mut().insert(method_declaration.identifier.name, Rc::new(method_declaration));
+            methods.insert(method_declaration.identifier.name, Rc::new(method_declaration));
         }
+        class_stmt.methods = Rc::new(methods);
         consume(token_source, TokenKind::RightBrace)?;
 
         Ok(Stmt::ClassDeclaration(class_stmt))

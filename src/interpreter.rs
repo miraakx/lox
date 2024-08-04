@@ -9,7 +9,7 @@ use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, environment::{Environm
 pub struct LoxClass
 {
     pub identifier: Identifier,
-    pub methods: Rc<RefCell<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>>,
+    pub methods: Rc<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>,
     pub super_class: Option<Rc<LoxClass>>
 }
 
@@ -17,7 +17,7 @@ impl LoxClass
 {
     fn new(
         identifier:     Identifier,
-        methods:        Rc<RefCell<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>>,
+        methods:        Rc<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>,
         super_class:    Option<Rc<LoxClass>>
     ) -> Self
     {
@@ -33,9 +33,9 @@ impl LoxClass
         self.methods.insert(name, Rc::new(method_declaration));
     }*/
 
-    /*fn find_method(&mut self, name: IdentifierSymbol)  -> Option<&Rc<FunctionDeclaration>>
+    /*fn find_method(&mut self, name: &IdentifierSymbol)  -> Option<&Rc<FunctionDeclaration>>
     {
-        self.methods.get(&name)
+        self.methods.borrow().get(name)
     }*/
 }
 
@@ -496,7 +496,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         }
 
                         //Verifica se sia stato richiamato un metodo
-                        if let Some(method) = class_instance.declaration.methods.borrow().get(&get_expr.identifier.name) {
+                        if let Some(method) = class_instance.declaration.methods.get(&get_expr.identifier.name) {
 
                             //define new closure for the current method
                             let mut environment_clone = environment.clone();
@@ -619,7 +619,7 @@ impl Callable
             Self::Class(rc_declaration, _) =>
             {
                 //>If class has an initializer determine the number of parameters of the initializer to be passed to the class contructor
-                if let Some(init) = rc_declaration.methods.borrow().get(&init_symbol) {
+                if let Some(init) = rc_declaration.methods.get(&init_symbol) {
                     init.parameters.len()
                 } else {
                     0
@@ -666,7 +666,7 @@ impl Callable
                 );
 
                 //Call the init method (if it exists)
-                if let Some(init) = lox_class.methods.borrow().get(&interpreter.init_symbol)
+                if let Some(init) = lox_class.methods.get(&interpreter.init_symbol)
                 {
                     let mut cloned_environment = environment.clone();
                     let scope = cloned_environment.new_local_scope();

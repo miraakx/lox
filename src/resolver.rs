@@ -166,7 +166,7 @@ impl <'a> Resolver<'a>
 
                 //Resolve methods
                 let methods = &class_declaration.methods;
-                for (_, rc_method) in methods.borrow().iter() {
+                for (_, rc_method) in methods.iter() {
                     let function_type =
                         if rc_method.identifier.name == self.init_symbol {
                             FunctionType::Initializer
