@@ -53,14 +53,14 @@ impl <'a, 'b> Interpreter<'a, 'b>
 {
     pub fn new_with_writer(string_interner: &'a mut StringInterner, side_table: SideTable, writer: Box<&'b mut dyn Write>) -> Self
     {
-        let this_symbol   = string_interner.get_or_intern_static("this");
-        let init_symbol   = string_interner.get_or_intern_static("init");
+        let this_symbol = string_interner.get("this").unwrap();
+        let init_symbol = string_interner.get("init").unwrap();
         Interpreter {
             string_interner,
             side_table,
             global_scope: Scope::new(),
-            this_symbol,
-            init_symbol,
+            this_symbol: this_symbol,
+            init_symbol: init_symbol,
             writer
         }
     }
@@ -498,13 +498,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                             let scope: Rc<RefCell<Scope>> = environment_clone.new_local_scope();
 
                             //Crea un Value::Callable a partire dal metodo richiamato a seconda che sia l'init o un altro metodo
-                            let callable;
-                            if method.identifier.name == self.init_symbol {
-                                callable = Callable::InitFunction(Rc::clone(method), environment_clone);
-                            } else {
-                                callable = Callable::Function(Rc::clone(method), environment_clone);
-                            }
-
+                            let callable = Callable::Function(Rc::clone(method), environment_clone);
                             //Definisce la variabile 'this' associandola all'istanza della classe
                             scope.borrow_mut().define_variable(self.this_symbol, Value::ClassInstance(Rc::clone(class_instance)));
 
@@ -601,7 +595,6 @@ pub enum State
 pub enum Callable
 {
     Function(Rc<FunctionDeclaration>, Environment),
-    InitFunction(Rc<FunctionDeclaration>, Environment),
     Class(Rc<LoxClass>, Environment),
     Clock,
     AssertEq,
@@ -615,10 +608,6 @@ impl Callable
     {
         match self {
             Self::Function(declaration, _) =>
-            {
-                declaration.parameters.len()
-            },
-            Self::InitFunction(declaration, _) =>
             {
                 declaration.parameters.len()
             },
@@ -642,9 +631,14 @@ impl Callable
     {
         match self
         {
-            Self::Function(declaration, function_environment) =>
+            Self::Function(function, function_environment) =>
             {
-                match function_call(interpreter, interpreter_environment, function_environment, declaration, args_expr)? {
+                let state: State = function_call(interpreter, interpreter_environment, function_environment, function, args_expr)?;
+                //non spostare da qui! (init ritorna 'this' anche se non presente un return al suo interno)
+                if function.is_initializer {
+                    return Ok(function_environment.last_scope().unwrap().borrow().get_variable(interpreter.this_symbol).unwrap());
+                }
+                match state {
                     State::Return(value) => {
                         Ok(value)
                     },
@@ -653,14 +647,6 @@ impl Callable
                     }
                 }
             },
-            Self::InitFunction(declaration, function_environment) =>
-            {
-
-                let _ = function_call(interpreter, interpreter_environment, function_environment, declaration, args_expr)?;
-
-                return Ok(function_environment.last_scope().unwrap().borrow().get_variable(interpreter.this_symbol).unwrap());
-            },
-
             /* Construct a new class instance. Calls on class identifier construct a new instance of the given class (there is no 'new' keyword in Lox) */
             Self::Class(lox_class, environment) =>
             {
@@ -680,7 +666,7 @@ impl Callable
                     let mut cloned_environment = environment.clone();
                     let scope = cloned_environment.new_local_scope();
                     scope.borrow_mut().define_variable(interpreter.this_symbol, instance.clone());
-                    let mut callable = Self::InitFunction(Rc::clone(init), cloned_environment);
+                    let mut callable = Self::Function(Rc::clone(init), cloned_environment);
                     callable.call(interpreter, interpreter_environment, args_expr, &lox_class.identifier.position)?;
                 }
                 Ok(instance)

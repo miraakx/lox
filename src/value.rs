@@ -36,7 +36,6 @@ impl PartialEq for Value
             (Value::Callable(left), Value::Callable(right)) => {
                 match (left, right) {
                     (Callable::Function(l, _), Callable::Function(r, _))           => { Rc::ptr_eq(&l, &r) },
-                    (Callable::InitFunction(l, _), Callable::InitFunction(r, _))   => { Rc::ptr_eq(&l, &r) },
                     (Callable::Class(l, _), Callable::Class(r, _))                 => { Rc::ptr_eq(&l, &r) },
                     (Callable::Clock, Callable::Clock)                              => { true },
                     (Callable::AssertEq, Callable::AssertEq)                        => { true },

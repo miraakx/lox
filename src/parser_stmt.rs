@@ -36,19 +36,21 @@ pub struct FunctionDeclaration
     pub parameters: Vec<IdentifierSymbol>,
     pub positions: Vec<Position>,
     //Attenzione! non puo' essere uno Stmt altrimenti i parametri della funzione verrebbero definiti in uno scope esterno rispetto al body e l'utente potrebbe ridefinirli nel body!
-    pub body: Vec<Stmt>
+    pub body: Vec<Stmt>,
+    pub is_initializer: bool
 }
 
 impl FunctionDeclaration
 {
-    pub fn new(identifier: Identifier, parameters: Vec<Identifier>, body: Vec<Stmt>) -> Self
+    pub fn new(identifier: Identifier, parameters: Vec<Identifier>, body: Vec<Stmt>, is_initializer: bool) -> Self
     {
         Self
         {
             identifier,
             parameters: parameters.iter().map(|p| p.name).collect(),
             positions: parameters.iter().map(|p| p.position).collect(),
-            body
+            body,
+            is_initializer
         }
     }
 }
@@ -99,13 +101,14 @@ pub struct WhileStmt {
 pub struct Parser
 {
     in_loop: u32,
-    error_logger: Box<dyn ErrorLogger>
+    error_logger: Box<dyn ErrorLogger>,
+    init_symbol: IdentifierSymbol
 }
 
 impl Parser
 {
-    pub fn new(error_logger: impl ErrorLogger + 'static) -> Self {
-        Self { in_loop: 0, error_logger: Box::new(error_logger) }
+    pub fn new(error_logger: impl ErrorLogger + 'static, init_symbol: IdentifierSymbol) -> Self {
+        Self { in_loop: 0, error_logger: Box::new(error_logger), init_symbol }
     }
 
     fn synchronize(&mut self, token_source: &mut TokenSource) {
@@ -132,14 +135,13 @@ impl Parser
         }
     }
 
-    pub fn parse(&mut self, code: &str) -> Result<(Vec<Stmt>, StringInterner), ExecutionResult>
+    pub fn parse(&mut self, code: &str, interner: &mut StringInterner) -> Result<Vec<Stmt>, ExecutionResult>
     {
         let mut statements: Vec<Stmt> = vec![];
-        let mut interner  : StringInterner = StringInterner::default();
 
         let mut is_error  : bool      = false;
 
-        let mut lexer       : Lexer<'_>      = Lexer::new(code, &mut interner, ConsoleErrorLogger{});
+        let mut lexer       : Lexer<'_>      = Lexer::new(code, interner, ConsoleErrorLogger{});
         let mut token_source: TokenSource    = Peekable::new(&mut lexer);
 
         loop {
@@ -147,7 +149,7 @@ impl Parser
                 if is_error {
                     return Err(ExecutionResult::ParserError);
                 } else {
-                    return Ok((statements, interner));
+                    return Ok(statements);
                 }
             }
             let result = self.declaration(&mut token_source);
@@ -206,7 +208,7 @@ impl Parser
         //Declares all the methods found in the class (properties are not declared).
         while !check(token_source, TokenKind::RightBrace) && !is_at_end(token_source)
         {
-            let method_declaration = self.create_fun_declaration(token_source)?;
+            let method_declaration = self.create_fun_declaration(token_source, true)?;
             class_stmt.methods.borrow_mut().insert(method_declaration.identifier.name, Rc::new(method_declaration));
         }
         consume(token_source, TokenKind::RightBrace)?;
@@ -216,10 +218,10 @@ impl Parser
 
     fn fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
     {
-        Ok(Stmt::FunctionDeclaration(Rc::new(self.create_fun_declaration(token_source)?)))
+        Ok(Stmt::FunctionDeclaration(Rc::new(self.create_fun_declaration(token_source, false)?)))
     }
 
-    fn create_fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<FunctionDeclaration, LoxError>
+    fn create_fun_declaration(&mut self, token_source: &mut TokenSource, is_method: bool)  -> Result<FunctionDeclaration, LoxError>
     {
         let identifier = consume_identifier(token_source)?;
         consume(token_source, TokenKind::LeftParen)?;
@@ -249,7 +251,11 @@ impl Parser
                 return Err(LoxError::parser_error(ParserErrorKind::ExpectedBlock, right_paren_position));
             }
         };
-        let declaration = FunctionDeclaration::new(identifier, args, stmts);
+        let mut is_initializer = false;
+        if is_method && identifier.name == self.init_symbol {
+            is_initializer = true;
+        }
+        let declaration = FunctionDeclaration::new(identifier, args, stmts, is_initializer);
         Ok(declaration)
     }
 

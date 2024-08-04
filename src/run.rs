@@ -2,7 +2,7 @@ use std::{fs, io::Write};
 
 use string_interner::StringInterner;
 
-use crate::{error::{ConsoleErrorLogger, ExecutionResult}, interpreter::Interpreter, parser_stmt::{Parser, Stmt}, resolver::Resolver};
+use crate::{alias::IdentifierSymbol, error::{ConsoleErrorLogger, ExecutionResult}, interpreter::Interpreter, parser_stmt::{Parser, Stmt}, resolver::Resolver};
 
 pub fn run_file<'a>(filepath: &'a str, writer: Box<&mut dyn Write>) -> Result<(), ExecutionResult>
 {
@@ -54,13 +54,13 @@ pub fn run_file<'a>(filepath: &'a str, writer: Box<&mut dyn Write>) -> Result<()
 
 pub fn run(code: &str, writer: Box<&mut dyn Write>) -> Result<(), ExecutionResult>
 {
-   let stmts       : Vec<Stmt>;
-   let mut interner: StringInterner;
+   let stmts: Vec<Stmt>;
+   let mut interner: StringInterner = StringInterner::default();
+   let _ = interner.get_or_intern_static("this");
+   let init_symbol: IdentifierSymbol = interner.get_or_intern_static("init");
    {
-      let mut parser: Parser = Parser::new(ConsoleErrorLogger{});
-      let result  = parser.parse(code)?;
-      stmts    = result.0;
-      interner = result.1;
+      let mut parser: Parser = Parser::new(ConsoleErrorLogger{}, init_symbol);
+      stmts = parser.parse(code, &mut interner)?;
    }
    let mut interpreter;
    {
