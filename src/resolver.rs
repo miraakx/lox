@@ -3,7 +3,7 @@ use std::rc::Rc;
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind, ExecutionResult}, alias::{IdentifierSymbol, SideTable}, tokens::{Position, THIS}};
+use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind, ExecutionResult}, alias::{IdentifierSymbol, SideTable}, tokens::Position};
 
 pub struct Resolver<'a>
 {
@@ -14,6 +14,7 @@ pub struct Resolver<'a>
     current_class:    ClassType,
     this_symbol:      IdentifierSymbol,
     init_symbol:      IdentifierSymbol,
+    super_symbol:     IdentifierSymbol,
     error_logger:     Box<dyn ErrorLogger>,
 }
 
@@ -21,18 +22,20 @@ impl <'a> Resolver<'a>
 {
     pub fn new(error_logger: impl ErrorLogger + 'static, string_interner: &'a mut StringInterner) -> Self
     {
-        let this_symbol = string_interner.get_or_intern_static(THIS);
-        let init_symbol = string_interner.get_or_intern_static("init");
+        let this_symbol = string_interner.get("this").unwrap();
+        let init_symbol = string_interner.get("init").unwrap();
+        let super_symbol = string_interner.get("super").unwrap();
         Resolver
         {
             stack: Stack::new(),
-            error_logger: Box::new(error_logger),
             string_interner,
             has_error: false,
             current_function: FunctionType::None,
             current_class: ClassType::None,
             this_symbol,
-            init_symbol
+            init_symbol,
+            super_symbol,
+            error_logger: Box::new(error_logger),
         }
     }
 
@@ -159,9 +162,13 @@ impl <'a> Resolver<'a>
                     self.resolve_expr(superclass_expr, side_table);
                 }
 
+                if class_declaration.superclass_expr.is_some() {
+                    self.begin_scope();
+                    self.define(self.super_symbol);
+                }
+
                 //Start THIS scope wrapping around methods declarations
                 self.begin_scope();
-
                 self.define(self.this_symbol);
 
                 //Resolve methods
@@ -177,6 +184,10 @@ impl <'a> Resolver<'a>
                 }
 
                 self.end_scope();
+
+                if class_declaration.superclass_expr.is_some() {
+                    self.end_scope();
+                }
             },
         }
         //> restore-current-function
@@ -275,6 +286,9 @@ impl <'a> Resolver<'a>
                         self.resolve_local(expr, self.this_symbol, side_table);
                     }
                 }
+            },
+            ExprKind::Super(identifier) => {
+                self.resolve_local(expr, identifier.name, side_table);
             },
 
 

@@ -57,6 +57,7 @@ pub fn run(code: &str, writer: Box<&mut dyn Write>) -> Result<(), ExecutionResul
    let stmts: Vec<Stmt>;
    let mut interner: StringInterner = StringInterner::default();
    let _ = interner.get_or_intern_static("this");
+   let _ = interner.get_or_intern_static("super");
    let init_symbol: IdentifierSymbol = interner.get_or_intern_static("init");
    {
       let mut parser: Parser = Parser::new(ConsoleErrorLogger{}, init_symbol);

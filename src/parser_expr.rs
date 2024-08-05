@@ -32,7 +32,8 @@ pub enum ExprKind
     Call    (Box<CallExpr>),
     Get     (Box<GetExpr>),
     Set     (Box<SetExpr>),
-    This    (Position)
+    This    (Position),
+    Super   (Identifier)
 }
 
 #[derive(Clone, Debug)]
@@ -341,6 +342,11 @@ fn primary(token_source: &mut TokenSource) -> Result<Expr, LoxError>
         TokenKind::This => {
             //println!("THIS: {}", token.kind);
             Ok(Expr::new(ExprKind::This(token.position)))
+        },
+        TokenKind::Super => {
+            consume(token_source, TokenKind::Dot)?;
+            let identifier: Identifier = consume_identifier(token_source)?;
+            Ok(Expr::new(ExprKind::Super(identifier)))
         },
         _ => {
             Err(LoxError::parser_error(ParserErrorKind::ExpectedLiteral(token.kind), position))

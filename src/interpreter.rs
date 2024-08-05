@@ -55,6 +55,7 @@ pub struct Interpreter<'a, 'b>
     global_scope:      Scope,
     this_symbol:       IdentifierSymbol,
     init_symbol:       IdentifierSymbol,
+    super_symbol:      IdentifierSymbol,
     writer:            Box<&'b mut dyn Write>
 }
 
@@ -64,12 +65,14 @@ impl <'a, 'b> Interpreter<'a, 'b>
     {
         let this_symbol = string_interner.get("this").unwrap();
         let init_symbol = string_interner.get("init").unwrap();
+        let super_symbol = string_interner.get("super").unwrap();
         Interpreter {
             string_interner,
             side_table,
             global_scope: Scope::new(),
-            this_symbol: this_symbol,
-            init_symbol: init_symbol,
+            this_symbol,
+            init_symbol,
+            super_symbol,
             writer
         }
     }
@@ -264,9 +267,15 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     opt_superclass = None;
                 }
 
+                let mut class_env = environment.clone();
+                if let Some(superclass) = &opt_superclass {
+                    let scope = class_env.new_local_scope();
+                    scope.borrow_mut().define_variable(self.super_symbol, Value::Callable(Callable::Class(Rc::clone(&superclass), environment.clone())));
+                }
+
                 let lox_class = LoxClass::new(class_stmt.identifier.clone(), Rc::clone(&class_stmt.methods), opt_superclass);
-                //class is callable to construct a new instance. The new instance must have its own class template.
-                let callable = Callable::Class(Rc::new(lox_class), environment.clone());
+                let callable = Callable::Class(Rc::new(lox_class), class_env);
+
                 self.define_variable(
                     environment, class_stmt.identifier.name, Value::Callable(callable)
                 );
@@ -551,6 +560,43 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     None => {
                         Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(self.string_interner.resolve(self.this_symbol).unwrap().to_owned()), *position))
                     },
+                }
+            },
+            ExprKind::Super(identifier) => {
+                let index: usize = *self.side_table.get(&expr.id).unwrap();
+                let superclass  : Value = environment.get_variable_from_local_at(index,     self.super_symbol).unwrap();
+                let object      : Value = environment.get_variable_from_local_at(index + 1, self.this_symbol).unwrap();
+                match superclass {
+                    Value::Callable(callable) => {
+                        match &callable {
+                            Callable::Class(lox_superclass, superclass_env) => {
+                                let opt_method = lox_superclass.find_method(&identifier.name);
+
+                                //Verifica se sia stato richiamato un metodo
+                                if let Some(method) = opt_method {
+                                    //define new closure for the current method
+                                    let mut environment_clone = superclass_env.clone();
+                                    let scope: Rc<RefCell<Scope>> = environment_clone.new_local_scope();
+
+                                    //Crea un Value::Callable a partire dal metodo richiamato a seconda che sia l'init o un altro metodo
+                                    let callable = Callable::Function(Rc::clone(method), environment_clone);
+                                    //Definisce la variabile 'this' associandola all'istanza della classe
+                                    scope.borrow_mut().define_variable(self.this_symbol, object);
+
+                                    return Ok(Value::Callable(callable));
+                                } else {
+                                    Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
+                                }
+
+                            },
+                            _ => {
+                                panic!()
+                            }
+                        }
+                    },
+                        _ => {
+                        panic!()
+                    }
                 }
             },
 
