@@ -23,7 +23,7 @@ pub enum Stmt
     Break,
     Continue,
     FunctionDeclaration (Rc<FunctionDeclaration>),
-    ClassDeclaration    (ClassDeclaration),
+    ClassDeclaration    (Rc<ClassDeclaration>),
     Print   (Expr),
 }
 
@@ -58,7 +58,7 @@ impl FunctionDeclaration
 pub struct ClassDeclaration
 {
     pub identifier: Identifier,
-    pub methods: Rc<FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>>,
+    pub methods: FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>,
     pub superclass_expr: Option<Expr>
 }
 
@@ -68,7 +68,7 @@ impl ClassDeclaration
     {
         Self {
             identifier,
-            methods: Rc::new(FxHashMap::default()),
+            methods: FxHashMap::default(),
             superclass_expr: superclass_expr}
     }
 
@@ -210,10 +210,10 @@ impl Parser
             let method_declaration = self.create_fun_declaration(token_source, true)?;
             methods.insert(method_declaration.identifier.name, Rc::new(method_declaration));
         }
-        class_stmt.methods = Rc::new(methods);
+        class_stmt.methods = methods;
         consume(token_source, TokenKind::RightBrace)?;
 
-        Ok(Stmt::ClassDeclaration(class_stmt))
+        Ok(Stmt::ClassDeclaration(Rc::new(class_stmt)))
     }
 
     fn fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
