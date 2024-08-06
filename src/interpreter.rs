@@ -1920,7 +1920,7 @@ mod tests {
 
 
     enum Expect {
-        Output(Vec<String>), RuntimeError, ErrorAt, Nothing
+        Output(Vec<String>), RuntimeError(Vec<String>), ErrorAt, Nothing
     }
 
     fn expected_result(file_path: &str) -> Expect
@@ -1951,10 +1951,10 @@ mod tests {
             }
             if runtime_error.is_match(line)
             {
-                if !vec.is_empty() {
+                /*if !vec.is_empty() {
                     panic!("expected result got runtime_error");
-                }
-                return Expect::RuntimeError;
+                }*/
+                return Expect::RuntimeError(vec);
             }
         }
         if vec.is_empty() {
@@ -1984,9 +1984,14 @@ mod tests {
                     assert_eq!(expected_value, actual_value);
                 }
             },
-            Expect::RuntimeError =>
+            Expect::RuntimeError(buf_expected) =>
             {
                 run::run_file(file_path, Box::new(&mut buf_output)).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'", file_path));
+                let lines = std::str::from_utf8(&buf_output).unwrap().lines();
+                for (expected_value, actual_value) in buf_expected.iter().zip(lines)
+                {
+                    assert_eq!(expected_value, actual_value);
+                }
             },
             Expect::ErrorAt =>
             {
@@ -1998,5 +2003,4 @@ mod tests {
             },
         }
     }
-
 }
