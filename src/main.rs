@@ -12,7 +12,6 @@ mod native;
 mod resolver;
 mod value;
 mod alias;
-mod tiny_vec;
 mod run;
 
 fn main()
