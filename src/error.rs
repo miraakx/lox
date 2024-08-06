@@ -72,7 +72,9 @@ pub enum ResolverErrorKind
     ReturnFromTopLevelCode,
     InvalidThisUsage,
     ReturnFromInitializer,
-    ClassCantInheritFromItslef
+    ClassCantInheritFromItslef,
+    CantUseSuperOutsideClass,
+    CantUseSuperInAClassWithoutSuperClass
 }
 
 impl fmt::Display for ResolverErrorKind
@@ -85,7 +87,9 @@ impl fmt::Display for ResolverErrorKind
             Self::ReturnFromTopLevelCode => write!(f, "Can't return from top-level code"),
             Self::InvalidThisUsage => write!(f, "Can't use 'this' outside of a class."),
             Self::ReturnFromInitializer => write!(f, "Can't return a value from an initializer"),
-            Self::ClassCantInheritFromItslef => write!(f, "A class can't inherit from itself.")
+            Self::ClassCantInheritFromItslef => write!(f, "A class can't inherit from itself."),
+            Self::CantUseSuperOutsideClass => write!(f, "Can't use 'super' outside of a class."),
+            Self::CantUseSuperInAClassWithoutSuperClass => write!(f, "Can't use 'super' in a class with no superclass."),
         }
     }
 }

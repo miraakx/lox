@@ -148,6 +148,7 @@ impl <'a> Resolver<'a>
             },
             Stmt::ClassDeclaration(class_declaration) =>
             {
+                self.current_class = ClassType::Class;
                 //resolve class name
                 if let Err(err_kind) = self.declare(class_declaration.identifier.name) {
                     self.error(err_kind, &class_declaration.identifier.position);
@@ -156,6 +157,7 @@ impl <'a> Resolver<'a>
 
                 //If superclass is present resolve it
                 if let Some(superclass_expr) = &class_declaration.superclass_expr {
+
                     //A class cannot inherit from itself!
                     if let ExprKind::Variable(superclass_identifier) = &superclass_expr.kind {
                         if superclass_identifier.name == class_declaration.identifier.name {
@@ -168,6 +170,7 @@ impl <'a> Resolver<'a>
 
                 match &class_declaration.superclass_expr {
                     Some(superclass) => {
+                        self.current_class = ClassType::SubClass;
                         self.resolve_expr(superclass, side_table);
                         self.begin_scope();
                         self.define(self.super_symbol);
@@ -188,7 +191,7 @@ impl <'a> Resolver<'a>
                         } else {
                             FunctionType::Method
                         };
-                    self.resolve_function(rc_method, function_type, ClassType::Class, side_table);
+                    self.resolve_function(rc_method, function_type, self.current_class, side_table);
                 }
 
                 self.end_scope();
@@ -292,11 +295,21 @@ impl <'a> Resolver<'a>
                 }
             },
             ExprKind::Super(identifier) => {
-                println!("resolving super method='{}'", self.string_interner.resolve(identifier.name).unwrap());
+                match self.current_class
+                {
+                    ClassType::None => {
+                        self.error(crate::error::ResolverErrorKind::CantUseSuperOutsideClass, &identifier.position);
+                    },
+                    ClassType::SubClass => {
+
+                    },
+                    ClassType::Class => {
+                        self.error(crate::error::ResolverErrorKind::CantUseSuperInAClassWithoutSuperClass, &identifier.position);
+                    }
+                }
+                //println!("resolving super method='{}'", self.string_interner.resolve(identifier.name).unwrap());
                 self.resolve_local(expr, self.super_symbol, side_table);
             },
-
-
         }
     }
 
@@ -318,7 +331,7 @@ impl <'a> Resolver<'a>
             {
                 return Err(ResolverErrorKind::VariableAlreadyExists(self.string_interner.resolve(identifier).unwrap().to_owned()));
             }
-            println!("declaring identifier: {}", self.string_interner.resolve(identifier).unwrap());
+            //println!("declaring identifier: {}", self.string_interner.resolve(identifier).unwrap());
             scope.insert(identifier, false);
         }
         Ok(())
@@ -328,19 +341,19 @@ impl <'a> Resolver<'a>
     {
         if let Some(last) = self.stack.peek_mut()
         {
-            println!("defining identifier: {}", self.string_interner.resolve(identifier).unwrap());
+            //println!("defining identifier: {}", self.string_interner.resolve(identifier).unwrap());
             last.insert(identifier, true);
         }
     }
 
     fn resolve_local(&mut self, expr: &Expr, identifier: IdentifierSymbol, side_table: &mut SideTable)
     {
-        println!("resolve_local identifier: {} ...",self.string_interner.resolve(identifier).unwrap());
+        //println!("resolve_local identifier: {} ...",self.string_interner.resolve(identifier).unwrap());
         for (index, scope) in self.stack.iter().enumerate().rev()
         {
             if scope.contains_key(&identifier)
             {
-                println!("... at index: {}", index);
+                //println!("... at index: {}", index);
                 side_table.insert(expr.id, index);
                 return;
             }
@@ -357,5 +370,5 @@ enum FunctionType
 #[derive(Clone, Debug, Copy)]
 enum ClassType
 {
-    None, Class
+    None, Class, SubClass
 }
