@@ -68,22 +68,7 @@ impl<T: Clone> CircularBuffer<T>
     {
         self.tail = (self.tail + 1) % self.capacity;
     }
-/*
-    pub fn tail(&self) -> Option<&T>
-    {
-        //If necessario perche' self.tail e self.capacity sono usize
-        if self.tail == 0 {
-            self.buffer[self.capacity - 1].as_ref()
-        } else {
-            self.buffer[(self.tail - 1) % self.capacity].as_ref()
-        }
-    }
 
-    pub fn head(&self) -> Option<&T>
-    {
-        self.buffer[self.head].as_ref()
-    }
-*/
     pub const fn size(&self) -> usize
     {
         self.size
