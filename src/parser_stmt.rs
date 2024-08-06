@@ -72,11 +72,6 @@ impl ClassDeclaration
             superclass_expr
         }
     }
-
-    /*fn find_method(&mut self, name: IdentifierSymbol)  -> Option<&Rc<FunctionDeclaration>>
-    {
-        self.methods.get(&name)
-    }*/
 }
 
 #[derive(Clone, Debug)]
@@ -401,10 +396,11 @@ impl Parser
             };
 
         let condition_expr =
-            if opt_condition.is_none() {
-                Expr::new(ExprKind::Literal(crate::value::Value::Bool(true)))
-            } else {
-                opt_condition.unwrap()
+            match opt_condition {
+                Some(condition_expr) => condition_expr,
+                None => {
+                    Expr::new(ExprKind::Literal(crate::value::Value::Bool(true)))
+                },
             };
 
         let while_stmt = Stmt::While(Box::new(WhileStmt {condition: condition_expr, body: body_plus_increment })) ;

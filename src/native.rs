@@ -27,14 +27,14 @@ pub fn to_string(value: Value, string_interner: &StringInterner) -> String {
         Value::String(string)       => format!("{}", string),
         Value::Number(number)       => format!("{}", number),
         Value::Bool(boolean)        => format!("{}", boolean),
-        Value::Nil                  => format!("nil"),
+        Value::Nil                  => "nil".to_string(),
         Value::Callable(callable)   => {
             match callable {
                 Callable::Function(fun_decl)    => format!("<fn {}>", string_interner.resolve(fun_decl.borrow().declaration.identifier.name).unwrap()),
-                Callable::Class(class_decl)  => format!("{}", string_interner.resolve(class_decl.identifier.name).unwrap()),
-                Callable::Clock                 => format!("<native fn>"),
-                Callable::AssertEq              => format!("<native fn>"),
-                Callable::Str                   => format!("<native fn>"),
+                Callable::Class(class_decl)     => string_interner.resolve(class_decl.identifier.name).unwrap().to_string(),
+                Callable::Clock                 => "<native fn>".to_string(),
+                Callable::AssertEq              => "<native fn>".to_string(),
+                Callable::Str                   => "<native fn>".to_string(),
             }
         },
         Value::ClassInstance(class_instance) => {

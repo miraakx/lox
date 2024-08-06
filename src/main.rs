@@ -28,7 +28,7 @@ fn main()
       }*/
       2 => {
          let result = run::run_file(&args[1], &mut io::stdout().lock());
-         if let Err(_) = result {
+         if result.is_err() {
             println!("\nProgram terminated with error(s). See above.");
             std::process::exit(64);
          }

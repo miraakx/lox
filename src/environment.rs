@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 
 use rustc_hash::FxHashMap;
 
@@ -108,10 +108,14 @@ impl Scope
     #[inline]
     pub fn assign_variable(&mut self, variable: IdentifierSymbol, var_value: &Value) -> Result<(), ()>
     {
-        if self.map.contains_key(&variable) {
-            self.map.insert(variable, var_value.clone());
+        if let Entry::Occupied(mut e) = self.map.entry(variable) {
+            e.insert(var_value.clone());
             return Ok(());
         }
+        /*if self.map.contains_key(&variable) {
+            self.map.insert(variable, var_value.clone());
+            return Ok(());
+        }*/
         Err(())
     }
 

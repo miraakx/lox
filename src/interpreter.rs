@@ -250,17 +250,9 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     //Check if super class expression refers to a class
                     match &superclass_value
                     {
-                        Value::Callable(callable) =>
+                        Value::Callable(Callable::Class(rc_lox_class)) =>
                         {
-                            match callable
-                            {
-                                Callable::Class(rc_lox_class) => {
-                                    opt_superclass = Some(Rc::clone(rc_lox_class));
-                                },
-                                _ => {
-                                    return Err(LoxError::interpreter_error(InterpreterErrorKind::SuperclassMustBeAClass, class_stmt.identifier.position));
-                                }
-                            }
+                            opt_superclass = Some(Rc::clone(rc_lox_class));
                         },
                         _ => {
                             return Err(LoxError::interpreter_error(InterpreterErrorKind::SuperclassMustBeAClass, class_stmt.identifier.position));
@@ -273,7 +265,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                 let mut class_env = environment.clone();
                 if let Some(superclass) = &opt_superclass {
                     let scope = class_env.new_local_scope();
-                    scope.borrow_mut().define_variable(self.super_symbol, Value::Callable(Callable::Class(Rc::clone(&superclass))));
+                    scope.borrow_mut().define_variable(self.super_symbol, Value::Callable(Callable::Class(Rc::clone(superclass))));
                 }
 
                 let mut methods_map: FxHashMap<IdentifierSymbol, Rc<RefCell<LoxFunction>>> = FxHashMap::default();
@@ -591,7 +583,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                     //Definisce la variabile 'this' associandola all'istanza della classe
                                     scope.borrow_mut().define_variable(self.this_symbol, object);
 
-                                    return Ok(Value::Callable(callable));
+                                    Ok(Value::Callable(callable))
                                 } else {
                                     Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
                                 }
@@ -614,22 +606,20 @@ impl <'a, 'b> Interpreter<'a, 'b>
     #[inline]
     pub fn lookup_variable(&self, environment: &Environment, name: IdentifierSymbol, expr_id: ExprId) -> Option<Value>
     {
-        let opt_index = self.side_table.get(&expr_id);
-        //println!("searching expr_id={}...",expr_id);
-        if opt_index.is_none() {
-            //println!("searching expr_id={} in global",expr_id);
-            self.global_scope.get_variable(name)
-        } else {
-            //println!("searching expr_id={} in locals at index={}",expr_id, *opt_index.unwrap());
-            environment.get_variable_from_local_at(*opt_index.unwrap(), name)
+        match self.side_table.get(&expr_id) {
+            Some(index) => {
+                environment.get_variable_from_local_at(*index, name)
+            },
+            None => {
+                self.global_scope.get_variable(name)
+            },
         }
     }
 
     #[inline]
     pub fn assign_variable(&mut self, environment: &mut Environment, variable: IdentifierSymbol, var_value: &Value, expr_id: i64) -> Result<(), ()>
     {
-        let opt_index = self.side_table.get(&expr_id);
-        match opt_index {
+        match self.side_table.get(&expr_id) {
             Some(index) => {
                 environment.assign_variable_to_local_at(*index, variable, var_value)
             },
@@ -764,7 +754,7 @@ impl Callable
             Self::Str =>
             {
                 let value   = interpreter.evaluate(&args_expr[0], interpreter_environment)?;
-                Ok(Value::String(Rc::new(to_string(value, &interpreter.string_interner))))
+                Ok(Value::String(Rc::new(to_string(value, interpreter.string_interner))))
             },
         }
     }
