@@ -293,7 +293,7 @@ impl <'a> Resolver<'a>
             },
             ExprKind::Super(identifier) => {
                 println!("resolving super method='{}'", self.string_interner.resolve(identifier.name).unwrap());
-                self.resolve_local(expr, identifier.name, side_table);
+                self.resolve_local(expr, self.super_symbol, side_table);
             },
 
 
