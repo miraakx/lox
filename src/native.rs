@@ -31,7 +31,7 @@ pub fn to_string(value: Value, string_interner: &StringInterner) -> String {
         Value::Callable(callable)   => {
             match callable {
                 Callable::Function(fun_decl)    => format!("<fn {}>", string_interner.resolve(fun_decl.borrow().declaration.identifier.name).unwrap()),
-                Callable::Class(class_decl, _)  => format!("{}", string_interner.resolve(class_decl.identifier.name).unwrap()),
+                Callable::Class(class_decl)  => format!("{}", string_interner.resolve(class_decl.identifier.name).unwrap()),
                 Callable::Clock                 => format!("<native fn>"),
                 Callable::AssertEq              => format!("<native fn>"),
                 Callable::Str                   => format!("<native fn>"),

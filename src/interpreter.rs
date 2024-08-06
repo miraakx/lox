@@ -17,6 +17,7 @@ pub struct LoxClass
 {
     pub identifier: Identifier,
     pub methods: FxHashMap<IdentifierSymbol, Rc<RefCell<LoxFunction>>>,
+    pub environment: Environment,
     pub super_class: Option<Rc<LoxClass>>
 }
 
@@ -25,12 +26,14 @@ impl LoxClass
     fn new(
         identifier:     Identifier,
         methods:        FxHashMap<IdentifierSymbol, Rc<RefCell<LoxFunction>>>,
+        environment:    Environment,
         super_class:    Option<Rc<LoxClass>>
     ) -> Self
     {
         Self {
             identifier,
             methods,
+            environment,
             super_class
         }
     }
@@ -259,7 +262,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         {
                             match callable
                             {
-                                Callable::Class(rc_lox_class, _) => {
+                                Callable::Class(rc_lox_class) => {
                                     opt_superclass = Some(Rc::clone(rc_lox_class));
                                 },
                                 _ => {
@@ -278,7 +281,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                 let mut class_env = environment.clone();
                 if let Some(superclass) = &opt_superclass {
                     let scope = class_env.new_local_scope();
-                    scope.borrow_mut().define_variable(self.super_symbol, Value::Callable(Callable::Class(Rc::clone(&superclass), environment.clone())));
+                    scope.borrow_mut().define_variable(self.super_symbol, Value::Callable(Callable::Class(Rc::clone(&superclass))));
                 }
 
                 let mut methods_map: FxHashMap<IdentifierSymbol, Rc<RefCell<LoxFunction>>> = FxHashMap::default();
@@ -286,8 +289,8 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     let fun = LoxFunction {declaration: Rc::clone(fun_stmt), environment: class_env.clone() };
                     methods_map.insert(*id, Rc::new(RefCell::new(fun)));
                 }
-                let lox_class = LoxClass::new(class_stmt.identifier.clone(), methods_map, opt_superclass);
-                let callable = Callable::Class(Rc::new(lox_class), class_env);
+                let lox_class = LoxClass::new(class_stmt.identifier.clone(), methods_map, class_env, opt_superclass);
+                let callable = Callable::Class(Rc::new(lox_class));
 
                 self.define_variable(
                     environment, class_stmt.identifier.name, Value::Callable(callable)
@@ -582,7 +585,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                 match superclass {
                     Value::Callable(callable) => {
                         match &callable {
-                            Callable::Class(lox_superclass, _) => {
+                            Callable::Class(lox_superclass) => {
                                 let opt_method = lox_superclass.find_method(&identifier.name);
 
                                 //Verifica se sia stato richiamato un metodo
@@ -671,7 +674,7 @@ pub enum State
 pub enum Callable
 {
     Function(Rc<RefCell<LoxFunction>>),
-    Class(Rc<LoxClass>, Environment),
+    Class(Rc<LoxClass>),
     Clock,
     AssertEq,
     Str
@@ -687,7 +690,7 @@ impl Callable
             {
                 function.borrow().declaration.parameters.len()
             },
-            Self::Class(class, _) =>
+            Self::Class(class) =>
             {
                 //If class has an initializer determine the number of parameters of the initializer to be passed to the class contructor
                 if let Some(init) = class.find_method(&init_symbol) {
@@ -724,7 +727,7 @@ impl Callable
                 }
             },
             /* Construct a new class instance. Calls on class identifier construct a new instance of the given class (there is no 'new' keyword in Lox) */
-            Self::Class(lox_class, _) =>
+            Self::Class(lox_class) =>
             {
                 //Create the new instance Value
                 let instance = Value::ClassInstance(

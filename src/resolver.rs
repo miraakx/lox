@@ -122,6 +122,10 @@ impl <'a> Resolver<'a>
             Stmt::Continue  => { /*do nothing*/ },
             Stmt::FunctionDeclaration(func_decl) =>
             {
+                if let Err(err_kind) = self.declare(func_decl.identifier.name) {
+                    self.error(err_kind, &func_decl.identifier.position);
+                }
+                self.define(func_decl.identifier.name);
                 self.resolve_function(func_decl, FunctionType::Function, self.current_class, side_table);
             },
             Stmt::Return(opt_expr, position) =>
@@ -162,9 +166,13 @@ impl <'a> Resolver<'a>
                     self.resolve_expr(superclass_expr, side_table);
                 }
 
-                if class_declaration.superclass_expr.is_some() {
-                    self.begin_scope();
-                    self.define(self.super_symbol);
+                match &class_declaration.superclass_expr {
+                    Some(superclass) => {
+                        self.resolve_expr(superclass, side_table);
+                        self.begin_scope();
+                        self.define(self.super_symbol);
+                    },
+                    None => {},
                 }
 
                 //Start THIS scope wrapping around methods declarations
@@ -198,10 +206,6 @@ impl <'a> Resolver<'a>
 
     fn resolve_function(&mut self, func_decl: &Rc<FunctionDeclaration>, function_type: FunctionType, class_type: ClassType, side_table: &mut SideTable)
     {
-        if let Err(err_kind) = self.declare(func_decl.identifier.name) {
-            self.error(err_kind, &func_decl.identifier.position);
-        }
-        self.define(func_decl.identifier.name);
         self.begin_scope();
         for (index, param) in func_decl.parameters.iter().enumerate()
         {
@@ -288,6 +292,7 @@ impl <'a> Resolver<'a>
                 }
             },
             ExprKind::Super(identifier) => {
+                println!("resolving super method='{}'", self.string_interner.resolve(identifier.name).unwrap());
                 self.resolve_local(expr, identifier.name, side_table);
             },
 
@@ -313,6 +318,7 @@ impl <'a> Resolver<'a>
             {
                 return Err(ResolverErrorKind::VariableAlreadyExists(self.string_interner.resolve(identifier).unwrap().to_owned()));
             }
+            println!("declaring identifier: {}", self.string_interner.resolve(identifier).unwrap());
             scope.insert(identifier, false);
         }
         Ok(())
@@ -322,16 +328,19 @@ impl <'a> Resolver<'a>
     {
         if let Some(last) = self.stack.peek_mut()
         {
+            println!("defining identifier: {}", self.string_interner.resolve(identifier).unwrap());
             last.insert(identifier, true);
         }
     }
 
     fn resolve_local(&mut self, expr: &Expr, identifier: IdentifierSymbol, side_table: &mut SideTable)
     {
+        println!("resolve_local identifier: {} ...",self.string_interner.resolve(identifier).unwrap());
         for (index, scope) in self.stack.iter().enumerate().rev()
         {
             if scope.contains_key(&identifier)
             {
+                println!("... at index: {}", index);
                 side_table.insert(expr.id, index);
                 return;
             }
