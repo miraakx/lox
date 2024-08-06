@@ -4,7 +4,7 @@ use string_interner::StringInterner;
 
 use crate::{alias::IdentifierSymbol, error::{ConsoleErrorLogger, ExecutionResult}, interpreter::Interpreter, parser_stmt::{Parser, Stmt}, resolver::Resolver};
 
-pub fn run_file<'a>(filepath: &'a str, writer: Box<&mut dyn Write>) -> Result<(), ExecutionResult>
+pub fn run_file<'a>(filepath: &'a str, writer: &mut dyn Write) -> Result<(), ExecutionResult>
 {
    let r_code = fs::read_to_string(filepath);
    match r_code {
@@ -52,7 +52,7 @@ pub fn run_file<'a>(filepath: &'a str, writer: Box<&mut dyn Write>) -> Result<()
    }
 }*/
 
-pub fn run(code: &str, writer: Box<&mut dyn Write>) -> Result<(), ExecutionResult>
+pub fn run(code: &str, writer: &mut dyn Write) -> Result<(), ExecutionResult>
 {
    let stmts: Vec<Stmt>;
    let mut interner: StringInterner = StringInterner::default();
