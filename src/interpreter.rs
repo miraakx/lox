@@ -9,7 +9,7 @@ use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, environment::{Environm
 pub struct LoxFunction
 {
     pub declaration: Rc<FunctionDeclaration>,
-    pub environment: Environment
+    pub closure: Environment
 }
 
 #[derive(Clone, Debug)]
@@ -37,11 +37,6 @@ impl LoxClass
             super_class
         }
     }
-
-    /*fn insert_method(&mut self, name: IdentifierSymbol, method_declaration: FunctionDeclaration)
-    {
-        self.methods.insert(name, Rc::new(method_declaration));
-    }*/
 
     fn find_method(&self, name: &IdentifierSymbol)  -> Option<&Rc<RefCell<LoxFunction>>>
     {
@@ -239,7 +234,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
             //Interpret a function declariation (fun my_function(...) {...}) by converting its compile time represtation 'FunctionDeclaration' to its runtime representation 'Callable::Function'
             Stmt::FunctionDeclaration(function_declaration) =>
             {
-                let lox_function = LoxFunction { declaration: Rc::clone(function_declaration), environment: environment.clone() };
+                let lox_function = LoxFunction { declaration: Rc::clone(function_declaration), closure: environment.clone() };
                 let function = Callable::Function(Rc::new(RefCell::new(lox_function)));
                 self.define_variable(environment,
                         function_declaration.identifier.name,
@@ -286,7 +281,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
 
                 let mut methods_map: FxHashMap<IdentifierSymbol, Rc<RefCell<LoxFunction>>> = FxHashMap::default();
                 for (id, fun_stmt) in class_stmt.methods.iter() {
-                    let fun = LoxFunction {declaration: Rc::clone(fun_stmt), environment: class_env.clone() };
+                    let fun = LoxFunction {declaration: Rc::clone(fun_stmt), closure: class_env.clone() };
                     methods_map.insert(*id, Rc::new(RefCell::new(fun)));
                 }
                 let lox_class = LoxClass::new(class_stmt.identifier.clone(), methods_map, class_env, opt_superclass);
@@ -534,7 +529,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
 
                             //define new closure for the current method
                             //let mut environment_clone = method.environment.clone();
-                            let scope: Rc<RefCell<Scope>> = method.borrow_mut().environment.new_local_scope();
+                            let scope: Rc<RefCell<Scope>> = method.borrow_mut().closure.new_local_scope();
 
                             //Crea un Value::Callable a partire dal metodo richiamato a seconda che sia l'init o un altro metodo
                             let callable = Callable::Function(Rc::clone(method));
@@ -592,7 +587,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                 if let Some(method) = opt_method {
                                     //define new closure for the current method
                                     //let mut environment_clone = method.environment.clone();
-                                    let scope: Rc<RefCell<Scope>> = method.borrow_mut().environment.new_local_scope();
+                                    let scope: Rc<RefCell<Scope>> = method.borrow_mut().closure.new_local_scope();
 
                                     //Crea un Value::Callable a partire dal metodo richiamato a seconda che sia l'init o un altro metodo
                                     let callable = Callable::Function(Rc::clone(method));
@@ -715,7 +710,7 @@ impl Callable
                 let state: State = function_call(interpreter, interpreter_environment, function, args_expr)?;
                 //non spostare da qui! (init ritorna 'this' anche se non presente un return al suo interno)
                 if function.borrow().declaration.is_initializer {
-                    return Ok(function.borrow().environment.last_scope().unwrap().borrow().get_variable(interpreter.this_symbol).unwrap());
+                    return Ok(function.borrow().closure.last_scope().unwrap().borrow().get_variable(interpreter.this_symbol).unwrap());
                 }
                 match state {
                     State::Return(value) => {
@@ -743,11 +738,11 @@ impl Callable
                 if let Some(init) = lox_class.find_method(&interpreter.init_symbol)
                 {
                     //let mut cloned_environment = environment.clone();
-                    let scope = init.borrow_mut().environment.new_local_scope();
+                    let scope = init.borrow_mut().closure.new_local_scope();
                     scope.borrow_mut().define_variable(interpreter.this_symbol, instance.clone());
                     let mut callable = Self::Function(Rc::clone(init));
                     let _ = callable.call(interpreter, interpreter_environment, args_expr, &lox_class.identifier.position)?;
-                    init.borrow_mut().environment.remove_local_scope();
+                    init.borrow_mut().closure.remove_local_scope();
                 }
                 Ok(instance)
             },
@@ -786,7 +781,7 @@ fn function_call(
     args_expr:               &[Expr]
 ) -> Result<State, LoxError>
 {
-    let mut environment = function.borrow().environment.clone();
+    let mut environment = function.borrow().closure.clone();
     {
         let rc_scope = environment.new_local_scope();
 
