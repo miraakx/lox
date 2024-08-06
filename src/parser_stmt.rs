@@ -69,7 +69,8 @@ impl ClassDeclaration
         Self {
             identifier,
             methods: FxHashMap::default(),
-            superclass_expr: superclass_expr}
+            superclass_expr
+        }
     }
 
     /*fn find_method(&mut self, name: IdentifierSymbol)  -> Option<&Rc<FunctionDeclaration>>

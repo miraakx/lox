@@ -27,7 +27,7 @@ fn main()
          }
       }*/
       2 => {
-         let result = run::run_file(&args[1], Box::new(&mut io::stdout().lock()));
+         let result = run::run_file(&args[1], &mut io::stdout().lock());
          if let Err(_) = result {
             println!("\nProgram terminated with error(s). See above.");
             std::process::exit(64);

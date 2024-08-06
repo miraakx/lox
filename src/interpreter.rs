@@ -46,7 +46,7 @@ impl LoxClass
             return super_class.find_method(name);
         }
 
-        return None;
+        None
     }
 }
 
@@ -58,12 +58,12 @@ pub struct Interpreter<'a, 'b>
     this_symbol:       IdentifierSymbol,
     init_symbol:       IdentifierSymbol,
     super_symbol:      IdentifierSymbol,
-    writer:            Box<&'b mut dyn Write>
+    writer:            &'b mut dyn Write
 }
 
 impl <'a, 'b> Interpreter<'a, 'b>
 {
-    pub fn new_with_writer(string_interner: &'a mut StringInterner, side_table: SideTable, writer: Box<&'b mut dyn Write>) -> Self
+    pub fn new_with_writer(string_interner: &'a mut StringInterner, side_table: SideTable, writer: &'b mut dyn Write) -> Self
     {
         let this_symbol = string_interner.get("this").unwrap();
         let init_symbol = string_interner.get("init").unwrap();
@@ -138,7 +138,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
             Stmt::Print(expr) =>
             {
                 let val = self.evaluate(expr, environment)?;
-                self.write_line(&to_string(val, &self.string_interner));
+                self.write_line(&to_string(val, self.string_interner));
                 Ok(State::Normal)
             },
             Stmt::Expr(expr) =>
@@ -1973,7 +1973,7 @@ mod tests {
         {
             Expect::Output(buf_expected) =>
             {
-                run::run_file(file_path, Box::new(&mut buf_output)).expect(&format!("Expected test to be Ok (1) but got Err at file: '{}'", file_path));
+                run::run_file(file_path, &mut buf_output).expect(&format!("Expected test to be Ok (1) but got Err at file: '{}'", file_path));
                 let lines = std::str::from_utf8(&buf_output).unwrap().lines();
                 if buf_expected.is_empty() {
                     panic!("test buf_expected should not be empty");
@@ -1988,7 +1988,7 @@ mod tests {
             },
             Expect::RuntimeError(buf_expected) =>
             {
-                run::run_file(file_path, Box::new(&mut buf_output)).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'", file_path));
+                run::run_file(file_path, &mut buf_output).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'", file_path));
                 let lines = std::str::from_utf8(&buf_output).unwrap().lines();
                 for (expected_value, actual_value) in buf_expected.iter().zip(lines)
                 {
@@ -1997,11 +1997,11 @@ mod tests {
             },
             Expect::ErrorAt =>
             {
-                run::run_file(file_path, Box::new(&mut buf_output)).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'", file_path));
+                run::run_file(file_path, &mut buf_output).expect_err(&format!("Expected test to be Err but got Ok at file: '{}'", file_path));
             },
             Expect::Nothing =>
             {
-                run::run_file(file_path, Box::new(&mut buf_output)).expect(&format!("Expected test to be Ok (2) but got Err at file: '{}'", file_path));
+                run::run_file(file_path, &mut buf_output).expect(&format!("Expected test to be Ok (2) but got Err at file: '{}'", file_path));
             },
         }
     }

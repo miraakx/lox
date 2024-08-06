@@ -109,7 +109,7 @@ fn assignment(token_source: &mut TokenSource) -> Result<Expr,LoxError>
                 },
                 //Assign a value expression to an instance property
                 ExprKind::Get(get_expr) => {
-                    Ok(Expr::new(ExprKind::Set(Box::new(SetExpr { target: get_expr.expr, identifier: get_expr.identifier, value: value }))))
+                    Ok(Expr::new(ExprKind::Set(Box::new(SetExpr { target: get_expr.expr, identifier: get_expr.identifier, value }))))
                 }
                 _ => {
                     Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
@@ -134,7 +134,7 @@ fn or(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::Or => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = and(token_source)?;
-                expr =  Expr::new(ExprKind::Logical(Box::new(LogicalExpr { left: expr, operator: Operator::<LogicalOperatorKind>::from_token(&operator), right: right })));
+                expr =  Expr::new(ExprKind::Logical(Box::new(LogicalExpr { left: expr, operator: Operator::<LogicalOperatorKind>::from_token(&operator), right })));
             },
             _ => {
                 return Ok(expr);
@@ -155,7 +155,7 @@ fn and(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::And => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = equality(token_source)?;
-                expr = Expr::new(ExprKind::Logical(Box::new(LogicalExpr { left: expr, operator: Operator::<LogicalOperatorKind>::from_token(&operator), right: right })));
+                expr = Expr::new(ExprKind::Logical(Box::new(LogicalExpr { left: expr, operator: Operator::<LogicalOperatorKind>::from_token(&operator), right })));
             },
             _ => {
                 return Ok(expr);
@@ -176,7 +176,7 @@ fn equality(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::BangEqual|TokenKind::EqualEqual => {
                 let operator: Token = token_source.next().unwrap();
                 let right: Expr = comparison(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right: right })));
+                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right })));
             },
             _ => {
                 return Ok(expr);
@@ -197,7 +197,7 @@ fn comparison(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::Greater | TokenKind::GreaterEqual | TokenKind::Less | TokenKind::LessEqual => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = term(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right: right })));
+                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right })));
             },
             _ => {
                 return Ok(expr);
@@ -218,7 +218,7 @@ fn term(token_source: &mut TokenSource) -> Result<Expr,LoxError>
             TokenKind::Minus | TokenKind::Plus => {
                 let operator = token_source.next().unwrap();
                 let right: Expr = factor(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right: right })));
+                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right })));
             },
             _ => {
                 return Ok(expr);
@@ -239,7 +239,7 @@ fn factor(token_source: &mut TokenSource) -> Result<Expr, LoxError>
             TokenKind::Slash | TokenKind::Star => {
                 let operator: Token = token_source.next().unwrap();
                 let right = unary(token_source)?;
-                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right: right })));
+                expr = Expr::new(ExprKind::Binary(Box::new(BinaryExpr { left: expr, operator: Operator::<BinaryOperatorKind>::from_token(&operator), right })));
             },
             _ => {
                 return Ok(expr);
