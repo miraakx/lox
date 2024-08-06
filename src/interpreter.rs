@@ -581,7 +581,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
             ExprKind::Super(identifier) => {
                 let index: usize = *self.side_table.get(&expr.id).unwrap();
                 let superclass  : Value = environment.get_variable_from_local_at(index,     self.super_symbol).unwrap();
-                let object      : Value = environment.get_variable_from_local_at(index - 1, self.this_symbol).unwrap();
+                let object      : Value = environment.get_variable_from_local_at(index + 1, self.this_symbol).unwrap();
                 match superclass {
                     Value::Callable(callable) => {
                         match &callable {
