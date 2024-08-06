@@ -17,7 +17,6 @@ pub struct LoxClass
 {
     pub identifier: Identifier,
     pub methods: FxHashMap<IdentifierSymbol, Rc<RefCell<LoxFunction>>>,
-    pub environment: Environment,
     pub super_class: Option<Rc<LoxClass>>
 }
 
@@ -26,14 +25,12 @@ impl LoxClass
     fn new(
         identifier:     Identifier,
         methods:        FxHashMap<IdentifierSymbol, Rc<RefCell<LoxFunction>>>,
-        environment:    Environment,
         super_class:    Option<Rc<LoxClass>>
     ) -> Self
     {
         Self {
             identifier,
             methods,
-            environment,
             super_class
         }
     }
@@ -284,7 +281,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     let fun = LoxFunction {declaration: Rc::clone(fun_stmt), closure: class_env.clone() };
                     methods_map.insert(*id, Rc::new(RefCell::new(fun)));
                 }
-                let lox_class = LoxClass::new(class_stmt.identifier.clone(), methods_map, class_env, opt_superclass);
+                let lox_class = LoxClass::new(class_stmt.identifier.clone(), methods_map, opt_superclass);
                 let callable = Callable::Class(Rc::new(lox_class));
 
                 self.define_variable(
