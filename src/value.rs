@@ -30,16 +30,16 @@ impl PartialEq for Value
         {
             (Value::Bool(left),             Value::Bool(right))             => left == right,
             (Value::Number(left),           Value::Number(right))           => left == right,
-            (Value::String(left),           Value::String(right))           => { Rc::ptr_eq(&left, &right) || *left == *right  }
+            (Value::String(left),           Value::String(right))           => { Rc::ptr_eq(&left, &right) || *left == *right }
             (Value::Nil,                    Value::Nil)                     => true,
             (Value::ClassInstance(left),    Value::ClassInstance(right))    => { Rc::ptr_eq(&left.declaration, &right.declaration) },
             (Value::Callable(left),         Value::Callable(right)) => {
                 match (left, right) {
                     (Callable::Function(l), Callable::Function(r))  => { Rc::ptr_eq(&l, &r) },
-                    (Callable::Class(l), Callable::Class(r))  => { Rc::ptr_eq(&l, &r) },
-                    (Callable::Clock, Callable::Clock)              => { true },
-                    (Callable::AssertEq, Callable::AssertEq)        => { true },
-                    (Callable::Str, Callable::Str)                  => { true },
+                    (Callable::Class(l),    Callable::Class(r))     => { Rc::ptr_eq(&l, &r) },
+                    (Callable::Clock,       Callable::Clock)        => { true },
+                    (Callable::AssertEq,    Callable::AssertEq)     => { true },
+                    (Callable::Str,         Callable::Str)          => { true },
                     _ => false
                 }
             },
@@ -54,7 +54,7 @@ impl Value
     {
         match token.kind
         {
-            TokenKind::Nil                  => Value::Nil,
+            TokenKind::Nil           => Value::Nil,
             TokenKind::False(value)  => value,
             TokenKind::True(value)   => value,
             TokenKind::Number(value) => value,
@@ -70,12 +70,12 @@ impl Value
     {
         match self
         {
-            Value::String(_)            => true,
-            Value::Number(_)            => true,
-            Value::Bool(boolean) => *boolean,
-            Value::Nil                  => false,
-            Value::Callable(_)          => true,
-            Value::ClassInstance(_)     => true,
+            Value::String(_)        => true,
+            Value::Number(_)        => true,
+            Value::Bool(boolean)    => *boolean,
+            Value::Nil              => false,
+            Value::Callable(_)      => true,
+            Value::ClassInstance(_) => true,
         }
     }
 }
