@@ -82,17 +82,8 @@ impl Scope
     #[inline]
     pub fn define_variable(&mut self, variable: IdentifierSymbol, var_value: Value)
     {
-        //println!("VARIABLE {:?} = {:?}", variable, var_value);
         self.map.insert(variable, var_value);
     }
-
-    /*#[inline]
-    pub fn define_variables(&mut self, variables: &[IdentifierSymbol], mut var_values: Vec<Value>)
-    {
-        for variable in variables.iter().rev() {
-            self.map.insert(*variable, var_values.pop().unwrap());
-        }
-    }*/
 
     #[inline]
     pub fn get_variable(&self, variable: IdentifierSymbol) -> Option<Value>
@@ -112,57 +103,7 @@ impl Scope
             e.insert(var_value.clone());
             return Ok(());
         }
-        /*if self.map.contains_key(&variable) {
-            self.map.insert(variable, var_value.clone());
-            return Ok(());
-        }*/
         Err(())
     }
 
 }
-
-/*
-#[derive(Clone, Debug)]
-pub struct Scope {
-    map: Vec<(IdentifierSymbol, Value)>
-}
-
-impl Scope
-{
-    pub fn new() -> Self
-    {
-        Scope {
-            map: Vec::<(IdentifierSymbol, Value)>::new()
-        }
-    }
-
-    pub fn define_variable(&mut self, variable: IdentifierSymbol, var_value: Value)
-    {
-        self.map.push((variable, var_value));
-    }
-
-    pub fn get_variable(&self, variable: IdentifierSymbol) -> Option<Value>
-    {
-        for (name, value) in &self.map {
-            if *name == variable {
-                return Some(value.clone());
-            }
-        }
-        return None;
-    }
-
-    pub fn assign_variable(&mut self, variable: IdentifierSymbol, var_value: Value) -> Result<Value, ()>
-    {
-
-        for (index, value) in self.map.iter().enumerate() {
-            if value.0 == variable {
-                let clone = var_value.clone();
-                self.map[index] = (variable, clone);
-                return Ok(var_value);
-
-            }
-        }
-        return Err(());
-    }
-}
- */
