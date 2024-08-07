@@ -16,7 +16,7 @@ pub struct LoxFunction
 pub struct LoxClass
 {
     pub identifier: Identifier,
-    pub methods: FxHashMap<IdentifierSymbol, Rc<RefCell<LoxFunction>>>,
+    pub methods: FxHashMap<IdentifierSymbol, LoxFunction>,
     pub super_class: Option<Rc<LoxClass>>
 }
 
@@ -24,7 +24,7 @@ impl LoxClass
 {
     fn new(
         identifier:     Identifier,
-        methods:        FxHashMap<IdentifierSymbol, Rc<RefCell<LoxFunction>>>,
+        methods:        FxHashMap<IdentifierSymbol, LoxFunction>,
         super_class:    Option<Rc<LoxClass>>
     ) -> Self
     {
@@ -35,9 +35,9 @@ impl LoxClass
         }
     }
 
-    fn find_method(&self, name: &IdentifierSymbol)  -> Option<&Rc<RefCell<LoxFunction>>>
+    fn find_method(&self, name: &IdentifierSymbol)  -> Option<&LoxFunction>
     {
-        let method: Option<&Rc<RefCell<LoxFunction>>> = self.methods.get(name);
+        let method: Option<&LoxFunction> = self.methods.get(name);
         if method.is_some() {
             return method;
         }
@@ -105,7 +105,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
         Ok(())
     }
 
-    pub fn execute_stmts(&mut self, stmts: &[Stmt], environment: &Rc<RefCell<Environment2>>) -> Result<State, LoxError>
+    fn execute_stmts(&mut self, stmts: &[Stmt], environment: &Rc<RefCell<Environment2>>) -> Result<State, LoxError>
     {
         for stmt in stmts
         {
@@ -274,10 +274,10 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     class_env = Rc::clone(environment);
                 };
 
-                let mut methods_map: FxHashMap<IdentifierSymbol, Rc<RefCell<LoxFunction>>> = FxHashMap::default();
+                let mut methods_map: FxHashMap<IdentifierSymbol, LoxFunction> = FxHashMap::default();
                 for (id, fun_stmt) in class_stmt.methods.iter() {
                     let fun = LoxFunction {declaration: Rc::clone(fun_stmt), closure: Rc::clone(&class_env) };
-                    methods_map.insert(*id, Rc::new(RefCell::new(fun)));
+                    methods_map.insert(*id, fun);
                 }
                 let lox_class = LoxClass::new(class_stmt.identifier.clone(), methods_map, opt_superclass);
                 let callable = Callable::Class(Rc::new(lox_class));
@@ -655,9 +655,9 @@ fn define_variable(environment: &Rc<RefCell<Environment2>>, name: IdentifierSymb
 }
 
 
-fn bind(method: &Rc<RefCell<LoxFunction>>, value: Value, symbol: IdentifierSymbol) -> Callable {
-    let this_binding_closure = Environment2::new(&method.borrow().closure);
-    let new_method = LoxFunction {declaration: Rc::clone(&method.borrow().declaration),  closure: Rc::clone(&this_binding_closure) };
+fn bind(method: &LoxFunction, value: Value, symbol: IdentifierSymbol) -> Callable {
+    let this_binding_closure = Environment2::new(&method.closure);
+    let new_method = LoxFunction {declaration: Rc::clone(&method.declaration),  closure: Rc::clone(&this_binding_closure) };
     define_variable(&this_binding_closure, symbol, value);
     Callable::Function(Rc::new(RefCell::new(new_method)))
 }
@@ -695,7 +695,7 @@ impl Callable
             {
                 //If class has an initializer determine the number of parameters of the initializer to be passed to the class contructor
                 if let Some(init) = class.find_method(&init_symbol) {
-                    init.borrow().declaration.parameters.len()
+                    init.declaration.parameters.len()
                 } else {
                     0
                 }
