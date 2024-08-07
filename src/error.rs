@@ -115,17 +115,17 @@ impl fmt::Display for InterpreterErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match self {
-            Self::IncompatibleBinaryOpTypes                   => write!(f, "Both expressions side are not of the same type"),
-            Self::InvalidUnaryType                            => write!(f, "Invalid unary type"),
-            Self::NotCallable                                 => write!(f, "Not a callable expression"),
-            Self::WrongArity(expected, found) => write!(f, "Expected {} arguments, found {}", expected, found),
-            Self::NativeClockSysTimeError                     => write!(f, "System time error calling clock()"),
-            Self::InvalidPropertyAccess                       => write!(f, "Only instances have properties"),
-            Self::UdefinedProperty(value)            => write!(f, "Undefined property '{}'", value),
-            Self::UdefinedVariableUsage(value)       => write!(f, "Undefined variable. Tryng to evaluate undefined variable '{}'", value),
-            Self::UdefinedVariableAssignment(value)  => write!(f, "Undefined variable. Tryng to assign to undefined variable '{}'", value),
-            Self::AssertionFailure                            => write!(f, "Assertion failure"),
-            Self::SuperclassMustBeAClass                      => write!(f, "Superclass must be a class."),
+            Self::IncompatibleBinaryOpTypes             => write!(f, "Both expressions side are not of the same type"),
+            Self::InvalidUnaryType                      => write!(f, "Invalid unary type"),
+            Self::NotCallable                           => write!(f, "Not a callable expression"),
+            Self::WrongArity(expected, found)           => write!(f, "Expected {} arguments, found {}", expected, found),
+            Self::NativeClockSysTimeError               => write!(f, "System time error calling clock()"),
+            Self::InvalidPropertyAccess                 => write!(f, "Only instances have properties"),
+            Self::UdefinedProperty(value)               => write!(f, "Undefined property '{}'", value),
+            Self::UdefinedVariableUsage(value)          => write!(f, "Undefined variable. Tryng to evaluate undefined variable '{}'", value),
+            Self::UdefinedVariableAssignment(value)     => write!(f, "Undefined variable. Tryng to assign to undefined variable '{}'", value),
+            Self::AssertionFailure                      => write!(f, "Assertion failure"),
+            Self::SuperclassMustBeAClass                => write!(f, "Superclass must be a class."),
         }
     }
 }
@@ -153,19 +153,19 @@ impl fmt::Display for ParserErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match &self {
-            Self::UnexpectedToken(ch)                => write!(f, "Unexpected token '{}'", ch),
-            Self::ParseFloatError(value)           => write!(f, "Cannot parse float '{}'", value),
-            Self::UnterminatedString                        => write!(f, "Unterminated string"),
-            Self::InvalidEscapeCharacter                    => write!(f, "Invalid escape character"),
-            Self::UnexpectedEndOfFile                       => write!(f, "Unexpected end of file"),
-            Self::MissingClosingParenthesis                 => write!(f, "Missing closing parenthesis ')'"),
-            Self::ExpectedLiteral(token_kind)   => write!(f, "Expected literal, found '{}'", token_kind),
+            Self::UnexpectedToken(ch)               => write!(f, "Unexpected token '{}'", ch),
+            Self::ParseFloatError(value)            => write!(f, "Cannot parse float '{}'", value),
+            Self::UnterminatedString                => write!(f, "Unterminated string"),
+            Self::InvalidEscapeCharacter            => write!(f, "Invalid escape character"),
+            Self::UnexpectedEndOfFile               => write!(f, "Unexpected end of file"),
+            Self::MissingClosingParenthesis         => write!(f, "Missing closing parenthesis ')'"),
+            Self::ExpectedLiteral(token_kind)       => write!(f, "Expected literal, found '{}'", token_kind),
             Self::ExpectedToken(expected, found)    => write!(f, "Expected token '{}', found '{}'", expected, found),
-            Self::BreakOutsideLoop                          => write!(f, "Found 'break' keyword outside a loop"),
-            Self::ExpectedIdentifier(found)     => write!(f, "Expected identifier, found {}", found),
-            Self::TooManyArguments                          => write!(f, "Can't have more than 255 arguments."),
-            Self::TooManyParameters                         => write!(f, "Can't have more than 255 parameters."),
-            Self::ExpectedBlock                             => write!(f, "Internal error: Expected block found something else.")
+            Self::BreakOutsideLoop                  => write!(f, "Found 'break' keyword outside a loop"),
+            Self::ExpectedIdentifier(found)         => write!(f, "Expected identifier, found {}", found),
+            Self::TooManyArguments                  => write!(f, "Can't have more than 255 arguments."),
+            Self::TooManyParameters                 => write!(f, "Can't have more than 255 parameters."),
+            Self::ExpectedBlock                     => write!(f, "Internal error: Expected block found something else.")
         }
     }
 }
