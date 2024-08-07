@@ -3,7 +3,7 @@ use std::rc::Rc;
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{parser_stmt::{Stmt, FunctionDeclaration}, parser_expr::{Expr, ExprKind}, common::Stack, error::{LoxError, ErrorLogger, ResolverErrorKind, ExecutionResult}, alias::{IdentifierSymbol, SideTable}, tokens::Position};
+use crate::{alias::{IdentifierSymbol, SideTable}, common::Stack, error::{ErrorLogger, ExecutionResult, LoxError, ResolverErrorKind}, parser::{Expr, ExprKind, FunctionDeclaration, Stmt}, tokens::Position};
 
 pub struct Resolver<'a>
 {

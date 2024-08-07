@@ -2,7 +2,7 @@ use std::{fs, io::Write};
 
 use string_interner::StringInterner;
 
-use crate::{alias::IdentifierSymbol, error::{ConsoleErrorLogger, ExecutionResult}, interpreter::Interpreter, parser_stmt::{Parser, Stmt}, resolver::Resolver};
+use crate::{alias::IdentifierSymbol, error::{ConsoleErrorLogger, ExecutionResult}, interpreter::Interpreter, parser::{Parser, Stmt}, resolver::Resolver};
 
 pub fn run_file(filepath: &str, writer: &mut dyn Write) -> Result<(), ExecutionResult>
 {
