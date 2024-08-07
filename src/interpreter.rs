@@ -3,13 +3,13 @@ use std::{fmt::Debug, rc::Rc, cell::RefCell, io::Write};
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, environment2::Environment2, error::{ExecutionResult, InterpreterErrorKind, LoxError}, native::{assert_eq, clock, to_string}, parser_expr::{Expr, ExprKind}, parser_stmt::{FunctionDeclaration, Stmt}, tokens::{BinaryOperatorKind, Identifier, LogicalOperatorKind, Position, UnaryOperatorKind}, value::{LoxInstance, Value}};
+use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, environment::Environment, error::{ExecutionResult, InterpreterErrorKind, LoxError}, native::{assert_eq, clock, to_string}, parser_expr::{Expr, ExprKind}, parser_stmt::{FunctionDeclaration, Stmt}, tokens::{BinaryOperatorKind, Identifier, LogicalOperatorKind, Position, UnaryOperatorKind}, value::{LoxInstance, Value}};
 
 #[derive(Clone, Debug)]
 pub struct LoxFunction
 {
     pub declaration: Rc<FunctionDeclaration>,
-    pub closure: Rc<RefCell<Environment2>>
+    pub closure: Rc<RefCell<Environment>>
 }
 
 #[derive(Clone, Debug)]
@@ -54,7 +54,7 @@ pub struct Interpreter<'a, 'b>
 {
     string_interner:   &'a mut StringInterner,
     side_table:        SideTable,
-    global_scope:      Rc<RefCell<Environment2>>,
+    global_scope:      Rc<RefCell<Environment>>,
     this_symbol:       IdentifierSymbol,
     init_symbol:       IdentifierSymbol,
     super_symbol:      IdentifierSymbol,
@@ -71,7 +71,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
         Interpreter {
             string_interner,
             side_table,
-            global_scope: Environment2::default(),
+            global_scope: Environment::default(),
             this_symbol,
             init_symbol,
             super_symbol,
@@ -105,7 +105,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
         Ok(())
     }
 
-    fn execute_stmts(&mut self, stmts: &[Stmt], environment: &Rc<RefCell<Environment2>>) -> Result<State, LoxError>
+    fn execute_stmts(&mut self, stmts: &[Stmt], environment: &Rc<RefCell<Environment>>) -> Result<State, LoxError>
     {
         for stmt in stmts
         {
@@ -131,7 +131,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
         let _ = writeln!(self.writer, "{}", message);
     }
 
-    fn execute_stmt(&mut self, stmt: &Stmt, environment: &Rc<RefCell<Environment2>>) -> Result<State, LoxError>
+    fn execute_stmt(&mut self, stmt: &Stmt, environment: &Rc<RefCell<Environment>>) -> Result<State, LoxError>
     {
         match stmt
         {
@@ -165,7 +165,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
             Stmt::Block(statements) =>
             {
 
-                let new_env = Environment2::new(environment);
+                let new_env = Environment::new(environment);
                 //println!("new environment in Block:");
                 for stmt in statements
                 {
@@ -266,7 +266,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                 let class_env;
                 if let Some(superclass) = &opt_superclass {
                     //println!("new environment in Stmt::ClassDeclaration (superclass):");
-                    let env = Environment2::new(environment);
+                    let env = Environment::new(environment);
                     define_variable(&env, self.super_symbol, Value::Callable(Callable::Class(Rc::clone(superclass))));
                     //class_env.borrow_mut().define_variable(self.super_symbol, Value::Callable(Callable::Class(Rc::clone(superclass))));
                     class_env = env;
@@ -299,7 +299,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
         }
     }
 
-    fn evaluate(&mut self, expr: &Expr, environment: &Rc<RefCell<Environment2>>) -> Result<Value, LoxError>
+    fn evaluate(&mut self, expr: &Expr, environment: &Rc<RefCell<Environment>>) -> Result<Value, LoxError>
     {
         match &expr.kind {
             ExprKind::Literal(value) =>
@@ -309,6 +309,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
             ExprKind::Unary(unary_expr) =>
             {
                 let val_right: Value = self.evaluate(&unary_expr.expr, environment)?;
+
                 match unary_expr.operator.kind
                 {
                     UnaryOperatorKind::Minus =>
@@ -615,7 +616,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
     }
 
     #[inline]
-    fn lookup_variable(&self, environment: &Rc<RefCell<Environment2>>, name: IdentifierSymbol, expr_id: ExprId) -> Option<Value>
+    fn lookup_variable(&self, environment: &Rc<RefCell<Environment>>, name: IdentifierSymbol, expr_id: ExprId) -> Option<Value>
     {
         //print_env(environment, self.string_interner);
         match self.side_table.get(&expr_id) {
@@ -631,7 +632,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
     }
 
     #[inline]
-    fn assign_variable(&mut self, environment: &Rc<RefCell<Environment2>>, name: IdentifierSymbol, var_value: &Value, expr_id: i64) -> Result<(), ()>
+    fn assign_variable(&mut self, environment: &Rc<RefCell<Environment>>, name: IdentifierSymbol, var_value: &Value, expr_id: i64) -> Result<(), ()>
     {
         match self.side_table.get(&expr_id) {
             Some(distance) => {
@@ -648,7 +649,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
 }
 
 #[inline]
-fn define_variable(environment: &Rc<RefCell<Environment2>>, name: IdentifierSymbol, var_value: Value)
+fn define_variable(environment: &Rc<RefCell<Environment>>, name: IdentifierSymbol, var_value: Value)
 {
     //println!("define_variable {}", string_interner.resolve(name).unwrap());
     environment.borrow_mut().define_variable(name, var_value);
@@ -656,7 +657,7 @@ fn define_variable(environment: &Rc<RefCell<Environment2>>, name: IdentifierSymb
 
 
 fn bind(method: &LoxFunction, value: Value, symbol: IdentifierSymbol) -> Callable {
-    let this_binding_closure = Environment2::new(&method.closure);
+    let this_binding_closure = Environment::new(&method.closure);
     let new_method = LoxFunction {declaration: Rc::clone(&method.declaration),  closure: Rc::clone(&this_binding_closure) };
     define_variable(&this_binding_closure, symbol, value);
     Callable::Function(Rc::new(RefCell::new(new_method)))
@@ -707,7 +708,7 @@ impl Callable
     }
 
     #[inline]
-    fn call(&mut self, interpreter: &mut Interpreter, interpreter_environment: &Rc<RefCell<Environment2>>, args_expr: &[Expr], position: &Position) -> Result<Value, LoxError>
+    fn call(&mut self, interpreter: &mut Interpreter, interpreter_environment: &Rc<RefCell<Environment>>, args_expr: &[Expr], position: &Position) -> Result<Value, LoxError>
     {
         match self
         {
@@ -783,15 +784,15 @@ impl Callable
 #[inline]
 fn function_call(
     interpreter:             &mut Interpreter<'_, '_>,
-    interpreter_environment: &Rc<RefCell<Environment2>>,
+    interpreter_environment: &Rc<RefCell<Environment>>,
     function:                &mut Rc<RefCell<LoxFunction>>,
     args_expr:               &[Expr]
 ) -> Result<State, LoxError>
 {
-    let enclosing: &Rc<RefCell<Environment2>> = &function.borrow().closure;
+    let enclosing: &Rc<RefCell<Environment>> = &function.borrow().closure;
 
     //println!("new environment in function_call");
-    let rc_scope = Environment2::new(enclosing);
+    let rc_scope = Environment::new(enclosing);
 
     for (name, arg_expr) in function.borrow().declaration.parameters.iter().zip(args_expr.iter())
     {

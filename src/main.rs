@@ -12,7 +12,7 @@ mod resolver;
 mod value;
 mod alias;
 mod run;
-mod environment2;
+mod environment;
 
 fn main()
 {
