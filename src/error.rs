@@ -97,17 +97,18 @@ impl fmt::Display for ResolverErrorKind
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InterpreterErrorKind
 {
-    IncompatibleBinaryOpTypes,
-    InvalidUnaryType,
+    CheckNumberOperands,
+    CheckNumberOperand,
     NotCallable,
     WrongArity(usize, usize),
     NativeClockSysTimeError,
-    InvalidPropertyAccess,
     UdefinedProperty(String),
-    UdefinedVariableUsage(String),
-    UdefinedVariableAssignment(String),
     AssertionFailure,
-    SuperclassMustBeAClass
+    SuperclassMustBeAClass,
+    InvalidPlusOperands,
+    OnlyInstancesHaveProperties,
+    OnlyInstancesHaveFields,
+    UndefinedVariable(String)
 }
 
 impl fmt::Display for InterpreterErrorKind
@@ -115,17 +116,20 @@ impl fmt::Display for InterpreterErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match self {
-            Self::IncompatibleBinaryOpTypes             => write!(f, "Both expressions side are not of the same type"),
-            Self::InvalidUnaryType                      => write!(f, "Invalid unary type"),
-            Self::NotCallable                           => write!(f, "Not a callable expression"),
-            Self::WrongArity(expected, found)           => write!(f, "Expected {} arguments, found {}", expected, found),
-            Self::NativeClockSysTimeError               => write!(f, "System time error calling clock()"),
-            Self::InvalidPropertyAccess                 => write!(f, "Only instances have properties"),
-            Self::UdefinedProperty(value)               => write!(f, "Undefined property '{}'", value),
-            Self::UdefinedVariableUsage(value)          => write!(f, "Undefined variable. Tryng to evaluate undefined variable '{}'", value),
-            Self::UdefinedVariableAssignment(value)     => write!(f, "Undefined variable. Tryng to assign to undefined variable '{}'", value),
-            Self::AssertionFailure                      => write!(f, "Assertion failure"),
+            //custom
+            Self::NativeClockSysTimeError               => write!(f, "System time error calling clock()."),
+            Self::AssertionFailure                      => write!(f, "Assertion failure."),
+            //book
             Self::SuperclassMustBeAClass                => write!(f, "Superclass must be a class."),
+            Self::InvalidPlusOperands                   => write!(f, "Operands must be two numbers or two strings."),
+            Self::NotCallable                           => write!(f, "Can only call functions and classes."),
+            Self::WrongArity(expected, found)           => write!(f, "Expected {} arguments but got {}.", expected, found),
+            Self::OnlyInstancesHaveProperties           => write!(f, "Only instances have properties."),
+            Self::OnlyInstancesHaveFields               => write!(f, "Only instances have fields."),
+            Self::UdefinedProperty(value)               => write!(f, "Undefined property '{}'.", value),
+            Self::CheckNumberOperand                    => write!(f, "Operand must be a number."),
+            Self::CheckNumberOperands                   => write!(f, "Operands must be numbers."),
+            Self::UndefinedVariable(name)               => write!(f, "Undefined variable '{}'.", name),
         }
     }
 }

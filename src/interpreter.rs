@@ -98,7 +98,8 @@ impl <'a, 'b> Interpreter<'a, 'b>
         {
             Ok(_) => {}
             Err(err) => {
-                println!("{}", err);
+                //todo: fix the line number
+                println!("{}\n[line {}]", err, 0);
                 return Err(ExecutionResult::RuntimeError);
             },
         }
@@ -321,7 +322,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                 Ok(Value::Number(-num))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidUnaryType, unary_expr.operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperand, unary_expr.operator.position))
                             }
                         }
                     },
@@ -348,7 +349,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                 Ok(Value::Number(num_left - num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
                             }
                         }
                     },
@@ -362,7 +363,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                 Ok(Value::String(Rc::new(format!("{}{}", str_left, str_right))))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPlusOperands, binary_expr.operator.position))
                             }
                         }
                     },
@@ -373,7 +374,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                 Ok(Value::Number(num_left / num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
                             }
                         }
                     },
@@ -384,7 +385,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                 Ok(Value::Number(num_left * num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
                             }
                         }
                     },
@@ -395,7 +396,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                 Ok(Value::Bool(num_left > num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
                             }
                         }
                     },
@@ -406,7 +407,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                 Ok(Value::Bool(num_left >= num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
                             }
                         }
                     },
@@ -416,7 +417,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                 Ok(Value::Bool(num_left < num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
                             }
                         }
                     },
@@ -427,7 +428,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                                 Ok(Value::Bool(num_left <= num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::IncompatibleBinaryOpTypes, binary_expr.operator.position))
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
                             }
                         }
                     },
@@ -448,7 +449,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         Ok(variable)
                     },
                     None => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
+                        Err(LoxError::interpreter_error(InterpreterErrorKind::UndefinedVariable(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
                     },
                 }
             },
@@ -461,7 +462,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         Ok(value)
                     },
                     Err(_) => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableAssignment(self.string_interner.resolve(assign_expr.identifier.name).unwrap().to_owned()), assign_expr.identifier.position))
+                        Err(LoxError::interpreter_error(InterpreterErrorKind::UndefinedVariable(self.string_interner.resolve(assign_expr.identifier.name).unwrap().to_owned()), assign_expr.identifier.position))
                     },
                 }
             },
@@ -524,17 +525,6 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         if let Some(method) = class_instance.declaration.find_method(&get_expr.identifier.name)
                         {
                             let callable = bind(method, Value::ClassInstance(Rc::clone(class_instance)), self.this_symbol);
-                            //define new closure for the current method
-                            //let mut environment_clone = method.environment.clone();
-                            //let this_binding_closure = Environment2::new(&method.borrow_mut().closure);
-
-                            //Crea un Value::Callable a partire dal metodo richiamato a seconda che sia l'init o un altro metodo
-                            //let new_method = LoxFunction { declaration: Rc::clone(&method.borrow().declaration), closure: Rc::clone(&this_binding_closure) };
-                            //let callable = Callable::Function(Rc::new(RefCell::new(new_method)));
-                            //Definisce la variabile 'this' associandola all'istanza della classe
-                            //define_variable(&this_binding_closure, self.this_symbol, );
-                            //scope.borrow_mut().define_variable(self.this_symbol, Value::ClassInstance(Rc::clone(class_instance)));
-
                             return Ok(Value::Callable(callable));
                         }
 
@@ -542,7 +532,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     },
                     _ =>
                     {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPropertyAccess, get_expr.identifier.position))
+                        Err(LoxError::interpreter_error(InterpreterErrorKind::OnlyInstancesHaveProperties, get_expr.identifier.position))
                     }
                 }
             },
@@ -557,7 +547,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         Ok(value)
                     },
                     _ => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPropertyAccess, set_expr.identifier.position))
+                        Err(LoxError::interpreter_error(InterpreterErrorKind::OnlyInstancesHaveFields, set_expr.identifier.position))
                     }
                 }
             },
@@ -568,7 +558,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         Ok(variable)
                     },
                     None => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedVariableUsage(self.string_interner.resolve(self.this_symbol).unwrap().to_owned()), *position))
+                        Err(LoxError::interpreter_error(InterpreterErrorKind::UndefinedVariable(self.string_interner.resolve(self.this_symbol).unwrap().to_owned()), *position))
                     },
                 }
             },
@@ -576,6 +566,9 @@ impl <'a, 'b> Interpreter<'a, 'b>
                 let index: usize = *self.side_table.get(&expr.id).unwrap();
                 let superclass  : Value = environment.borrow().get_at(index,     &self.super_symbol).unwrap();
                 let object      : Value = environment.borrow().get_at(index - 1, &self.this_symbol).unwrap();
+
+
+
                 match superclass {
                     Value::Callable(callable) => {
                         match &callable {
@@ -584,34 +577,22 @@ impl <'a, 'b> Interpreter<'a, 'b>
 
                                 //Verifica se sia stato richiamato un metodo
                                 if let Some(method) = opt_method {
-                                    //define new closure for the current method
                                     let callable = bind(method, object, self.this_symbol);
-                                    //let this_binding_closure = Environment2::new(&method.borrow_mut().closure);
-
-                                    //Crea un Value::Callable a partire dal metodo richiamato a seconda che sia l'init o un altro metodo
-                                    //let new_method = LoxFunction {declaration: Rc::clone(&method.borrow().declaration),  closure: Rc::clone(&this_binding_closure) };
-                                    //let callable = Callable::Function(Rc::new(RefCell::new(new_method)));
-                                    //Definisce la variabile 'this' associandola all'istanza della classe
-                                    //define_variable(&this_binding_closure, self.this_symbol, object);
-                                    //scope.borrow_mut().define_variable(self.this_symbol, object);
-
                                     Ok(Value::Callable(callable))
                                 } else {
                                     Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
                                 }
-
                             },
                             _ => {
                                 panic!()
                             }
                         }
                     },
-                        _ => {
+                    _ => {
                         panic!()
                     }
                 }
             },
-
         }
     }
 
@@ -745,11 +726,6 @@ impl Callable
                 if let Some(init) = lox_class.find_method(&interpreter.init_symbol)
                 {
                     let mut callable = bind(init, instance.clone(), interpreter.this_symbol);
-                    //let this_binding_closure = Environment2::new(&init.borrow_mut().closure);
-                    //define_variable(&this_binding_closure, interpreter.this_symbol, instance.clone());
-
-                    //let new_init: LoxFunction = LoxFunction {declaration: Rc::clone(&init.borrow().declaration), closure: this_binding_closure};
-                    //let mut callable = Self::Function(Rc::new(RefCell::new(new_init)));
                     let _ = callable.call(interpreter, interpreter_environment, args_expr, &lox_class.identifier.position)?;
                 }
                 Ok(instance)
@@ -791,7 +767,6 @@ fn function_call(
 {
     let enclosing: &Rc<RefCell<Environment>> = &function.borrow().closure;
 
-    //println!("new environment in function_call");
     let rc_scope = Environment::new(enclosing);
 
     for (name, arg_expr) in function.borrow().declaration.parameters.iter().zip(args_expr.iter())
@@ -799,7 +774,6 @@ fn function_call(
         //do not inline value
         let value = interpreter.evaluate(arg_expr, interpreter_environment)?;
         define_variable(&rc_scope, *name, value);
-        //rc_scope.borrow_mut().define_variable(*name, value);
     }
 
     let state = interpreter.execute_stmts(
