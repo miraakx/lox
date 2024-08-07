@@ -348,13 +348,14 @@ impl <'a> Resolver<'a>
 
     fn resolve_local(&mut self, expr: &Expr, identifier: IdentifierSymbol, side_table: &mut SideTable)
     {
-        //println!("resolve_local identifier: {} ...",self.string_interner.resolve(identifier).unwrap());
+
+        let stack_size = self.stack.len();
         for (index, scope) in self.stack.iter().enumerate().rev()
         {
             if scope.contains_key(&identifier)
             {
-                //println!("... at index: {}", index);
-                side_table.insert(expr.id, index);
+                //println!("resolve_local identifier: {} at distance {} from expr_id={}",self.string_interner.resolve(identifier).unwrap(), stack_size - index - 1, expr.id);
+                side_table.insert(expr.id, stack_size - index - 1);
                 return;
             }
         }

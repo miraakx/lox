@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap;
 use crate::{value::Value, alias::IdentifierSymbol};
 
 #[derive(Clone, Debug)]
-pub struct Environment
+struct Environment
 {
     locals_scope: Vec<Rc<RefCell<Scope>>>,
 }

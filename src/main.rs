@@ -7,12 +7,12 @@ mod lexer;
 mod parser_stmt;
 mod parser_expr;
 mod tokens;
-mod environment;
 mod native;
 mod resolver;
 mod value;
 mod alias;
 mod run;
+mod environment2;
 
 fn main()
 {
