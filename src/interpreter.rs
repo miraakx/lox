@@ -567,25 +567,18 @@ impl <'a, 'b> Interpreter<'a, 'b>
                 let superclass  : Value = environment.borrow().get_at(index,     &self.super_symbol).unwrap();
                 let object      : Value = environment.borrow().get_at(index - 1, &self.this_symbol).unwrap();
 
+                match superclass
+                {
+                    Value::Callable(Callable::Class(lox_superclass)) =>
+                    {
+                        let opt_method = lox_superclass.find_method(&identifier.name);
 
-
-                match superclass {
-                    Value::Callable(callable) => {
-                        match &callable {
-                            Callable::Class(lox_superclass) => {
-                                let opt_method = lox_superclass.find_method(&identifier.name);
-
-                                //Verifica se sia stato richiamato un metodo
-                                if let Some(method) = opt_method {
-                                    let callable = bind(method, object, self.this_symbol);
-                                    Ok(Value::Callable(callable))
-                                } else {
-                                    Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
-                                }
-                            },
-                            _ => {
-                                panic!()
-                            }
+                        //Verifica se sia stato richiamato un metodo
+                        if let Some(method) = opt_method {
+                            let callable = bind(method, object, self.this_symbol);
+                            Ok(Value::Callable(callable))
+                        } else {
+                            Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
                         }
                     },
                     _ => {
