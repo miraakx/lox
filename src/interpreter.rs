@@ -98,8 +98,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
         {
             Ok(_) => {}
             Err(err) => {
-                //todo: fix the line number
-                println!("{}\n[line {}]", err, 0);
+                println!("{}", err);
                 return Err(ExecutionResult::RuntimeError);
             },
         }

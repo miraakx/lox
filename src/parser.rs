@@ -535,13 +535,6 @@ impl Parser
         }
         consume(token_source, TokenKind::RightBrace, "Expect '}' after block.")?;
         Ok(Stmt::Block(statements))
-
-        /*loop {
-            check_end_of_file(token_source)?;
-            if check(token_source, TokenKind::RightBrace) { //consume_if(token_source, TokenKind::RightBrace) {
-                return Ok(Stmt::Block(statements));
-            }
-        }*/
     }
 
     fn print_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>

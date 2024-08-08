@@ -39,7 +39,7 @@ impl fmt::Display for LoxError
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
-        write!(f, "{}, at {}", self.kind, self.position)
+        write!(f, "[line {}] {}", self.position.line, self.kind)
     }
 }
 
