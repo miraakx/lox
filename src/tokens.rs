@@ -315,18 +315,19 @@ fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
 pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind, message: &str) -> Result<Token,LoxError>
 {
     let token = token_source.peek().unwrap();
-    let is_token_kind;
+    let is_token_kind =
     if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
-        is_token_kind = true;
+        true
     } else {
         return Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position));
-    }
+    };
     if is_token_kind {
         let token = token_source.next().unwrap();
         return Ok(token);
-    } else {
-        return Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position));
     }
+
+    Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position))
+
 }
 
 pub fn consume_identifier(token_source: &mut TokenSource, message: &str) -> Result<Identifier, LoxError>
@@ -361,7 +362,7 @@ pub fn consume_identifier(token_source: &mut TokenSource, message: &str) -> Resu
         }
     }
 
-    return Err(LoxError::parser_error(ParserErrorKind::ExpectedIdentifier(message.to_string()), position));
+    Err(LoxError::parser_error(ParserErrorKind::ExpectedIdentifier(message.to_string()), position))
 
 }
 

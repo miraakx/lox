@@ -6,7 +6,7 @@ use string_interner::StringInterner;
 use unique_id::sequence::SequenceGenerator;
 
 use crate::alias::IdentifierSymbol;
-use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, InternalErrorKind, LoxError, LoxErrorKind, ParserErrorKind};
+use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, InternalErrorKind, LoxError, ParserErrorKind};
 use crate::common::Peekable;
 use crate::lexer::Lexer;
 use crate::tokens::{check, consume, consume_identifier, consume_if, is_at_end, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
