@@ -177,7 +177,6 @@ pub enum ParserErrorKind
     InvalidAssignmentTarget,
     ParseFloatError(String),
     InvalidEscapeCharacter,
-    UnexpectedEndOfFile,
     ExpectedExpression,
     ExpectedToken(String),
     BreakOutsideLoop,
@@ -204,7 +203,6 @@ impl fmt::Display for ParserErrorKind
             Self::BreakOutsideLoop                  => write!(f, "Can't use 'break' outside of a loop."),
             Self::ContinueOutsideLoop               => write!(f, "Can't use 'continue' outside of a loop."),
             Self::InvalidEscapeCharacter            => write!(f, "Invalid escape character."),
-            Self::UnexpectedEndOfFile               => write!(f, "Unexpected end of file."),
         }
     }
 }

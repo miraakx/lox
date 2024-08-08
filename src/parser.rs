@@ -9,7 +9,7 @@ use crate::alias::IdentifierSymbol;
 use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, InternalErrorKind, LoxError, LoxErrorKind, ParserErrorKind};
 use crate::common::Peekable;
 use crate::lexer::Lexer;
-use crate::tokens::{check, check_token, consume, consume_identifier, consume_if, is_at_end, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
+use crate::tokens::{check, consume, consume_identifier, consume_if, is_at_end, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
 use crate::value::Value;
 use unique_id::Generator;
 
@@ -236,17 +236,8 @@ impl Parser
                 }
                 Err(err) => {
                     is_error = true;
-                    match &err.kind {
-                        LoxErrorKind::Parser(ParserErrorKind::UnexpectedEndOfFile) => {
-                            self.error_logger.log(err);
-                            return Err(ExecutionResult::ParserError);
-                        }
-                        _ => {
-                            self.error_logger.log(err);
-                            self.synchronize(&mut token_source);
-                        }
-                    }
-
+                    self.error_logger.log(err);
+                    self.synchronize(&mut token_source);
                 }
             }
         }
@@ -753,6 +744,10 @@ impl Parser
 
     fn primary(&mut self, token_source: &mut TokenSource) -> Result<Expr, LoxError>
     {
+        if is_at_end(token_source) {
+            return Err(LoxError::parser_error(ParserErrorKind::ExpectedExpression, token_source.peek().unwrap().position));
+        }
+
         let token = token_source.next().unwrap();
         let position = token.position;
 
