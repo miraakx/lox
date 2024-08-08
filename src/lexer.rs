@@ -236,20 +236,6 @@ impl<'a> Iterator for Lexer<'a>
                             flag_decimal_point = true;
                         }
                         number_string.push(self.scanner.unwrap_next());
-
-                        /*//looks for a dot followed by another digit
-                        if self.scanner.is_peek('.') && self.scanner.is_peek_next_ascii_digit() && !flag_decimal_point
-                        {
-                            //save the '.' into the number string
-                            number_string.push(self.scanner.unwrap_next());
-                            number_string.push(self.scanner.unwrap_next());
-
-                            //go on looking for digits
-                            while self.scanner.is_peek_ascii_digit()
-                            {
-                               number_string.push(self.scanner.unwrap_next());
-                            }
-                        }*/
                     }
                     match number_string.parse::<f64>() {
                         Ok(number) => {
@@ -265,22 +251,14 @@ impl<'a> Iterator for Lexer<'a>
                 ch if is_identifier(ch) =>
                 {
                     let mut identifier = String::from(ch);
-                    loop {
-                        let opt_next_ch: Option<char> = self.scanner.peek();
-                        if opt_next_ch.is_none() {
-                            break;
-                        }
 
-                        let next_ch = opt_next_ch.unwrap();
-                        if !is_identifier_char_allowed(next_ch) {
-                            break;
-                        }
-                        identifier.push(self.scanner.next().unwrap());
-
+                    while self.scanner.is_peek_identifier_char()
+                    {
+                        identifier.push(self.scanner.unwrap_next());
                     }
+
                     if let Some(keyword_token) = find_keyword(identifier.as_str()) {
                         opt_token_kind = Some(keyword_token);
-
                     } else {
                         let symbol = self.string_interner.get_or_intern(identifier);
                         opt_token_kind  = Some(TokenKind::Identifier(Identifier {name: symbol, position: Position { line: self.scanner.line(), column: self.scanner.column() }}));
@@ -307,18 +285,10 @@ impl<'a> Iterator for Lexer<'a>
     }
 }
 
+#[inline]
 const fn is_identifier(ch: char) -> bool
 {
     ch.is_ascii_alphabetic() || ch == '_'
-}
-
-const fn is_identifier_char_allowed(ch: char) -> bool
-{
-    ch.is_ascii_alphabetic() || ch == '_' || ch.is_ascii_digit()
-}
-
-const fn is_alpha(c: char) -> bool{
-    c.is_ascii_alphabetic() ||  c == '_'
 }
 
 #[cfg(test)]

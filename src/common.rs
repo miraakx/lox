@@ -241,6 +241,10 @@ impl <'a> Scanner<'a>
         matches!(self.peek_next(), Some(chr) if chr.is_ascii_digit())
     }
 
+    pub fn is_peek_identifier_char(&mut self) -> bool {
+        matches!(self.peek(), Some(ch) if ch.is_ascii_alphabetic() || ch == '_' || ch.is_ascii_digit())
+    }
+
     pub fn consume_if_peek_is(&mut self, ch: char)
     {
         if let Some(next_ch) = self.peek() {
