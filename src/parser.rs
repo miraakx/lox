@@ -6,10 +6,10 @@ use string_interner::StringInterner;
 use unique_id::sequence::SequenceGenerator;
 
 use crate::alias::IdentifierSymbol;
-use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, LoxError, LoxErrorKind, ParserErrorKind};
+use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, InternalErrorKind, LoxError, LoxErrorKind, ParserErrorKind};
 use crate::common::Peekable;
 use crate::lexer::Lexer;
-use crate::tokens::{check, check_end_of_file, consume, consume_identifier, consume_if, is_at_end, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
+use crate::tokens::{check, consume, consume_identifier, consume_if, is_at_end, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
 use crate::value::Value;
 use unique_id::Generator;
 
@@ -326,7 +326,7 @@ impl Parser
         }
         let right_paren_position = consume(token_source, TokenKind::RightParen, "Expect ')' after parameters.")?.position;
         consume(token_source, TokenKind::LeftBrace, format!("Expect '{{' before {} body.", kind).as_str())?;
-        let body = self.block_statement(token_source)?;
+        let body: Stmt = self.block_statement(token_source)?;
         if args.len() > 255 {
             return Err(LoxError::parser_error(ParserErrorKind::TooManyParameters, right_paren_position));
         }
@@ -335,7 +335,7 @@ impl Parser
                 stmts
             },
             _ => {
-                return Err(LoxError::parser_error(ParserErrorKind::ExpectedBlock, right_paren_position));
+                return Err(LoxError::internal_error(InternalErrorKind::ExpectedBlock, right_paren_position));
             }
         };
         let mut is_initializer = false;
@@ -363,9 +363,6 @@ impl Parser
     {
         let token = token_source.peek().unwrap();
         match token.kind {
-            TokenKind::Eof => {
-                Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
-            },
             TokenKind::Print => {
                 token_source.consume();
                 self.print_statement(token_source)
@@ -401,7 +398,7 @@ impl Parser
             },
             TokenKind::Continue => {
                 if self.in_loop < 1 {
-                    return Err(LoxError::parser_error(ParserErrorKind::BreakOutsideLoop, token.position))
+                    return Err(LoxError::parser_error(ParserErrorKind::ContinueOutsideLoop, token.position))
                 }
                 token_source.consume();
                 self.continue_statement(token_source)
@@ -537,7 +534,7 @@ impl Parser
             statements.push(self.declaration(token_source)?);
         }
         consume(token_source, TokenKind::RightBrace, "Expect '}' after block.")?;
-        return Ok(Stmt::Block(statements));
+        Ok(Stmt::Block(statements))
 
         /*loop {
             check_end_of_file(token_source)?;
@@ -575,9 +572,6 @@ impl Parser
         let position = peek_token.position;
 
         match peek_token.kind {
-            TokenKind::Eof => {
-                Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
-            },
             TokenKind::Equal => {
                 token_source.consume();
                 let value: Expr = self.assignment(token_source)?;
@@ -607,9 +601,6 @@ impl Parser
         loop {
             let peek_token = token_source.peek().unwrap();
             match &peek_token.kind {
-                TokenKind::Eof => {
-                    return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
-                },
                 TokenKind::Or => {
                     let operator = token_source.next().unwrap();
                     let right: Expr = self.and(token_source)?;
@@ -628,9 +619,6 @@ impl Parser
         loop {
             let peek_token = token_source.peek().unwrap();
             match &peek_token.kind {
-                TokenKind::Eof => {
-                    return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
-                },
                 TokenKind::And => {
                     let operator = token_source.next().unwrap();
                     let right: Expr = self.equality(token_source)?;
@@ -649,9 +637,6 @@ impl Parser
         loop {
             let peek_token = token_source.peek().unwrap();
             match &peek_token.kind {
-                TokenKind::Eof => {
-                    return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
-                },
                 TokenKind::BangEqual|TokenKind::EqualEqual => {
                     let operator: Token = token_source.next().unwrap();
                     let right: Expr = self.comparison(token_source)?;
@@ -670,9 +655,6 @@ impl Parser
         loop {
             let peek_token = token_source.peek().unwrap();
             match &peek_token.kind {
-                TokenKind::Eof => {
-                    return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
-                },
                 TokenKind::Greater | TokenKind::GreaterEqual | TokenKind::Less | TokenKind::LessEqual => {
                     let operator = token_source.next().unwrap();
                     let right: Expr = self.term(token_source)?;
@@ -691,9 +673,6 @@ impl Parser
         loop {
             let peek_token = token_source.peek().unwrap();
             match &peek_token.kind {
-                TokenKind::Eof => {
-                    return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
-                },
                 TokenKind::Minus | TokenKind::Plus => {
                     let operator = token_source.next().unwrap();
                     let right: Expr = self.factor(token_source)?;
@@ -712,9 +691,6 @@ impl Parser
         loop {
             let peek_token: &Token = token_source.peek().unwrap();
             match &peek_token.kind {
-                TokenKind::Eof => {
-                    return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position));
-                },
                 TokenKind::Slash | TokenKind::Star => {
                     let operator: Token = token_source.next().unwrap();
                     let right = self.unary(token_source)?;
@@ -731,9 +707,6 @@ impl Parser
     {
         let peek_token = token_source.peek().unwrap();
         match &peek_token.kind {
-            TokenKind::Eof => {
-                Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek_token.position))
-            },
             TokenKind::Bang | TokenKind::Minus => {
                 let operator: Token = token_source.next().unwrap();
                 let right:    Expr = self.unary(token_source)?;
@@ -790,9 +763,6 @@ impl Parser
         let position = token.position;
 
         match &token.kind {
-            TokenKind::Eof => {
-                Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
-            },
             TokenKind::Nil => {
                 Ok(Expr::new(ExprKind::Literal(Value::from_token(token))))
             }
@@ -804,18 +774,7 @@ impl Parser
             },
             TokenKind::LeftParen => {
                 let expr: Expr = self.expression(token_source)?;
-                let token_kind = token_source.next().unwrap().kind;
-                match token_kind{
-                    TokenKind::Eof => {
-                        return Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position));
-                    },
-                    TokenKind::RightParen => {
-                        //consume right parenthesis if it's present
-                    },
-                    _ => {
-                        return Err(LoxError::parser_error(ParserErrorKind::MissingClosingParenthesis, position));
-                    }
-                }
+                consume(token_source, TokenKind::RightParen, "Expect ')' after expression.")?;
                 Ok(Expr::new(ExprKind::Grouping(Box::new(expr))))
             },
             TokenKind::This => {
@@ -827,7 +786,7 @@ impl Parser
                 Ok(Expr::new(ExprKind::Super(identifier)))
             },
             _ => {
-                Err(LoxError::parser_error(ParserErrorKind::ExpectedLiteral(token.kind), position))
+                Err(LoxError::parser_error(ParserErrorKind::ExpectedExpression, position))
             }
         }
     }

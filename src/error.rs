@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::tokens::{Position, TokenKind};
+use crate::tokens::Position;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LoxError
@@ -12,6 +12,11 @@ pub struct LoxError
 
 impl LoxError
 {
+    pub const fn internal_error(kind: InternalErrorKind, position: Position) -> Self
+    {
+        Self { kind: LoxErrorKind::Internal(kind), position }
+    }
+
     pub const fn parser_error(kind: ParserErrorKind, position: Position) -> Self
     {
         Self { kind: LoxErrorKind::Parser(kind), position }
@@ -43,7 +48,8 @@ pub enum LoxErrorKind
 {
     Parser(ParserErrorKind),
     Interpreter(InterpreterErrorKind),
-    Resolver(ResolverErrorKind)
+    Resolver(ResolverErrorKind),
+    Internal(InternalErrorKind)
 }
 
 impl fmt::Display for LoxErrorKind
@@ -60,6 +66,25 @@ impl fmt::Display for LoxErrorKind
             Self::Resolver(error) => {
                 write!(f, "Resolver error: {}", error)
             },
+            Self::Internal(error) => {
+                write!(f, "Internal error: {}", error)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum InternalErrorKind
+{
+    ExpectedBlock
+}
+
+impl fmt::Display for InternalErrorKind
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
+        match self {
+            Self::ExpectedBlock => write!(f, "Expected block found something else."),
         }
     }
 }
@@ -140,22 +165,17 @@ pub enum ParserErrorKind
 {
     UnexpectedToken(char),
     UnterminatedString,
-    UnexpectedCharacter,
     InvalidAssignmentTarget,
-
     ParseFloatError(String),
-
     InvalidEscapeCharacter,
     UnexpectedEndOfFile,
-    MissingClosingParenthesis,
-    ExpectedLiteral(TokenKind),
+    ExpectedExpression,
     ExpectedToken(String),
     BreakOutsideLoop,
+    ContinueOutsideLoop,
     ExpectedIdentifier(String),
     TooManyArguments,
     TooManyParameters,
-    ExpectedBlock,
-
 }
 
 impl fmt::Display for ParserErrorKind
@@ -165,21 +185,17 @@ impl fmt::Display for ParserErrorKind
         match &self {
             Self::UnexpectedToken(ch)               => write!(f, "Unexpected token '{}'.", ch),
             Self::UnterminatedString                => write!(f, "Unterminated string."),
-            Self::UnexpectedCharacter               => write!(f, "Unexpected character."),
             Self::InvalidAssignmentTarget           => write!(f, "Invalid assignment target."),
             Self::ParseFloatError(value)            => write!(f, "Cannot parse float '{}'.", value),
-
-            Self::InvalidEscapeCharacter            => write!(f, "Invalid escape character."),
-            Self::UnexpectedEndOfFile               => write!(f, "Unexpected end of file."),
-            Self::MissingClosingParenthesis         => write!(f, "Missing closing parenthesis ')'."),
-            Self::ExpectedLiteral(token_kind)       => write!(f, "Expected literal, found '{}'.", token_kind),
-            Self::ExpectedToken(message)            => write!(f, "{}", message),
-            Self::BreakOutsideLoop                  => write!(f, "Found 'break' keyword outside a loop."),
+            Self::ExpectedExpression                => write!(f, "Expect expression"),
             Self::ExpectedIdentifier(message)       => write!(f, "{}", message),
+            Self::ExpectedToken(message)            => write!(f, "{}", message),
             Self::TooManyArguments                  => write!(f, "Can't have more than 255 arguments."),
             Self::TooManyParameters                 => write!(f, "Can't have more than 255 parameters."),
-            Self::ExpectedBlock                     => write!(f, "Internal error: Expected block found something else."),
-
+            Self::BreakOutsideLoop                  => write!(f, "Can't use 'break' outside of a loop."),
+            Self::ContinueOutsideLoop               => write!(f, "Can't use 'continue' outside of a loop."),
+            Self::InvalidEscapeCharacter            => write!(f, "Invalid escape character."),
+            Self::UnexpectedEndOfFile               => write!(f, "Unexpected end of file."),
         }
     }
 }

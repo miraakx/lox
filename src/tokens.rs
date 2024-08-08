@@ -343,7 +343,7 @@ pub fn consume_identifier(token_source: &mut TokenSource, message: &str) -> Resu
 
 #[inline]
 pub fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
-    check_token(&token_source.peek().unwrap(), token_kind)
+    check_token(token_source.peek().unwrap(), token_kind)
 }
 
 #[inline]
@@ -363,17 +363,5 @@ pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool
         true
     } else {
         false
-    }
-}
-
-pub fn check_end_of_file(token_source: &mut TokenSource) -> Result<(),LoxError> {
-    let peek = token_source.peek().unwrap();
-    match peek.kind {
-        TokenKind::Eof => {
-            Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, peek.position))
-        },
-        _ => {
-            Ok(())
-        }
     }
 }

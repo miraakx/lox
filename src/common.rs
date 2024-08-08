@@ -255,7 +255,7 @@ impl <'a> Scanner<'a>
 
     pub fn unwrap_next(&mut self) -> char
     {
-        return self.next().unwrap();
+        self.next().unwrap()
     }
 
     pub const fn line(&self) -> u32
