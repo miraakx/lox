@@ -139,19 +139,23 @@ impl fmt::Display for InterpreterErrorKind
 pub enum ParserErrorKind
 {
     UnexpectedToken(char),
-    ParseFloatError(String),
     UnterminatedString,
+    UnexpectedCharacter,
+    InvalidAssignmentTarget,
+
+    ParseFloatError(String),
+
     InvalidEscapeCharacter,
     UnexpectedEndOfFile,
     MissingClosingParenthesis,
     ExpectedLiteral(TokenKind),
-    ExpectedToken(TokenKind, TokenKind),
+    ExpectedToken(String),
     BreakOutsideLoop,
-    ExpectedIdentifier(TokenKind),
+    ExpectedIdentifier(String),
     TooManyArguments,
     TooManyParameters,
     ExpectedBlock,
-    UnexpectedCharacter
+
 }
 
 impl fmt::Display for ParserErrorKind
@@ -162,19 +166,20 @@ impl fmt::Display for ParserErrorKind
             Self::UnexpectedToken(ch)               => write!(f, "Unexpected token '{}'.", ch),
             Self::UnterminatedString                => write!(f, "Unterminated string."),
             Self::UnexpectedCharacter               => write!(f, "Unexpected character."),
-
+            Self::InvalidAssignmentTarget           => write!(f, "Invalid assignment target."),
             Self::ParseFloatError(value)            => write!(f, "Cannot parse float '{}'.", value),
 
             Self::InvalidEscapeCharacter            => write!(f, "Invalid escape character."),
             Self::UnexpectedEndOfFile               => write!(f, "Unexpected end of file."),
             Self::MissingClosingParenthesis         => write!(f, "Missing closing parenthesis ')'."),
             Self::ExpectedLiteral(token_kind)       => write!(f, "Expected literal, found '{}'.", token_kind),
-            Self::ExpectedToken(expected, found)    => write!(f, "Expected token '{}', found '{}'.", expected, found),
+            Self::ExpectedToken(message)            => write!(f, "{}", message),
             Self::BreakOutsideLoop                  => write!(f, "Found 'break' keyword outside a loop."),
-            Self::ExpectedIdentifier(found)         => write!(f, "Expected identifier, found '{}'.", found),
+            Self::ExpectedIdentifier(message)       => write!(f, "{}", message),
             Self::TooManyArguments                  => write!(f, "Can't have more than 255 arguments."),
             Self::TooManyParameters                 => write!(f, "Can't have more than 255 parameters."),
-            Self::ExpectedBlock                     => write!(f, "Internal error: Expected block found something else.")
+            Self::ExpectedBlock                     => write!(f, "Internal error: Expected block found something else."),
+
         }
     }
 }

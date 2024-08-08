@@ -273,14 +273,14 @@ impl Parser
 
     fn class_declaration(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
-        let class_name = consume_identifier(token_source)?;
+        let class_name = consume_identifier(token_source, "Expect class name.")?;
         let mut class_stmt;
 
         //Check if a superclass is present (superclass are declared with a 'less then' sign after the class name: class Klass < Super {} )
         if check(token_source, TokenKind::Less)
         {
             token_source.consume();
-            let superclass_name = consume_identifier(token_source)?;
+            let superclass_name = consume_identifier(token_source, "Expect superclass name")?;
             let superclass_expr = Expr::new(ExprKind::Variable(superclass_name));
             class_stmt = ClassDeclaration::new(class_name, Some(superclass_expr));
         }
@@ -288,7 +288,7 @@ impl Parser
         {
             class_stmt = ClassDeclaration::new(class_name, None);
         }
-        consume(token_source, TokenKind::LeftBrace)?;
+        consume(token_source, TokenKind::LeftBrace, "Expect '{' before class body.")?;
         let mut methods: FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>> = FxHashMap::default();
         //Declares all the methods found in the class (properties are not declared).
         while !check(token_source, TokenKind::RightBrace) && !is_at_end(token_source)
@@ -297,7 +297,7 @@ impl Parser
             methods.insert(method_declaration.identifier.name, Rc::new(method_declaration));
         }
         class_stmt.methods = methods;
-        consume(token_source, TokenKind::RightBrace)?;
+        consume(token_source, TokenKind::RightBrace, "Expect '}' after class body.")?;
 
         Ok(Stmt::ClassDeclaration(Rc::new(class_stmt)))
     }
@@ -309,22 +309,23 @@ impl Parser
 
     fn create_fun_declaration(&mut self, token_source: &mut TokenSource, is_method: bool)  -> Result<FunctionDeclaration, LoxError>
     {
-        let identifier = consume_identifier(token_source)?;
-        consume(token_source, TokenKind::LeftParen)?;
+        let kind: &str = if is_method { "method" } else { "function" };
+        let identifier = consume_identifier(token_source, format!("Expect {} name.", kind).as_str())?;
+        consume(token_source, TokenKind::LeftParen, format!("Expect '(' after {} name.", kind).as_str())?;
         let mut args: Vec<Identifier> = vec![];
         if !check(token_source, TokenKind::RightParen)
         {
             loop
             {
-                args.push(consume_identifier(token_source)?);
+                args.push(consume_identifier(token_source, "Expect parameter name.")?);
 
                 if !consume_if(token_source, TokenKind::Comma) {
                     break;
                 }
             }
         }
-        let right_paren_position = consume(token_source, TokenKind::RightParen)?.position;
-        consume(token_source, TokenKind::LeftBrace)?;
+        let right_paren_position = consume(token_source, TokenKind::RightParen, "Expect ')' after parameters.")?.position;
+        consume(token_source, TokenKind::LeftBrace, format!("Expect '{{' before {} body.", kind).as_str())?;
         let body = self.block_statement(token_source)?;
         if args.len() > 255 {
             return Err(LoxError::parser_error(ParserErrorKind::TooManyParameters, right_paren_position));
@@ -347,13 +348,13 @@ impl Parser
 
     fn var_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
     {
-        let identifier = consume_identifier(token_source)?;
+        let identifier = consume_identifier(token_source, "Expect variable name.")?;
         if consume_if(token_source, TokenKind::Equal) {
             let expr: Expr = self.expression(token_source)?;
-            consume(token_source, TokenKind::Semicolon)?;
+            consume(token_source, TokenKind::Semicolon, "Expect ';' after variable declaration.")?;
             Ok(Stmt::Var(identifier, Some(expr)))
         } else {
-            consume(token_source, TokenKind::Semicolon)?;
+            consume(token_source, TokenKind::Semicolon, "Expect ';' after variable declaration.")?;
             Ok(Stmt::Var(identifier, None))
         }
     }
@@ -416,32 +417,32 @@ impl Parser
 
     fn return_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
-        let return_token = consume(token_source, TokenKind::Return)?;
+        let return_token = consume(token_source, TokenKind::Return, "Internal error: Expect return statement." )?;
         let expr = if !check(token_source, TokenKind::Semicolon) {
             Some(self.expression(token_source)?)
         } else {
             None
         };
-        consume(token_source, TokenKind::Semicolon)?;
+        consume(token_source, TokenKind::Semicolon, "Expect ';' after return value.")?;
         Ok(Stmt::Return(expr, return_token.position))
     }
 
     fn continue_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
-        consume(token_source, TokenKind::Semicolon)?;
+        consume(token_source, TokenKind::Semicolon, "Expect ';' after 'continue'.")?;
         Ok(Stmt::Continue)
     }
 
     fn break_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
-        consume(token_source, TokenKind::Semicolon)?;
+        consume(token_source, TokenKind::Semicolon, "Expect ';' after 'break'.")?;
         Ok(Stmt::Break)
     }
 
     fn for_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         //consume left paren first
-        consume(token_source, TokenKind::LeftParen)?;
+        consume(token_source, TokenKind::LeftParen, "Expect '(' after 'for'.")?;
 
         //parse initializer
         let opt_initializer =
@@ -452,7 +453,7 @@ impl Parser
                     Some(self.expression_statement(token_source)?)
                 }
             } else {
-                consume(token_source, TokenKind::Semicolon)?;
+                consume(token_source, TokenKind::Semicolon, "Expect ';' after loop initializer.")?;
                 None
             };
 
@@ -463,7 +464,7 @@ impl Parser
             } else {
                 None
             };
-        consume(token_source, TokenKind::Semicolon)?;
+        consume(token_source, TokenKind::Semicolon, "Expect ';' after loop condition.")?;
 
         //parse increment
         let opt_increment =
@@ -472,7 +473,7 @@ impl Parser
             } else {
                 None
             };
-        consume(token_source, TokenKind::RightParen)?;
+        consume(token_source, TokenKind::RightParen, "Expect ')' after for clauses.")?;
 
         //parse body
         let body = self.statement(token_source)?;
@@ -508,18 +509,18 @@ impl Parser
 
     fn while_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
-        consume(token_source, TokenKind::LeftParen)?;
+        consume(token_source, TokenKind::LeftParen, "Expect '(' after 'while'.")?;
         let expr = self.expression(token_source)?;
-        consume(token_source, TokenKind::RightParen)?;
+        consume(token_source, TokenKind::RightParen, "Expect ')' after while condition.")?;
         let stmt = self.statement(token_source)?;
         Ok(Stmt::While(Box::new(WhileStmt { condition: expr, body: stmt })))
     }
 
     fn if_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
-        consume(token_source, TokenKind::LeftParen)?;
+        consume(token_source, TokenKind::LeftParen, "Expect '(' after 'if'.")?;
         let condition = self.expression(token_source)?;
-        consume(token_source, TokenKind::RightParen)?;
+        consume(token_source, TokenKind::RightParen, "Expect ')' after if condition.")?;
         let then_stmt = self.statement(token_source)?;
 
         if consume_if(token_source, TokenKind::Else) {
@@ -532,26 +533,31 @@ impl Parser
     fn block_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let mut statements: Vec<Stmt> = vec![];
-        loop {
-            check_end_of_file(token_source)?;
-            if consume_if(token_source, TokenKind::RightBrace) {
-                return Ok(Stmt::Block(statements));
-            }
+        while !check(token_source, TokenKind::RightBrace) && !is_at_end(token_source) {
             statements.push(self.declaration(token_source)?);
         }
+        consume(token_source, TokenKind::RightBrace, "Expect '}' after block.")?;
+        return Ok(Stmt::Block(statements));
+
+        /*loop {
+            check_end_of_file(token_source)?;
+            if check(token_source, TokenKind::RightBrace) { //consume_if(token_source, TokenKind::RightBrace) {
+                return Ok(Stmt::Block(statements));
+            }
+        }*/
     }
 
     fn print_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let expr = self.expression(token_source)?;
-        consume(token_source, TokenKind::Semicolon)?;
+        consume(token_source, TokenKind::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::Print(expr))
     }
 
     fn expression_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let expr = self.expression(token_source)?;
-        consume(token_source, TokenKind::Semicolon)?;
+        consume(token_source, TokenKind::Semicolon, "Expect ';' after expression.")?;
         Ok(Stmt::Expr(expr))
     }
 
@@ -585,7 +591,7 @@ impl Parser
                         Ok(Expr::new(ExprKind::Set(Box::new(SetExpr { target: get_expr.expr, identifier: get_expr.identifier, value }))))
                     }
                     _ => {
-                        Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, position))
+                        Err(LoxError::parser_error(ParserErrorKind::InvalidAssignmentTarget, position))
                     }
                 }
             },
@@ -759,7 +765,7 @@ impl Parser
                             break;
                         }
                     }
-                    consume(token_source, TokenKind::RightParen)?;
+                    consume(token_source, TokenKind::RightParen, "Expect ')' after arguments.")?;
                     if args.len() < 255 {
                         expr = Expr::new(ExprKind::Call(Box::new(CallExpr { callee: expr, arguments: args, position: left_paren.position })));
                     } else {
@@ -768,7 +774,7 @@ impl Parser
                 },
                 TokenKind::Dot => {
                     token_source.consume();
-                    let identifier: crate::tokens::Identifier = consume_identifier(token_source)?;
+                    let identifier: crate::tokens::Identifier = consume_identifier(token_source, "Expect property name after '.'.")?;
                     expr = Expr::new(ExprKind::Get(Box::new(GetExpr { expr, identifier })));
                 },
                 _ => {
@@ -816,8 +822,8 @@ impl Parser
                 Ok(Expr::new(ExprKind::This(token.position)))
             },
             TokenKind::Super => {
-                consume(token_source, TokenKind::Dot)?;
-                let identifier: Identifier = consume_identifier(token_source)?;
+                consume(token_source, TokenKind::Dot, "Expect '.' after 'super'.")?;
+                let identifier: Identifier = consume_identifier(token_source, "Expect superclass method name.")?;
                 Ok(Expr::new(ExprKind::Super(identifier)))
             },
             _ => {

@@ -312,7 +312,7 @@ fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
     }
 }
 
-pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<Token,LoxError>
+pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind, message: &str) -> Result<Token,LoxError>
 {
     let token = token_source.next().unwrap();
     //println!("consume {} {}", token.kind, token_kind);
@@ -321,11 +321,11 @@ pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind) -> Result<
     } else if std::mem::discriminant(&token.kind) == std::mem::discriminant(&TokenKind::Eof) {
         Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
     } else {
-        Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(token_kind, token.kind), token.position))
+        Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position))
     }
 }
 
-pub fn consume_identifier(token_source: &mut TokenSource) -> Result<Identifier,LoxError>
+pub fn consume_identifier(token_source: &mut TokenSource, message: &str) -> Result<Identifier,LoxError>
 {
     let token = token_source.next().unwrap();
     match token.kind {
@@ -336,7 +336,7 @@ pub fn consume_identifier(token_source: &mut TokenSource) -> Result<Identifier,L
             Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
         },
         _ => {
-            Err(LoxError::parser_error(ParserErrorKind::ExpectedIdentifier(token.kind), token.position))
+            Err(LoxError::parser_error(ParserErrorKind::ExpectedIdentifier(message.to_string()), token.position))
         }
     }
 }

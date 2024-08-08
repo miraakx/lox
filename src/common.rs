@@ -129,12 +129,7 @@ impl<I, T: Clone> NthPeekable<I, T> where I: Iterator<Item = T>,
         }
         self.buffer.dequeue()
     }
-/*
-    pub fn is_last(&mut self) -> bool
-    {
-        self.peek().is_none()
-    }
-*/
+
 }
 
 pub struct Peekable<I, T: Clone> where I: Iterator<Item = T>,
@@ -223,12 +218,12 @@ impl <'a> Scanner<'a>
 
     pub fn is_peek(&mut self, ch: char) -> bool
     {
-        self.peek().map_or(false, |v| v==ch)
+        self.peek().map_or(false, |next_ch| next_ch==ch)
     }
 
     pub fn is_peek_next(&mut self, ch: char) -> bool
     {
-        self.peek_next().map_or(false, |v| v==ch)
+        self.peek_next().map_or(false, |next_ch| next_ch==ch)
     }
 
     pub fn is_peek_ascii_digit(&mut self) -> bool
@@ -241,16 +236,15 @@ impl <'a> Scanner<'a>
         matches!(self.peek_next(), Some(chr) if chr.is_ascii_digit())
     }
 
-    pub fn is_peek_identifier_char(&mut self) -> bool {
+    pub fn is_peek_identifier_char(&mut self) -> bool
+    {
         matches!(self.peek(), Some(ch) if ch.is_ascii_alphabetic() || ch == '_' || ch.is_ascii_digit())
     }
 
     pub fn consume_if_peek_is(&mut self, ch: char)
     {
-        if let Some(next_ch) = self.peek() {
-            if next_ch == ch {
-                self.next();
-            }
+        if self.peek().map_or(false, |next_ch| next_ch==ch) {
+            self.next();
         }
     }
 
