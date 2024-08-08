@@ -3,7 +3,48 @@ use std::fmt;
 
 use string_interner::Symbol;
 
-use crate::{alias::IdentifierSymbol, common::Peekable, error::{InternalErrorKind, LoxError, ParserErrorKind}, value::Value};
+use crate::{alias::IdentifierSymbol, common::Peekable, values::Value};
+
+pub const SPACE:           char = ' ';
+pub const TAB:             char = '\t';
+pub const CARRIAGE_RETURN: char = '\r';
+pub const LINE_FEED:       char = '\n';
+pub const LEFT_PAREN:      char = '(';
+pub const RIGHT_PAREN:     char = ')';
+pub const LEFT_BRACE:      char = '{';
+pub const RIGHT_BRACE:     char = '}';
+pub const COMMA:           char = ',';
+pub const DOT:             char = '.';
+pub const SEMICOLON:       char = ';';
+pub const MINUS:           char = '-';
+pub const PLUS:            char = '+';
+pub const STAR:            char = '*';
+pub const BANG:            char = '!';
+pub const EQUAL:           char = '=';
+pub const LESS:            char = '<';
+pub const GREATER:         char = '>';
+pub const SLASH:           char = '/';
+pub const BACK_SLASH:      char = '\\';
+pub const QUOTE:           char = '"';
+
+const TRUE:     &str = "true";
+const FALSE:    &str = "false";
+const IF:       &str = "if";
+const ELSE:     &str = "else";
+const FOR:      &str = "for";
+const WHILE:    &str = "while";
+const OR:       &str = "or";
+const AND:      &str = "and";
+const CLASS:    &str = "class";
+const FUN:      &str = "fun";
+const SUPER:    &str = "super";
+pub const THIS: &str = "this";
+const VAR:      &str = "var";
+const NIL:      &str = "nil";
+const PRINT:    &str = "print";
+const RETURN:   &str = "return";
+const BREAK:    &str = "break";
+const CONTINUE: &str = "continue";
 
 #[derive(Clone, Debug)]
 pub struct Token
@@ -39,9 +80,12 @@ pub enum TokenKind
     Eof
 }
 
-impl fmt::Display for TokenKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
+impl fmt::Display for TokenKind
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
+        match self
+        {
             TokenKind::LeftParen        => { write!(f, "LeftParen") },
             TokenKind::RightParen       => { write!(f, "RightParen") },
             TokenKind::LeftBrace        => { write!(f, "LeftBrace") },
@@ -89,14 +133,16 @@ impl fmt::Display for TokenKind {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Identifier {
+pub struct Identifier
+{
     pub name: IdentifierSymbol,
     pub position: Position
 }
 
-impl fmt::Display for Identifier {
-
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl fmt::Display for Identifier
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+    {
         write!(f, "Identifier (Symbol={})", self.name.to_usize())
     }
 }
@@ -122,7 +168,8 @@ impl Operator<BinaryOperatorKind>
 {
     pub fn from_token(token: &Token) -> Self
     {
-        let bonary_op_kind = match token.kind {
+        let bonary_op_kind = match token.kind
+        {
             TokenKind::Minus        => BinaryOperatorKind::Minus,
             TokenKind::Plus         => BinaryOperatorKind::Plus,
             TokenKind::Slash        => BinaryOperatorKind::Slash,
@@ -133,7 +180,8 @@ impl Operator<BinaryOperatorKind>
             TokenKind::GreaterEqual => BinaryOperatorKind::GreaterEqual,
             TokenKind::Less         => BinaryOperatorKind::Less,
             TokenKind::LessEqual    => BinaryOperatorKind::LessEqual,
-            _ => {
+            _ =>
+            {
                 panic!("Internal error, unexpecter operator type");
             }
         };
@@ -173,7 +221,8 @@ impl Operator<LogicalOperatorKind>
 {
     pub fn from_token(token: &Token) -> Self
     {
-        let bonary_op_kind = match token.kind {
+        let bonary_op_kind = match token.kind
+        {
             TokenKind::And  => LogicalOperatorKind::And,
             TokenKind::Or => LogicalOperatorKind::Or,
             _ => {
@@ -200,47 +249,6 @@ impl fmt::Display for Position
         write!(f, "line: {}, column: {}.", self.line, self.column)
     }
 }
-
-pub const SPACE:           char = ' ';
-pub const TAB:             char = '\t';
-pub const CARRIAGE_RETURN: char = '\r';
-pub const LINE_FEED:       char = '\n';
-pub const LEFT_PAREN:      char = '(';
-pub const RIGHT_PAREN:     char = ')';
-pub const LEFT_BRACE:      char = '{';
-pub const RIGHT_BRACE:     char = '}';
-pub const COMMA:           char = ',';
-pub const DOT:             char = '.';
-pub const SEMICOLON:       char = ';';
-pub const MINUS:           char = '-';
-pub const PLUS:            char = '+';
-pub const STAR:            char = '*';
-pub const BANG:            char = '!';
-pub const EQUAL:           char = '=';
-pub const LESS:            char = '<';
-pub const GREATER:         char = '>';
-pub const SLASH:           char = '/';
-pub const BACK_SLASH:      char = '\\';
-pub const QUOTE:           char = '"';
-
-const TRUE:     &str = "true";
-const FALSE:    &str = "false";
-const IF:       &str = "if";
-const ELSE:     &str = "else";
-const FOR:      &str = "for";
-const WHILE:    &str = "while";
-const OR:       &str = "or";
-const AND:      &str = "and";
-const CLASS:    &str = "class";
-const FUN:      &str = "fun";
-const SUPER:    &str = "super";
-pub const THIS: &str = "this";
-const VAR:      &str = "var";
-const NIL:      &str = "nil";
-const PRINT:    &str = "print";
-const RETURN:   &str = "return";
-const BREAK:    &str = "break";
-const CONTINUE: &str = "continue";
 
 pub fn find_keyword(str: &str) -> Option<TokenKind>
 {
@@ -299,94 +307,17 @@ pub type TokenSource<'a> = Peekable<&'a mut dyn Iterator<Item=Token>, Token>;
 
 impl<'a> TokenSource<'a>
 {
-    pub fn consume(&mut self) {
+    pub fn consume(&mut self)
+    {
         self.next();
     }
 }
 
-fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind> {
+fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
+{
     if str.len() == keyword.len() && str.eq(keyword) {
         Some(token_kind)
     } else {
         None
-    }
-}
-
-pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind, message: &str) -> Result<Token,LoxError>
-{
-    let token = token_source.peek().unwrap();
-    let is_token_kind =
-    if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
-        true
-    } else {
-        return Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position));
-    };
-    if is_token_kind {
-        let token = token_source.next().unwrap();
-        return Ok(token);
-    }
-
-    Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position))
-
-}
-
-pub fn consume_identifier(token_source: &mut TokenSource, message: &str) -> Result<Identifier, LoxError>
-{
-    let mut is_identifier = false;
-    let position;
-
-    match token_source.peek()
-    {
-        Some(token) => {
-            position = token.position;
-            if let TokenKind::Identifier(_) = &token.kind {
-                is_identifier = true
-            }
-        },
-        None => {
-            return Err(LoxError::internal_error(InternalErrorKind::ExpectToken));
-        },
-    }
-
-    if is_identifier
-    {
-        match token_source.next().unwrap().kind
-        {
-            TokenKind::Identifier(identifier) =>
-            {
-                return Ok(identifier);
-            },
-            _ => {
-                return Err(LoxError::internal_error(InternalErrorKind::ExpectToken));
-            }
-        }
-    }
-
-    Err(LoxError::parser_error(ParserErrorKind::ExpectedIdentifier(message.to_string()), position))
-
-}
-
-#[inline]
-pub fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
-    check_token(token_source.peek().unwrap(), token_kind)
-}
-
-#[inline]
-pub fn check_token(token: &Token, token_kind: TokenKind) -> bool {
-    std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind)
-}
-
-#[inline]
-pub fn is_at_end(token_source: &mut TokenSource) -> bool {
-    check(token_source, TokenKind::Eof)
-}
-
-pub fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
-    let token = token_source.peek().unwrap();
-    if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
-        token_source.consume();
-        true
-    } else {
-        false
     }
 }

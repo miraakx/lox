@@ -3,7 +3,7 @@ use std::{fmt::Debug, rc::Rc, cell::RefCell, io::Write};
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, environment::Environment, error::{ExecutionResult, InterpreterErrorKind, LoxError}, native::{assert_eq, clock, to_string}, parser::{Expr, ExprKind, FunctionDeclaration, Stmt}, tokens::{BinaryOperatorKind, Identifier, LogicalOperatorKind, Position, UnaryOperatorKind}, value::{LoxInstance, Value}};
+use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, environment::Environment, error::{ExecutionResult, InterpreterErrorKind, LoxError}, native::{assert_eq, clock, to_string}, parser::{Expr, ExprKind, FunctionDeclaration, Stmt}, tokens::{BinaryOperatorKind, Identifier, LogicalOperatorKind, Position, UnaryOperatorKind}, values::{LoxInstance, Value}};
 
 #[derive(Clone, Debug)]
 pub struct LoxFunction

@@ -8,7 +8,7 @@ mod parser;
 mod tokens;
 mod native;
 mod resolver;
-mod value;
+mod values;
 mod alias;
 mod run;
 mod environment;
@@ -25,7 +25,7 @@ fn main()
          }
       }
       _ => {
-         println!("\nUsage: rlox [script]");
+         println!("\nUsage: rlox [path/to/script]");
          std::process::exit(64);
       }
    };

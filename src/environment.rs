@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 use rustc_hash::FxHashMap;
 use string_interner::{StringInterner, Symbol};
-use crate::{alias::IdentifierSymbol, value::Value};
+use crate::{alias::IdentifierSymbol, values::Value};
 
 #[derive(Clone, Debug)]
 pub struct Environment

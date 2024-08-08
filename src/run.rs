@@ -18,40 +18,6 @@ pub fn run_file(filepath: &str, writer: &mut dyn Write) -> Result<(), ExecutionR
    }
 }
 
-/*pub fn run_prompt() -> Result<(), ()>
-{
-   let mut string_interner: StringInterner = StringInterner::default();
-   let mut resolver: Resolver = Resolver::new(ConsoleErrorLogger{}, &mut string_interner);
-   let mut tokens: Vec<Token> = vec![];
-   //let side_table = resolver.resolve(&stmts)?;
-   loop {
-      println!("(input): ");
-      let mut line = String::new();
-      let result = io::stdin().read_line(&mut line);
-      let error_logger: ConsoleErrorLogger = ConsoleErrorLogger{};
-      match result {
-         Ok(_) => {
-            println!("(output): ");
-            let result = run(&line, Box::new(&mut io::stdout().lock()));
-            match result {
-               Ok(_) => {
-                  println!("\nProgram terminated successfully.\n");
-                  return Ok(());
-               },
-               Err(_) => {
-                  println!("\nProgram terminated with error(s). See above.\n");
-                  return Err(());
-               },
-            }
-         },
-         Err(error) => {
-            println!("\nCannot read line: {}\n", error);
-            return Err(());
-         },
-      }
-   }
-}*/
-
 pub fn run(code: &str, writer: &mut dyn Write) -> Result<(), ExecutionResult>
 {
    let stmts: Vec<Stmt>;

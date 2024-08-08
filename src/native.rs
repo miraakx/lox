@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use string_interner::StringInterner;
 
-use crate::{error::InterpreterErrorKind, value::Value, interpreter::Callable};
+use crate::{error::InterpreterErrorKind, values::Value, interpreter::Callable};
 
 pub fn clock() -> Result<Value, InterpreterErrorKind>
 {

@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use string_interner::StringInterner;
 
-use crate::{common::Scanner, tokens::*, error::*, value::Value};
+use crate::{common::Scanner, tokens::*, error::*, values::Value};
 
 pub struct Lexer<'a>
 {
@@ -297,7 +297,7 @@ mod tests {
 
     use string_interner::StringInterner;
 
-    use crate::{error::ConsoleErrorLogger, lexer::Identifier, tokens::{Token, TokenKind}, value::Value};
+    use crate::{error::ConsoleErrorLogger, lexer::Identifier, tokens::{Token, TokenKind}, values::Value};
 
     use super::Lexer;
 

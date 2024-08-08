@@ -9,8 +9,8 @@ use crate::alias::IdentifierSymbol;
 use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, InternalErrorKind, LoxError, ParserErrorKind};
 use crate::common::Peekable;
 use crate::lexer::Lexer;
-use crate::tokens::{check, consume, consume_identifier, consume_if, is_at_end, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
-use crate::value::Value;
+use crate::tokens::{BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
+use crate::values::Value;
 use unique_id::Generator;
 
 static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(SequenceGenerator::default);
@@ -479,7 +479,7 @@ impl Parser
             match opt_condition {
                 Some(condition_expr) => condition_expr,
                 None => {
-                    Expr::new(ExprKind::Literal(crate::value::Value::Bool(true)))
+                    Expr::new(ExprKind::Literal(crate::values::Value::Bool(true)))
                 },
             };
 
@@ -778,5 +778,86 @@ impl Parser
                 Err(LoxError::parser_error(ParserErrorKind::ExpectedExpression, position))
             }
         }
+    }
+}
+
+//Utility functions
+
+fn consume(token_source: &mut TokenSource, token_kind: TokenKind, message: &str) -> Result<Token,LoxError>
+{
+    let token = token_source.peek().unwrap();
+    let is_token_kind =
+    if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
+        true
+    } else {
+        return Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position));
+    };
+    if is_token_kind {
+        let token = token_source.next().unwrap();
+        return Ok(token);
+    }
+
+    Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position))
+
+}
+
+fn consume_identifier(token_source: &mut TokenSource, message: &str) -> Result<Identifier, LoxError>
+{
+    let mut is_identifier = false;
+    let position;
+
+    match token_source.peek()
+    {
+        Some(token) => {
+            position = token.position;
+            if let TokenKind::Identifier(_) = &token.kind {
+                is_identifier = true
+            }
+        },
+        None => {
+            return Err(LoxError::internal_error(InternalErrorKind::ExpectToken));
+        },
+    }
+
+    if is_identifier
+    {
+        match token_source.next().unwrap().kind
+        {
+            TokenKind::Identifier(identifier) =>
+            {
+                return Ok(identifier);
+            },
+            _ => {
+                return Err(LoxError::internal_error(InternalErrorKind::ExpectToken));
+            }
+        }
+    }
+
+    Err(LoxError::parser_error(ParserErrorKind::ExpectedIdentifier(message.to_string()), position))
+
+}
+
+#[inline]
+fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
+    check_token(token_source.peek().unwrap(), token_kind)
+}
+
+#[inline]
+fn check_token(token: &Token, token_kind: TokenKind) -> bool {
+    std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind)
+}
+
+#[inline]
+fn is_at_end(token_source: &mut TokenSource) -> bool {
+    check(token_source, TokenKind::Eof)
+}
+
+fn consume_if(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
+    let token = token_source.peek().unwrap();
+    if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
+        token_source.consume();
+        true
+    } else {
+        false
     }
 }
