@@ -1892,6 +1892,10 @@ mod tests {
         fn scope_global() {
             test("./lox_test/zzz/scope_global.lox");
         }
+        #[test]
+        fn open_block() {
+            test("./lox_test/zzz/open_block.lox");
+        }
     }
 
 

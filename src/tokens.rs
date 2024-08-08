@@ -3,7 +3,7 @@ use std::fmt;
 
 use string_interner::Symbol;
 
-use crate::{common::Peekable, error::{ParserErrorKind, LoxError}, alias::IdentifierSymbol, value::Value};
+use crate::{alias::IdentifierSymbol, common::Peekable, error::{InternalErrorKind, LoxError, ParserErrorKind}, value::Value};
 
 #[derive(Clone, Debug)]
 pub struct Token
@@ -314,31 +314,55 @@ fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
 
 pub fn consume(token_source: &mut TokenSource, token_kind: TokenKind, message: &str) -> Result<Token,LoxError>
 {
-    let token = token_source.next().unwrap();
-    //println!("consume {} {}", token.kind, token_kind);
+    let token = token_source.peek().unwrap();
+    let is_token_kind;
     if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
-        Ok(token)
-    } else if std::mem::discriminant(&token.kind) == std::mem::discriminant(&TokenKind::Eof) {
-        Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
+        is_token_kind = true;
     } else {
-        Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position))
+        return Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position));
+    }
+    if is_token_kind {
+        let token = token_source.next().unwrap();
+        return Ok(token);
+    } else {
+        return Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position));
     }
 }
 
-pub fn consume_identifier(token_source: &mut TokenSource, message: &str) -> Result<Identifier,LoxError>
+pub fn consume_identifier(token_source: &mut TokenSource, message: &str) -> Result<Identifier, LoxError>
 {
-    let token = token_source.next().unwrap();
-    match token.kind {
-        TokenKind::Identifier(identifier) => {
-            Ok(identifier)
+    let mut is_identifier = false;
+    let position;
+
+    match token_source.peek()
+    {
+        Some(token) => {
+            position = token.position;
+            if let TokenKind::Identifier(_) = &token.kind {
+                is_identifier = true
+            }
         },
-        TokenKind::Eof => {
-            Err(LoxError::parser_error(ParserErrorKind::UnexpectedEndOfFile, token.position))
+        None => {
+            return Err(LoxError::internal_error(InternalErrorKind::ExpectToken));
         },
-        _ => {
-            Err(LoxError::parser_error(ParserErrorKind::ExpectedIdentifier(message.to_string()), token.position))
+    }
+
+    if is_identifier
+    {
+        match token_source.next().unwrap().kind
+        {
+            TokenKind::Identifier(identifier) =>
+            {
+                return Ok(identifier);
+            },
+            _ => {
+                return Err(LoxError::internal_error(InternalErrorKind::ExpectToken));
+            }
         }
     }
+
+    return Err(LoxError::parser_error(ParserErrorKind::ExpectedIdentifier(message.to_string()), position));
+
 }
 
 #[inline]

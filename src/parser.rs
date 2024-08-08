@@ -9,7 +9,7 @@ use crate::alias::IdentifierSymbol;
 use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, InternalErrorKind, LoxError, LoxErrorKind, ParserErrorKind};
 use crate::common::Peekable;
 use crate::lexer::Lexer;
-use crate::tokens::{check, consume, consume_identifier, consume_if, is_at_end, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
+use crate::tokens::{check, check_token, consume, consume_identifier, consume_if, is_at_end, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
 use crate::value::Value;
 use unique_id::Generator;
 
@@ -187,10 +187,11 @@ impl Parser
         Self { in_loop: 0, error_logger: Box::new(error_logger), init_symbol }
     }
 
-    fn synchronize(&mut self, token_source: &mut TokenSource) {
-        loop {
-            let peek = token_source.peek().unwrap();
-            match peek.kind {
+    fn synchronize(&mut self, token_source: &mut TokenSource)
+    {
+        while !check(token_source, TokenKind::Eof)
+        {
+            match token_source.peek().unwrap().kind {
                 TokenKind::Class | TokenKind::Fun    |
                 TokenKind::Var   | TokenKind::For    |
                 TokenKind::If    | TokenKind::While  |
@@ -335,7 +336,7 @@ impl Parser
                 stmts
             },
             _ => {
-                return Err(LoxError::internal_error(InternalErrorKind::ExpectedBlock, right_paren_position));
+                return Err(LoxError::internal_error(InternalErrorKind::ExpectedBlock));
             }
         };
         let mut is_initializer = false;

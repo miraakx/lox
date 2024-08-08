@@ -7,29 +7,29 @@ use crate::tokens::Position;
 pub struct LoxError
 {
     pub kind: LoxErrorKind,
-    pub position: Position
+    pub position: Option<Position>
 }
 
 impl LoxError
 {
-    pub const fn internal_error(kind: InternalErrorKind, position: Position) -> Self
+    pub const fn internal_error(kind: InternalErrorKind) -> Self
     {
-        Self { kind: LoxErrorKind::Internal(kind), position }
+        Self { kind: LoxErrorKind::Internal(kind), position: None }
     }
 
     pub const fn parser_error(kind: ParserErrorKind, position: Position) -> Self
     {
-        Self { kind: LoxErrorKind::Parser(kind), position }
+        Self { kind: LoxErrorKind::Parser(kind), position: Some(position) }
     }
 
     pub const fn resolver_error(kind: ResolverErrorKind, position: Position) -> Self
     {
-        Self { kind: LoxErrorKind::Resolver(kind), position }
+        Self { kind: LoxErrorKind::Resolver(kind), position: Some(position) }
     }
 
     pub const fn interpreter_error(kind: InterpreterErrorKind, position: Position) -> Self
     {
-        Self { kind: LoxErrorKind::Interpreter(kind), position }
+        Self { kind: LoxErrorKind::Interpreter(kind), position: Some(position) }
     }
 }
 
@@ -39,7 +39,14 @@ impl fmt::Display for LoxError
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
-        write!(f, "[line {}] {}", self.position.line, self.kind)
+        match self.position {
+            Some(position) => {
+                write!(f, "[line {}] {}", position.line, self.kind)
+            },
+            None => {
+                write!(f, "[line N/A] {}", self.kind)
+            },
+        }
     }
 }
 
@@ -76,7 +83,8 @@ impl fmt::Display for LoxErrorKind
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InternalErrorKind
 {
-    ExpectedBlock
+    ExpectedBlock,
+    ExpectToken
 }
 
 impl fmt::Display for InternalErrorKind
@@ -85,6 +93,7 @@ impl fmt::Display for InternalErrorKind
     {
         match self {
             Self::ExpectedBlock => write!(f, "Expected block found something else."),
+            Self::ExpectToken   => write!(f, "Expected token."),
         }
     }
 }
