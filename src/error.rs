@@ -74,7 +74,7 @@ pub enum ResolverErrorKind
     ReturnFromInitializer,
     ClassCantInheritFromItslef,
     CantUseSuperOutsideClass,
-    CantUseSuperInAClassWithoutSuperClass
+    CantUseSuperWithoutSuperClass
 }
 
 impl fmt::Display for ResolverErrorKind
@@ -82,14 +82,15 @@ impl fmt::Display for ResolverErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match self {
-            Self::LocalVariableNotFound(value) => write!(f, "Can't read local variable {} in its own initializer", value),
-            Self::VariableAlreadyExists(value) => write!(f, "Already a variable with name '{}' in this scope", value),
-            Self::ReturnFromTopLevelCode => write!(f, "Can't return from top-level code"),
-            Self::InvalidThisUsage => write!(f, "Can't use 'this' outside of a class."),
-            Self::ReturnFromInitializer => write!(f, "Can't return a value from an initializer"),
-            Self::ClassCantInheritFromItslef => write!(f, "A class can't inherit from itself."),
-            Self::CantUseSuperOutsideClass => write!(f, "Can't use 'super' outside of a class."),
-            Self::CantUseSuperInAClassWithoutSuperClass => write!(f, "Can't use 'super' in a class with no superclass."),
+            //book
+            Self::ClassCantInheritFromItslef    => write!(f, "A class can't inherit from itself."),
+            Self::ReturnFromTopLevelCode        => write!(f, "Can't return from top-level code."),
+            Self::ReturnFromInitializer         => write!(f, "Can't return a value from an initializer."),
+            Self::CantUseSuperOutsideClass      => write!(f, "Can't use 'super' outside of a class."),
+            Self::CantUseSuperWithoutSuperClass => write!(f, "Can't use 'super' in a class with no superclass."),
+            Self::InvalidThisUsage              => write!(f, "Can't use 'this' outside of a class."),
+            Self::LocalVariableNotFound(_)      => write!(f, "Can't read local variable in its own initializer."),
+            Self::VariableAlreadyExists(_)      => write!(f, "Already a variable with name in this scope."),
         }
     }
 }
@@ -149,7 +150,8 @@ pub enum ParserErrorKind
     ExpectedIdentifier(TokenKind),
     TooManyArguments,
     TooManyParameters,
-    ExpectedBlock
+    ExpectedBlock,
+    UnexpectedCharacter
 }
 
 impl fmt::Display for ParserErrorKind
@@ -157,16 +159,19 @@ impl fmt::Display for ParserErrorKind
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         match &self {
-            Self::UnexpectedToken(ch)               => write!(f, "Unexpected token '{}'", ch),
-            Self::ParseFloatError(value)            => write!(f, "Cannot parse float '{}'", value),
-            Self::UnterminatedString                => write!(f, "Unterminated string"),
-            Self::InvalidEscapeCharacter            => write!(f, "Invalid escape character"),
-            Self::UnexpectedEndOfFile               => write!(f, "Unexpected end of file"),
-            Self::MissingClosingParenthesis         => write!(f, "Missing closing parenthesis ')'"),
-            Self::ExpectedLiteral(token_kind)       => write!(f, "Expected literal, found '{}'", token_kind),
-            Self::ExpectedToken(expected, found)    => write!(f, "Expected token '{}', found '{}'", expected, found),
-            Self::BreakOutsideLoop                  => write!(f, "Found 'break' keyword outside a loop"),
-            Self::ExpectedIdentifier(found)         => write!(f, "Expected identifier, found {}", found),
+            Self::UnexpectedToken(ch)               => write!(f, "Unexpected token '{}'.", ch),
+            Self::UnterminatedString                => write!(f, "Unterminated string."),
+            Self::UnexpectedCharacter               => write!(f, "Unexpected character."),
+
+            Self::ParseFloatError(value)            => write!(f, "Cannot parse float '{}'.", value),
+
+            Self::InvalidEscapeCharacter            => write!(f, "Invalid escape character."),
+            Self::UnexpectedEndOfFile               => write!(f, "Unexpected end of file."),
+            Self::MissingClosingParenthesis         => write!(f, "Missing closing parenthesis ')'."),
+            Self::ExpectedLiteral(token_kind)       => write!(f, "Expected literal, found '{}'.", token_kind),
+            Self::ExpectedToken(expected, found)    => write!(f, "Expected token '{}', found '{}'.", expected, found),
+            Self::BreakOutsideLoop                  => write!(f, "Found 'break' keyword outside a loop."),
+            Self::ExpectedIdentifier(found)         => write!(f, "Expected identifier, found '{}'.", found),
             Self::TooManyArguments                  => write!(f, "Can't have more than 255 arguments."),
             Self::TooManyParameters                 => write!(f, "Can't have more than 255 parameters."),
             Self::ExpectedBlock                     => write!(f, "Internal error: Expected block found something else.")

@@ -269,7 +269,6 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     //println!("new environment in Stmt::ClassDeclaration (superclass):");
                     let env = Environment::new(environment);
                     define_variable(&env, self.super_symbol, Value::Callable(Callable::Class(Rc::clone(superclass))));
-                    //class_env.borrow_mut().define_variable(self.super_symbol, Value::Callable(Callable::Class(Rc::clone(superclass))));
                     class_env = env;
                 } else {
                     class_env = Rc::clone(environment);

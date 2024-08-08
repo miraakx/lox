@@ -1,0 +1,16 @@
+123
+987654
+0
+-0
+
+123.456
+-0.001
+
+// expect: NUMBER 123 123
+// expect: NUMBER 987654 987654
+// expect: NUMBER 0 0
+// expect: MINUS null null
+// expect: NUMBER 0 0
+// expect: NUMBER 123.456 123.456
+// expect: MINUS null null
+// expect: NUMBER 0.001 0.001

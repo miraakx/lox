@@ -6,7 +6,7 @@ use string_interner::StringInterner;
 use unique_id::sequence::SequenceGenerator;
 
 use crate::alias::IdentifierSymbol;
-use crate::error::{LoxError, ParserErrorKind, ErrorLogger, ConsoleErrorLogger, ExecutionResult};
+use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, LoxError, LoxErrorKind, ParserErrorKind};
 use crate::common::Peekable;
 use crate::lexer::Lexer;
 use crate::tokens::{check, check_end_of_file, consume, consume_identifier, consume_if, is_at_end, BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
@@ -235,8 +235,17 @@ impl Parser
                 }
                 Err(err) => {
                     is_error = true;
-                    self.error_logger.log(err);
-                    self.synchronize(&mut token_source);
+                    match &err.kind {
+                        LoxErrorKind::Parser(ParserErrorKind::UnexpectedEndOfFile) => {
+                            self.error_logger.log(err);
+                            return Err(ExecutionResult::ParserError);
+                        }
+                        _ => {
+                            self.error_logger.log(err);
+                            self.synchronize(&mut token_source);
+                        }
+                    }
+
                 }
             }
         }

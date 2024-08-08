@@ -216,9 +216,29 @@ impl <'a> Scanner<'a>
         self.iter.peek_nth(index).cloned()
     }
 
+    pub fn peek_next(&mut self) -> Option<char>
+    {
+        self.iter.peek_nth(1).cloned()
+    }
+
     pub fn is_peek(&mut self, ch: char) -> bool
     {
         self.peek().map_or(false, |v| v==ch)
+    }
+
+    pub fn is_peek_next(&mut self, ch: char) -> bool
+    {
+        self.peek_next().map_or(false, |v| v==ch)
+    }
+
+    pub fn is_peek_ascii_digit(&mut self) -> bool
+    {
+        matches!(self.peek(), Some(chr) if chr.is_ascii_digit())
+    }
+
+    pub fn is_peek_next_ascii_digit(&mut self) -> bool
+    {
+        matches!(self.peek_next(), Some(chr) if chr.is_ascii_digit())
     }
 
     pub fn consume_if_peek_is(&mut self, ch: char)
@@ -230,6 +250,16 @@ impl <'a> Scanner<'a>
         }
     }
 
+    pub fn consume(&mut self)
+    {
+        self.next();
+    }
+
+    pub fn unwrap_next(&mut self) -> char
+    {
+        return self.next().unwrap();
+    }
+
     pub const fn line(&self) -> u32
     {
         self.line
@@ -239,12 +269,7 @@ impl <'a> Scanner<'a>
     {
         self.column
     }
-/*
-    pub fn index(&self) -> u32
-    {
-        self.index
-    }
-s*/
+
 }
 
 pub struct Stack<T> {

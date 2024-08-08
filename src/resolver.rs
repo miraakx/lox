@@ -304,7 +304,7 @@ impl <'a> Resolver<'a>
 
                     },
                     ClassType::Class => {
-                        self.error(crate::error::ResolverErrorKind::CantUseSuperInAClassWithoutSuperClass, &identifier.position);
+                        self.error(crate::error::ResolverErrorKind::CantUseSuperWithoutSuperClass, &identifier.position);
                     }
                 }
                 //println!("resolving super method='{}'", self.string_interner.resolve(identifier.name).unwrap());

@@ -341,10 +341,17 @@ pub fn consume_identifier(token_source: &mut TokenSource) -> Result<Identifier,L
     }
 }
 
+#[inline]
 pub fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
-    std::mem::discriminant(&token_source.peek().unwrap().kind) == std::mem::discriminant(&token_kind)
+    check_token(&token_source.peek().unwrap(), token_kind)
 }
 
+#[inline]
+pub fn check_token(token: &Token, token_kind: TokenKind) -> bool {
+    std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind)
+}
+
+#[inline]
 pub fn is_at_end(token_source: &mut TokenSource) -> bool {
     check(token_source, TokenKind::Eof)
 }
