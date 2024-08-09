@@ -81,6 +81,7 @@ impl<'a> Iterator for Lexer<'a>
                 SPACE | TAB => {
                     if !is_token_started {
                         token_start_column += 1;
+                        is_token_started = true;
                     }
                     self.advance_column();
                 },
@@ -90,6 +91,7 @@ impl<'a> Iterator for Lexer<'a>
                     if !is_token_started {
                         token_start_line   += 1;
                         token_start_column = 1;
+                        is_token_started = true;
                     }
                     self.new_line();
                     //handle Windows new line '\r\n'
@@ -101,6 +103,7 @@ impl<'a> Iterator for Lexer<'a>
                     if !is_token_started {
                         token_start_line   += 1;
                         token_start_column = 1;
+                        is_token_started = true;
                     }
                     self.new_line();
                 },
