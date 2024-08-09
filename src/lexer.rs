@@ -10,6 +10,8 @@ pub struct Lexer<'a>
     string_interner: &'a mut StringInterner,
     error_logger   : Box<dyn ErrorLogger>,
     end_of_file    : bool,
+    line           : u32,
+    column         : u32
 }
 
 impl<'a> Lexer<'a>
@@ -21,9 +23,31 @@ impl<'a> Lexer<'a>
            scanner:       Scanner::from_str(code, 2),
            error_logger:  Box::new(error_logger),
            end_of_file:   false,
-           string_interner
+           string_interner,
+           line: 1,
+           column: 1
         }
     }
+}
+
+impl <'a> Lexer<'a>
+{
+    #[inline]
+    fn new_line(&mut self) {
+        self.line   += 1;
+        self.column = 1;
+    }
+
+    #[inline]
+    fn advance_column(&mut self) {
+        self.column += 1;
+    }
+
+    #[inline]
+    fn get_position(&self) -> Position {
+        Position { line: self.line, column: self.column }
+    }
+
 }
 
 impl<'a> Iterator for Lexer<'a>
@@ -32,9 +56,10 @@ impl<'a> Iterator for Lexer<'a>
 
     fn next(&mut self) -> Option<Token>
     {
-        let mut opt_token_kind:  Option<TokenKind>;
-        let column_start: u32 = self.scanner.column();
-        let line_start: u32 = self.scanner.line();
+        let mut opt_token_kind     : Option<TokenKind>;
+        let mut token_start_column : u32 = self.column;
+        let mut token_start_line   : u32 = self.line;
+        let mut is_token_started   : bool = false;
 
         loop {
 
@@ -44,7 +69,7 @@ impl<'a> Iterator for Lexer<'a>
                     return None;
                 } else {
                     self.end_of_file = true;
-                    return Some(Token{ kind: TokenKind::Eof, position: Position { line: self.scanner.line(), column: self.scanner.column()} });
+                    return Some(Token{ kind: TokenKind::Eof, position: self.get_position() });
                 }
             }
 
@@ -53,60 +78,89 @@ impl<'a> Iterator for Lexer<'a>
             opt_token_kind = None;
 
             match ch {
-                SPACE | TAB => {},
-                LINE_FEED =>
-                {
-                    self.scanner.new_line();
+                SPACE | TAB => {
+                    if !is_token_started {
+                        token_start_column += 1;
+                    }
+                    self.advance_column();
                 },
+                //handle '\r'
                 CARRIAGE_RETURN =>
                 {
-                    self.scanner.new_line();
+                    if !is_token_started {
+                        token_start_line   += 1;
+                        token_start_column = 1;
+                    }
+                    self.new_line();
+                    //handle Windows new line '\r\n'
                     self.scanner.consume_if_peek_is(LINE_FEED);
                 },
+                //handle '\n'
+                LINE_FEED =>
+                {
+                    if !is_token_started {
+                        token_start_line   += 1;
+                        token_start_column = 1;
+                    }
+                    self.new_line();
+                },
+
                 LEFT_PAREN =>
                 {
+                    self.advance_column();
                     opt_token_kind = Some(TokenKind::LeftParen);
                 },
                 RIGHT_PAREN =>
                 {
+                    self.advance_column();
                     opt_token_kind = Some(TokenKind::RightParen);
                 },
                 LEFT_BRACE =>
                 {
+                    self.advance_column();
                     opt_token_kind = Some(TokenKind::LeftBrace);
                 },
                 RIGHT_BRACE =>
                 {
+                    self.advance_column();
                     opt_token_kind = Some(TokenKind::RightBrace);
                 },
                 COMMA =>
                 {
+                    self.advance_column();
                     opt_token_kind = Some(TokenKind::Comma);
                 },
                 DOT =>
                 {
+                    self.advance_column();
                     opt_token_kind = Some(TokenKind::Dot);
                 },
                 SEMICOLON =>
                 {
+                    self.advance_column();
                     opt_token_kind = Some(TokenKind::Semicolon);
                 },
                 MINUS =>
                 {
+                    self.advance_column();
                     opt_token_kind = Some(TokenKind::Minus);
                 },
                 PLUS =>
                 {
+                    self.advance_column();
                     opt_token_kind = Some(TokenKind::Plus);
                 },
                 STAR =>
                 {
+                    self.advance_column();
                     opt_token_kind = Some(TokenKind::Star);
                 },
                 EQUAL =>
                 {
+                    self.advance_column();
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
+                        self.advance_column();
                         opt_token_kind = Some(TokenKind::EqualEqual);
                     } else {
                         opt_token_kind = Some(TokenKind::Equal);
@@ -114,8 +168,10 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 BANG =>
                 {
+                    self.advance_column();
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
+                        self.advance_column();
                         opt_token_kind = Some(TokenKind::BangEqual);
                     } else {
                         opt_token_kind = Some(TokenKind::Bang);
@@ -123,8 +179,10 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 GREATER =>
                 {
+                    self.advance_column();
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
+                        self.advance_column();
                         opt_token_kind = Some(TokenKind::GreaterEqual);
                     } else {
                         opt_token_kind = Some(TokenKind::Greater);
@@ -132,8 +190,10 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 LESS =>
                 {
+                    self.advance_column();
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
+                        self.advance_column();
                         opt_token_kind = Some(TokenKind::LessEqual);
                     } else {
                         opt_token_kind = Some(TokenKind::Less);
@@ -141,11 +201,13 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 SLASH =>
                 {
+                    self.advance_column();
                     if !self.scanner.is_peek(SLASH) {
                         opt_token_kind = Some(TokenKind::Slash);
                     } else {
                         //consume the second slash character
                         self.scanner.next();
+                        self.advance_column();
 
                         loop {
                             let opt_next_ch = self.scanner.peek();
@@ -158,6 +220,7 @@ impl<'a> Iterator for Lexer<'a>
 
                             match next_ch {
                                 LINE_FEED | CARRIAGE_RETURN => {
+                                    //advance line on next iteration
                                     break;
                                 },
                                 _ => {
@@ -169,69 +232,76 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 QUOTE =>
                 {
+                    self.advance_column();
                     let mut string = String::new();
                     loop {
                         match self.scanner.next() {
                             Some(BACK_SLASH) => {
+                                self.advance_column();
                                 match self.scanner.peek() {
                                     Some('n') => {
                                         self.scanner.next();
+                                        self.advance_column();
                                         string.push('\n');
                                     },
                                     Some('r') => {
                                         self.scanner.next();
+                                        self.advance_column();
                                         string.push('\r');
                                     },
                                     Some('t') => {
                                         self.scanner.next();
+                                        self.advance_column();
                                         string.push('\t');
                                     },
                                     Some('\\') => {
                                         self.scanner.next();
+                                        self.advance_column();
                                         string.push('\\');
                                     },
                                     Some('0') => {
                                         self.scanner.next();
+                                        self.advance_column();
                                         string.push('\0');
                                     },
                                     Some('"') => {
                                         self.scanner.next();
+                                        self.advance_column();
                                         string.push('"');
                                     },
                                     _=> {
                                         string.push(ch);
-                                        self.error_logger.log(LoxError::parser_error(ParserErrorKind::InvalidEscapeCharacter, Position { line: self.scanner.line(), column: self.scanner.column() }));
+                                        self.error_logger.log(LoxError::parser_error(ParserErrorKind::InvalidEscapeCharacter, self.get_position()));
                                     }
                                 }
                             },
                             Some('"') => {
+                                self.advance_column();
                                 opt_token_kind = Some(TokenKind::String(Value::String(Rc::new(string))));
                                 break;
                             },
                             None => {
-                                self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnterminatedString, Position { line: self.scanner.line(), column: self.scanner.column() }));
+                                self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnterminatedString, self.get_position()));
                                 opt_token_kind = Some(TokenKind::String(Value::String(Rc::new(string))));
                                 break;
                             },
-                            /*Some(ch) if ch.is => {
-                                string.push(ch);
-                            },*/
                             Some(ch) => {
+                                self.advance_column();
                                 string.push(ch);
-                                //self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnexpectedCharacter, Position { line: self.scanner.line(), column: self.scanner.column() }));
-                                //goes on reading the rest of the string
                             }
                         }
                     }
                 },
                 ch if ch.is_ascii_digit() =>
                 {
+                    self.advance_column();
                     let mut number_string = String::from(ch);
                     let mut flag_decimal_point = false;
 
                     //read the number and stores the chars into 'number_string'
                     while self.scanner.is_peek_ascii_digit() || self.scanner.is_peek('.') && self.scanner.is_peek_next_ascii_digit() && !flag_decimal_point
                     {
+                        self.advance_column();
                         if self.scanner.is_peek('.') {
                             flag_decimal_point = true;
                         }
@@ -242,7 +312,7 @@ impl<'a> Iterator for Lexer<'a>
                             opt_token_kind = Some(TokenKind::Number(Value::Number(number)));
                         }
                         Err(_) => {
-                            self.error_logger.log(LoxError::parser_error(ParserErrorKind::ParseFloatError(number_string), Position { line: self.scanner.line(), column: self.scanner.column() }));
+                            self.error_logger.log(LoxError::parser_error(ParserErrorKind::ParseFloatError(number_string), self.get_position()));
                             opt_token_kind = Some(TokenKind::Number(Value::Number(f64::NAN)));
                         }
                     }
@@ -250,10 +320,12 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 ch if is_identifier(ch) =>
                 {
+                    self.advance_column();
                     let mut identifier = String::from(ch);
 
                     while self.scanner.is_peek_identifier_char()
                     {
+                        self.advance_column();
                         identifier.push(self.scanner.unwrap_next());
                     }
 
@@ -261,12 +333,12 @@ impl<'a> Iterator for Lexer<'a>
                         opt_token_kind = Some(keyword_token);
                     } else {
                         let symbol = self.string_interner.get_or_intern(identifier);
-                        opt_token_kind  = Some(TokenKind::Identifier(Identifier {name: symbol, position: Position { line: self.scanner.line(), column: self.scanner.column() }}));
+                        opt_token_kind  = Some(TokenKind::Identifier(Identifier {name: symbol, position: self.get_position()}));
                     }
                 },
                 _ =>
                 {
-                    self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnexpectedToken(ch), Position { line: self.scanner.line(), column: self.scanner.column() }));
+                    self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnexpectedToken(ch), self.get_position()));
                     opt_token_kind = Some(TokenKind::UnexpectedToken);
                 }
             }
@@ -275,8 +347,8 @@ impl<'a> Iterator for Lexer<'a>
                     Token{
                         kind: token_kind,
                         position: Position {
-                            line: line_start,
-                            column: column_start
+                            line  : token_start_line,
+                            column: token_start_column
                         }
                     }
                 );
@@ -299,7 +371,7 @@ mod tests {
 
     use crate::{error::ConsoleErrorLogger, lexer::Identifier, tokens::{Token, TokenKind}, values::Value};
 
-    use super::Lexer;
+    use super::{Lexer, Position};
 
     fn tokenize(code: &str) -> Vec<Token>
     {
@@ -452,6 +524,170 @@ mod tests {
         assert_eq!(tokenize("&&").get(0).unwrap().kind, TokenKind::UnexpectedToken);
         assert_eq!(tokenize("|").get(0).unwrap().kind, TokenKind::UnexpectedToken);
         assert_eq!(tokenize("||").get(0).unwrap().kind, TokenKind::UnexpectedToken);
+    }
+
+    #[test]
+    fn test_no_tokens() {
+        assert_eq!(tokenize("").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("\r\n").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("\n").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("\r").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("//Hello World!").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("//").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("\t").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("\t\t\t").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize(" ").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("     ").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("////").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("//\\").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("//\n//\n//").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("//\r\n//\r\n//").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("\n\n\n").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("\r\n\r\n\r\n").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("\r\n\n\r\n\n").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("\r\n\r\r\n\r").get(0).unwrap().kind, TokenKind::Eof);
+        assert_eq!(tokenize("//Hello World!\n//Hello World!\n//Hello World!").get(0).unwrap().kind, TokenKind::Eof);
+    }
+
+    #[test]
+    fn test_position_1() {
+        assert_eq!(tokenize("").get(0).unwrap().position, Position { line: 1, column: 1});
+    }
+
+    #[test]
+    fn test_position_2() {
+        assert_eq!(tokenize(" ").get(0).unwrap().position, Position { line: 1, column: 2});
+    }
+
+    #[test]
+    fn test_position_3() {
+        assert_eq!(tokenize("   ").get(0).unwrap().position, Position { line: 1, column: 4});
+    }
+
+    #[test]
+    fn test_position_4() {
+        assert_eq!(tokenize("\r\n").get(0).unwrap().position, Position { line: 2, column: 1});
+    }
+
+    #[test]
+    fn test_position_5() {
+        assert_eq!(tokenize("\r").get(0).unwrap().position, Position { line: 2, column: 1});
+    }
+
+    #[test]
+    fn test_position_6() {
+        assert_eq!(tokenize("\n").get(0).unwrap().position, Position { line: 2, column: 1});
+    }
+
+    #[test]
+    fn test_position_7() {
+        assert_eq!(tokenize("\n\r").get(0).unwrap().position, Position { line: 3, column: 1});
+    }
+
+    #[test]
+    fn test_position_8() {
+        assert_eq!(tokenize("\t").get(0).unwrap().position, Position { line: 1, column: 2});
+    }
+
+    #[test]
+    fn test_position_9() {
+        assert_eq!(tokenize("//Hello World!").get(0).unwrap().position, Position { line: 1, column: 3});
+    }
+
+    #[test]
+    fn test_position_10() {
+        assert_eq!(tokenize("//Hello World!\n").get(0).unwrap().position, Position { line: 2, column: 1});
+    }
+
+    #[test]
+    fn test_position_11() {
+        assert_eq!(tokenize("\r\n\n\r").get(0).unwrap().position, Position { line: 4, column: 1});
+    }
+
+    #[test]
+    fn test_position_13() {
+        let tokens = tokenize("var foo;");
+
+        assert_eq!(tokens.get(0).unwrap().position, Position { line: 1, column: 1});
+
+        assert_eq!(tokens.get(1).unwrap().position, Position { line: 1, column: 5});
+
+        assert_eq!(tokens.get(2).unwrap().kind, TokenKind::Semicolon);
+        assert_eq!(tokens.get(2).unwrap().position, Position { line: 1, column: 8});
+    }
+
+    #[test]
+    fn test_position_14() {
+        let tokens = tokenize("  var foo = \"  \"  ;");
+
+        assert_eq!(tokens.get(0).unwrap().position, Position { line: 1, column: 3});
+
+        assert_eq!(tokens.get(1).unwrap().position, Position { line: 1, column: 7});
+
+        assert_eq!(tokens.get(2).unwrap().kind, TokenKind::Equal);
+        assert_eq!(tokens.get(2).unwrap().position, Position { line: 1, column: 11});
+
+        assert_eq!(tokens.get(3).unwrap().position, Position { line: 1, column: 13});
+
+        assert_eq!(tokens.get(4).unwrap().kind, TokenKind::Semicolon);
+        assert_eq!(tokens.get(4).unwrap().position, Position { line: 1, column: 19});
+    }
+
+    #[test]
+    fn test_position_15() {
+        let tokens = tokenize("\r\n\n\r  var foo = \"  \"  \t;");
+        assert_eq!(tokens.get(0).unwrap().position, Position { line: 4, column: 3});
+
+        assert_eq!(tokens.get(1).unwrap().position, Position { line: 4, column: 7});
+
+        assert_eq!(tokens.get(2).unwrap().kind, TokenKind::Equal);
+        assert_eq!(tokens.get(2).unwrap().position, Position { line: 4, column: 11});
+
+        assert_eq!(tokens.get(3).unwrap().position, Position { line: 4, column: 13});
+
+        assert_eq!(tokens.get(4).unwrap().kind, TokenKind::Semicolon);
+        assert_eq!(tokens.get(4).unwrap().position, Position { line: 4, column: 20});
+    }
+
+    #[test]
+    fn test_position_16() {
+        let tokens = tokenize("class Bar < Foo {\n   do_stuff() {\n\n   print \"Hello!\";\r\n   }\r}");
+        assert_eq!(tokens.get(0).unwrap().kind, TokenKind::Class);
+        assert_eq!(tokens.get(0).unwrap().position, Position { line: 1, column: 1});
+
+        assert_eq!(tokens.get(1).unwrap().position, Position { line: 1, column: 7});
+
+        assert_eq!(tokens.get(2).unwrap().kind, TokenKind::Less);
+        assert_eq!(tokens.get(2).unwrap().position, Position { line: 1, column: 11});
+
+        assert_eq!(tokens.get(3).unwrap().position, Position { line: 1, column: 13});
+
+        assert_eq!(tokens.get(4).unwrap().kind, TokenKind::LeftBrace);
+        assert_eq!(tokens.get(4).unwrap().position, Position { line: 1, column: 17});
+
+        assert_eq!(tokens.get(5).unwrap().position, Position { line: 2, column: 4});
+
+        assert_eq!(tokens.get(6).unwrap().kind, TokenKind::LeftParen);
+        assert_eq!(tokens.get(6).unwrap().position, Position { line: 2, column: 12});
+
+        assert_eq!(tokens.get(7).unwrap().kind, TokenKind::RightParen);
+        assert_eq!(tokens.get(7).unwrap().position, Position { line: 2, column: 13});
+
+        assert_eq!(tokens.get(8).unwrap().kind, TokenKind::LeftBrace);
+        assert_eq!(tokens.get(8).unwrap().position, Position { line: 2, column: 15});
+
+        assert_eq!(tokens.get(9).unwrap().position, Position { line: 4, column: 4});
+
+        assert_eq!(tokens.get(10).unwrap().position, Position { line: 4, column: 10});
+
+        assert_eq!(tokens.get(11).unwrap().kind, TokenKind::Semicolon);
+        assert_eq!(tokens.get(11).unwrap().position, Position { line: 4, column: 18});
+
+        assert_eq!(tokens.get(12).unwrap().kind, TokenKind::RightBrace);
+        assert_eq!(tokens.get(12).unwrap().position, Position { line: 5, column: 4});
+
+        assert_eq!(tokens.get(13).unwrap().kind, TokenKind::RightBrace);
+        assert_eq!(tokens.get(13).unwrap().position, Position { line: 6, column: 1});
     }
 
     #[test]

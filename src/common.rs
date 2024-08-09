@@ -163,16 +163,9 @@ impl<I, T: Clone> Peekable<I, T> where I: Iterator<Item = T>,
     }
 }
 
-const LINE_START:   u32 = 1;
-const COLUMN_START: u32 = 1;
-const INDEX_START:  u32 = 1;
-
 pub struct Scanner<'a>
 {
     iter:   NthPeekable<Chars<'a>, char>,
-    index:  u32,
-    line:   u32,
-    column: u32,
 }
 
 impl <'a> Scanner<'a>
@@ -182,23 +175,12 @@ impl <'a> Scanner<'a>
         Scanner
         {
             iter:   NthPeekable::new(str.chars(), peek_dept),
-            line:   LINE_START,
-            column: COLUMN_START,
-            index:  INDEX_START
         }
     }
 
     pub fn next(&mut self) -> Option<char>
     {
-        self.column += 1;
-        self.index  += 1;
         self.iter.next()
-    }
-
-    pub fn new_line(&mut self)
-    {
-        self.column = LINE_START;
-        self.line += 1;
     }
 
     pub fn peek(&mut self) -> Option<char>
@@ -256,16 +238,6 @@ impl <'a> Scanner<'a>
     pub fn unwrap_next(&mut self) -> char
     {
         self.next().unwrap()
-    }
-
-    pub const fn line(&self) -> u32
-    {
-        self.line
-    }
-
-    pub const fn column(&self) -> u32
-    {
-        self.column
     }
 
 }
