@@ -2,7 +2,9 @@ use std::rc::Rc;
 
 use string_interner::StringInterner;
 
-use crate::{common::Scanner, tokens::*, error::*, values::Value};
+use crate::{error::*, utils::utils::Scanner};
+
+use super::{position::Position, tokens::{Token, TokenKind}, keywords::*};
 
 pub struct Lexer<'a>
 {
@@ -293,12 +295,12 @@ impl<'a> Iterator for Lexer<'a>
                             },
                             Some('"') => {
                                 self.advance_column();
-                                opt_token_kind = Some(TokenKind::String(Value::String(Rc::new(string))));
+                                opt_token_kind = Some(TokenKind::String(Rc::new(string)));
                                 break;
                             },
                             None => {
                                 self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnterminatedString, self.get_position()));
-                                opt_token_kind = Some(TokenKind::String(Value::String(Rc::new(string))));
+                                opt_token_kind = Some(TokenKind::String(Rc::new(string)));
                                 break;
                             },
                             Some(ch) => {
@@ -326,11 +328,11 @@ impl<'a> Iterator for Lexer<'a>
                     }
                     match number_string.parse::<f64>() {
                         Ok(number) => {
-                            opt_token_kind = Some(TokenKind::Number(Value::Number(number)));
+                            opt_token_kind = Some(TokenKind::Number(number));
                         }
                         Err(_) => {
                             self.error_logger.log(LoxError::parser_error(ParserErrorKind::ParseFloatError(number_string), self.get_position()));
-                            opt_token_kind = Some(TokenKind::Number(Value::Number(f64::NAN)));
+                            opt_token_kind = Some(TokenKind::Number(f64::NAN));
                         }
                     }
 
@@ -351,7 +353,7 @@ impl<'a> Iterator for Lexer<'a>
                         opt_token_kind = Some(keyword_token);
                     } else {
                         let symbol = self.string_interner.get_or_intern(identifier);
-                        opt_token_kind  = Some(TokenKind::Identifier(Identifier {name: symbol, position: self.get_position()}));
+                        opt_token_kind  = Some(TokenKind::Identifier(symbol));
                     }
                 },
                 _ =>
@@ -381,13 +383,75 @@ const fn is_identifier(ch: char) -> bool
     ch.is_ascii_alphabetic() || ch == '_'
 }
 
+pub fn find_keyword(str: &str) -> Option<TokenKind>
+{
+    const TOKEN_FALSE: TokenKind = TokenKind::False;
+    const TOKEN_TRUE:  TokenKind = TokenKind::True;
+    if str.len() < IF.len() || str.len() > CONTINUE.len() {
+        return None;
+    }
+    let mut chars = str.chars();
+    match chars.next()?
+    {
+        'f' =>
+        {
+            match chars.next()?
+            {
+                'a' => { compare(str, FALSE, TOKEN_FALSE) },
+                'o' => { compare(str, FOR,   TokenKind::For  ) },
+                'u' => { compare(str, FUN,   TokenKind::Fun  ) },
+                _ =>   { None }
+            }
+        },
+        't' =>
+        {
+            match chars.next()?
+            {
+                'h' => { compare(str, THIS, TokenKind::This) },
+                'r' => { compare(str, TRUE, TOKEN_TRUE) },
+                _ =>   { None }
+            }
+        },
+        'v' => { compare(str, VAR,    TokenKind::Var   ) },
+        'a' => { compare(str, AND,    TokenKind::And   ) },
+        'c' =>
+        {
+            match chars.next()?
+            {
+                'l' => { compare(str, CLASS, TokenKind::Class) },
+                'o' => { compare(str, CONTINUE, TokenKind::Continue) },
+                _ =>   { None }
+            }
+        },
+        'e' => { compare(str, ELSE,   TokenKind::Else  ) },
+        'i' => { compare(str, IF,     TokenKind::If    ) },
+        'n' => { compare(str, NIL,    TokenKind::Nil   ) },
+        'o' => { compare(str, OR,     TokenKind::Or    ) },
+        'p' => { compare(str, PRINT,  TokenKind::Print ) },
+        'r' => { compare(str, RETURN, TokenKind::Return) },
+        's' => { compare(str, SUPER,  TokenKind::Super ) },
+        'w' => { compare(str, WHILE,  TokenKind::While ) },
+        'b' => { compare(str, BREAK,  TokenKind::Break ) },
+        _ => { None }
+    }
+}
+
+fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
+{
+    if str.len() == keyword.len() && str.eq(keyword) {
+        Some(token_kind)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{fs, rc::Rc};
 
     use string_interner::StringInterner;
 
-    use crate::{error::ConsoleErrorLogger, lexer::Identifier, tokens::{Token, TokenKind}, values::Value};
+    use crate::{error::ConsoleErrorLogger,  parser::tokens::{Token, TokenKind}};
 
     use super::{Lexer, Position};
 
@@ -407,7 +471,7 @@ mod tests {
     #[test]
     fn test_parens()
     {
-        use crate::tokens::TokenKind;
+        use crate::parser::tokens::TokenKind;
 
         assert_eq!(&tokenize("{").get(0).unwrap().kind, &TokenKind::LeftBrace);
         assert_eq!(&tokenize("}").get(0).unwrap().kind, &TokenKind::RightBrace);
@@ -445,35 +509,35 @@ mod tests {
     {
         let vec = tokenize("0000.0000245");
         let token = &vec.get(0).unwrap().kind;
-        assert_eq!(token, &TokenKind::Number(Value::Number(0.0000245)));
+        assert_eq!(token, &TokenKind::Number(0.0000245));
 
         let vec = tokenize("0001.. ..");
         let token = &vec.get(0).unwrap().kind;
-        assert_eq!(token, &TokenKind::Number(Value::Number(1.0)));
+        assert_eq!(token, &TokenKind::Number(1.0));
 
         let vec = tokenize("10.0245");
         let token = &vec.get(0).unwrap().kind;
-        assert_eq!(token, &TokenKind::Number(Value::Number(10.0245)));
+        assert_eq!(token, &TokenKind::Number(10.0245));
 
         let vec = tokenize("8 .1.0");
         let token = &vec.get(0).unwrap().kind;
-        assert_eq!(token, &TokenKind::Number(Value::Number(8.0)));
+        assert_eq!(token, &TokenKind::Number(8.0));
         let token = &vec.get(1).unwrap().kind;
         assert_eq!(token, &TokenKind::Dot);
         let token = &vec.get(2).unwrap().kind;
-        assert_eq!(token, &TokenKind::Number(Value::Number(1.0)));
+        assert_eq!(token, &TokenKind::Number(1.0));
 
         let vec = tokenize("0.001");
         let token = &vec.get(0).unwrap().kind;
-        assert_eq!(token, &TokenKind::Number(Value::Number(0.001)));
+        assert_eq!(token, &TokenKind::Number(0.001));
 
         let vec = tokenize("9.9");
         let token = &vec.get(0).unwrap().kind;
-        assert_eq!(token, &TokenKind::Number(Value::Number(9.9)));
+        assert_eq!(token, &TokenKind::Number(9.9));
 
         let vec = tokenize("1.");
         let token = &vec.get(0).unwrap().kind;
-        assert_eq!(token, &TokenKind::Number(Value::Number(1.0)));
+        assert_eq!(token, &TokenKind::Number(1.0));
         let token = &vec.get(1).unwrap().kind;
         assert_eq!(token, &TokenKind::Dot);
 
@@ -481,7 +545,7 @@ mod tests {
         let token = &vec.get(0).unwrap().kind;
         assert_eq!(token, &TokenKind::Dot);
         let token = &vec.get(1).unwrap().kind;
-        assert_eq!(token, &TokenKind::Number(Value::Number(1.0)));
+        assert_eq!(token, &TokenKind::Number(1.0));
 
     }
 
@@ -490,18 +554,18 @@ mod tests {
     {
         let vec = tokenize("\"funzionerà? 😀 成\"");
         let token = &vec.get(0).unwrap().kind;
-        assert_eq!(token, &TokenKind::String(Value::String(Rc::new("funzionerà? 😀 成".to_owned()))));
+        assert_eq!(token, &TokenKind::String(Rc::new("funzionerà? 😀 成".to_owned())));
 
         let vec = tokenize("\"\\n \\0 \\r \\t \\\\ \\\"\"");
         let token = &vec.get(0).unwrap().kind;
-        assert_eq!(token, &TokenKind::String(Value::String(Rc::new("\n \0 \r \t \\ \"".to_owned()))));
+        assert_eq!(token, &TokenKind::String(Rc::new("\n \0 \r \t \\ \"".to_owned())));
     }
 
     #[test]
     fn test_keywords()
     {
-        assert_eq!(&tokenize("true").get(0).unwrap().kind, &TokenKind::True(Value::Bool(true)));
-        assert_eq!(&tokenize("false").get(0).unwrap().kind, &TokenKind::False(Value::Bool(false)));
+        assert_eq!(&tokenize("true").get(0).unwrap().kind, &TokenKind::True);
+        assert_eq!(&tokenize("false").get(0).unwrap().kind, &TokenKind::False);
         assert_eq!(tokenize("if").get(0).unwrap().kind, TokenKind::If);
         assert_eq!(tokenize("else").get(0).unwrap().kind, TokenKind::Else);
         assert_eq!(tokenize("for").get(0).unwrap().kind, TokenKind::For);
@@ -517,8 +581,8 @@ mod tests {
         assert_eq!(tokenize("print").get(0).unwrap().kind, TokenKind::Print);
         assert_eq!(tokenize("return").get(0).unwrap().kind, TokenKind::Return);
 
-        assert_eq!(&tokenize("true!").get(0).unwrap().kind, &TokenKind::True(Value::Bool(true)));
-        assert_eq!(&tokenize("false) ").get(0).unwrap().kind, &TokenKind::False(Value::Bool(false)));
+        assert_eq!(&tokenize("true!").get(0).unwrap().kind, &TokenKind::True);
+        assert_eq!(&tokenize("false) ").get(0).unwrap().kind, &TokenKind::False);
         assert_eq!(tokenize(" if else ").get(0).unwrap().kind, TokenKind::If);
     }
 
@@ -766,9 +830,9 @@ mod tests {
         for (_, (expected, token)) in it.enumerate() {
             match expected[0] {
                 "NUMBER" => {
-                    let expected_tk_kind = TokenKind::Number(Value::Number(expected[2].parse::<f64>().unwrap()));
+                    let expected_tk_kind = TokenKind::Number(expected[2].parse::<f64>().unwrap());
                     match (&token.kind, &expected_tk_kind) {
-                        (TokenKind::Number(Value::Number(number)), TokenKind::Number(Value::Number(expected))) => {
+                        (TokenKind::Number(number), TokenKind::Number(expected)) => {
                             assert_eq!(number, expected)
                         },
                         _ => {
@@ -778,9 +842,9 @@ mod tests {
                 }
                 //strings
                 "STRING" => {
-                    let expected_tk_kind = TokenKind::String(Value::String(Rc::new(expected[2].to_string())));
+                    let expected_tk_kind = TokenKind::String(Rc::new(expected[2].to_string()));
                     match (&token.kind, &expected_tk_kind) {
-                        (TokenKind::String(Value::String(string)), TokenKind::String(Value::String(expected))) => {
+                        (TokenKind::String(string), TokenKind::String(expected)) => {
                             assert_eq!(string, expected)
                         },
                         _ => {
@@ -790,10 +854,10 @@ mod tests {
                 },
                 "IDENTIFIER" => {
                     let id = string_interner.get_or_intern(expected[1]);
-                    let expected_tk_kind = TokenKind::Identifier(Identifier { name: id, position: token.position });
+                    let expected_tk_kind = TokenKind::Identifier(id);
                     match (&token.kind, &expected_tk_kind) {
                         (TokenKind::Identifier(identifier), TokenKind::Identifier(expected_identifier)) => {
-                            assert_eq!(identifier.name, expected_identifier.name)
+                            assert_eq!(identifier, expected_identifier)
                         },
                         _ => {
                             panic!("expected identifier got {}", token.kind)
@@ -814,7 +878,7 @@ mod tests {
                     assert_eq!(token.kind, TokenKind::Else)
                 }
                 "FALSE"=> {
-                    assert_eq!(token.kind, TokenKind::False(Value::Bool(false)));
+                    assert_eq!(token.kind, TokenKind::False);
                 }
                 "FOR"=> {
                     assert_eq!(token.kind, TokenKind::For);
@@ -841,7 +905,7 @@ mod tests {
                     assert_eq!(token.kind, TokenKind::This);
                 }
                 "TRUE"=> {
-                    assert_eq!(token.kind, TokenKind::True(Value::Bool(true)));
+                    assert_eq!(token.kind, TokenKind::True);
                 }
                 "VAR"=> {
                     assert_eq!(token.kind, TokenKind::Var);

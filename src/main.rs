@@ -1,17 +1,11 @@
 use std::{env, io};
 
-mod common;
+mod utils;
 mod error;
 mod interpreter;
-mod lexer;
 mod parser;
-mod tokens;
-mod native;
-mod resolver;
-mod values;
 mod alias;
 mod run;
-mod environment;
 
 fn main()
 {

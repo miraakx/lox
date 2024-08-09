@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::tokens::Position;
+use crate::parser::position::Position;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LoxError

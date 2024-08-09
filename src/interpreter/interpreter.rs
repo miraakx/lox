@@ -3,52 +3,9 @@ use std::{fmt::Debug, rc::Rc, cell::RefCell, io::Write};
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, environment::Environment, error::{ExecutionResult, InterpreterErrorKind, LoxError}, native::{assert_eq, clock, to_string}, parser::{Expr, ExprKind, FunctionDeclaration, Stmt}, tokens::{BinaryOperatorKind, Identifier, LogicalOperatorKind, Position, UnaryOperatorKind}, values::{LoxInstance, Value}};
+use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, error::{ExecutionResult, InterpreterErrorKind, LoxError}, parser::{position::Position, types::{BinaryOperatorKind, Expr, ExprKind, Literal, LogicalOperatorKind, Stmt, UnaryOperatorKind}}};
 
-#[derive(Clone, Debug)]
-pub struct LoxFunction
-{
-    pub declaration: Rc<FunctionDeclaration>,
-    pub closure: Rc<RefCell<Environment>>
-}
-
-#[derive(Clone, Debug)]
-pub struct LoxClass
-{
-    pub identifier: Identifier,
-    pub methods: FxHashMap<IdentifierSymbol, LoxFunction>,
-    pub super_class: Option<Rc<LoxClass>>
-}
-
-impl LoxClass
-{
-    fn new(
-        identifier:     Identifier,
-        methods:        FxHashMap<IdentifierSymbol, LoxFunction>,
-        super_class:    Option<Rc<LoxClass>>
-    ) -> Self
-    {
-        Self {
-            identifier,
-            methods,
-            super_class
-        }
-    }
-
-    fn find_method(&self, name: &IdentifierSymbol)  -> Option<&LoxFunction>
-    {
-        let method: Option<&LoxFunction> = self.methods.get(name);
-        if method.is_some() {
-            return method;
-        }
-
-        if let Some(super_class) = &self.super_class {
-            return super_class.find_method(name);
-        }
-
-        None
-    }
-}
+use super::{environment::Environment, native::{assert_eq, clock}, types::{LoxClass, LoxFunction, LoxInstance, Value}};
 
 pub struct Interpreter<'a, 'b>
 {
@@ -301,9 +258,25 @@ impl <'a, 'b> Interpreter<'a, 'b>
     fn evaluate(&mut self, expr: &Expr, environment: &Rc<RefCell<Environment>>) -> Result<Value, LoxError>
     {
         match &expr.kind {
-            ExprKind::Literal(value) =>
+            ExprKind::Literal(literal) =>
             {
-                Ok(value.clone())
+                match literal {
+                    Literal::String(rc_string, _) => {
+                        Ok(Value::String(Rc::clone(rc_string)))
+                    },
+                    Literal::Number(number, _) => {
+                        Ok(Value::Number(*number))
+                    },
+                    Literal::True(_) => {
+                        Ok(Value::Bool(true))
+                    },
+                    Literal::False(_) => {
+                        Ok(Value::Bool(false))
+                    },
+                    Literal::Nil(_) => {
+                        Ok(Value::Nil)
+                    },
+                }
             },
             ExprKind::Unary(unary_expr) =>
             {
@@ -775,7 +748,26 @@ fn function_call(
     Ok(state)
 }
 
-
+pub fn to_string(value: Value, string_interner: &StringInterner) -> String {
+    match value {
+        Value::String(string)       => format!("{}", string),
+        Value::Number(number)       => format!("{}", number),
+        Value::Bool(boolean)        => format!("{}", boolean),
+        Value::Nil                  => "nil".to_string(),
+        Value::Callable(callable)   => {
+            match callable {
+                Callable::Function(fun_decl)    => format!("<fn {}>", string_interner.resolve(fun_decl.borrow().declaration.identifier.name).unwrap()),
+                Callable::Class(class_decl)     => string_interner.resolve(class_decl.identifier.name).unwrap().to_string(),
+                Callable::Clock                 => "<native fn>".to_string(),
+                Callable::AssertEq              => "<native fn>".to_string(),
+                Callable::Str                   => "<native fn>".to_string(),
+            }
+        },
+        Value::ClassInstance(class_instance) => {
+            format!("{} instance", string_interner.resolve(class_instance.declaration.identifier.name).unwrap())
+        }
+    }
+}
 
 
 

@@ -2,7 +2,54 @@ use std::{rc::Rc, cell::RefCell};
 
 use rustc_hash::FxHashMap;
 
-use crate::{alias::IdentifierSymbol, interpreter::{Callable, LoxClass}, tokens::{Token, TokenKind}};
+use crate::{alias::IdentifierSymbol, parser::types::{FunctionDeclaration, Identifier}};
+
+use super::{environment::Environment, interpreter::Callable};
+
+#[derive(Clone, Debug)]
+pub struct LoxFunction
+{
+    pub declaration: Rc<FunctionDeclaration>,
+    pub closure: Rc<RefCell<Environment>>
+}
+
+#[derive(Clone, Debug)]
+pub struct LoxClass
+{
+    pub identifier: Identifier,
+    pub methods: FxHashMap<IdentifierSymbol, LoxFunction>,
+    pub super_class: Option<Rc<LoxClass>>
+}
+
+impl LoxClass
+{
+    pub fn new(
+        identifier:     Identifier,
+        methods:        FxHashMap<IdentifierSymbol, LoxFunction>,
+        super_class:    Option<Rc<LoxClass>>
+    ) -> Self
+    {
+        Self {
+            identifier,
+            methods,
+            super_class
+        }
+    }
+
+    pub fn find_method(&self, name: &IdentifierSymbol)  -> Option<&LoxFunction>
+    {
+        let method: Option<&LoxFunction> = self.methods.get(name);
+        if method.is_some() {
+            return method;
+        }
+
+        if let Some(super_class) = &self.super_class {
+            return super_class.find_method(name);
+        }
+
+        None
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct LoxInstance {
@@ -50,21 +97,6 @@ impl PartialEq for Value
 
 impl Value
 {
-    pub fn from_token(token: Token) -> Self
-    {
-        match token.kind
-        {
-            TokenKind::Nil           => Value::Nil,
-            TokenKind::False(value)  => value,
-            TokenKind::True(value)   => value,
-            TokenKind::Number(value) => value,
-            TokenKind::String(value) => value,
-            _ => {
-                panic!("Internal error: unexpecter operator type.");
-            }
-        }
-    }
-
     #[inline]
     pub fn is_truthy(&self) -> bool
     {

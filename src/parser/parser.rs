@@ -1,178 +1,15 @@
 use std::rc::Rc;
 
-use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
-use unique_id::sequence::SequenceGenerator;
 
 use crate::alias::IdentifierSymbol;
 use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, InternalErrorKind, LoxError, ParserErrorKind};
-use crate::common::Peekable;
-use crate::lexer::Lexer;
-use crate::tokens::{BinaryOperatorKind, Identifier, LogicalOperatorKind, Operator, Position, Token, TokenKind, TokenSource, UnaryOperatorKind};
-use crate::values::Value;
-use unique_id::Generator;
+use crate::utils::utils::Peekable;
 
-static ID_GENERATOR: Lazy<SequenceGenerator> = Lazy::new(SequenceGenerator::default);
-
-#[derive(Clone, Debug)]
-pub struct Expr
-{
-    pub id: i64,
-    pub kind: ExprKind
-}
-
-impl Expr
-{
-    pub fn new(kind: ExprKind) -> Self {
-        Self { id: ID_GENERATOR.next_id(), kind }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum ExprKind
-{
-    Binary  (Box<BinaryExpr>),
-    Grouping(Box<Expr>),
-    Unary   (Box<UnaryExpr>),
-    Literal (Value),
-    Variable(Identifier),
-    Assign  (Box<AssignExpr>),
-    Logical (Box<LogicalExpr>),
-    Call    (Box<CallExpr>),
-    Get     (Box<GetExpr>),
-    Set     (Box<SetExpr>),
-    This    (Position),
-    Super   (Identifier)
-}
-
-#[derive(Clone, Debug)]
-pub struct GetExpr {
-    pub expr: Expr,
-    pub identifier: Identifier
-}
-
-#[derive(Clone, Debug)]
-pub struct AssignExpr {
-    pub identifier: Identifier,
-    pub expr: Expr
-}
-
-#[derive(Clone, Debug)]
-pub struct UnaryExpr {
-    pub operator: Operator<UnaryOperatorKind>,
-    pub expr: Expr
-}
-
-#[derive(Clone, Debug)]
-pub struct BinaryExpr {
-    pub left: Expr,
-    pub operator: Operator<BinaryOperatorKind>,
-    pub right: Expr
-}
-
-#[derive(Clone, Debug)]
-pub struct LogicalExpr {
-    pub left: Expr,
-    pub operator: Operator<LogicalOperatorKind>,
-    pub right: Expr
-}
-
-#[derive(Clone, Debug)]
-pub struct SetExpr {
-    pub target: Expr,
-    pub identifier: Identifier,
-    pub value: Expr
-}
-
-#[derive(Clone, Debug)]
-pub struct CallExpr {
-    pub callee: Expr,
-    pub arguments: Vec<Expr>,
-    pub position: Position
-}
-
-#[derive(Clone, Debug)]
-pub enum Stmt
-{
-    Expr    (Expr),
-    Var     (Identifier, Option<Expr>),
-    Block   (Vec<Stmt>),
-    If      (Box<IfStmt>),
-    IfElse  (Box<IfElseStmt>),
-    While   (Box<WhileStmt>),
-    Return  (Option<Expr>, Position),
-    Break,
-    Continue,
-    FunctionDeclaration (Rc<FunctionDeclaration>),
-    ClassDeclaration    (Rc<ClassDeclaration>),
-    Print   (Expr),
-}
-
-#[derive(Clone, Debug)]
-pub struct IfElseStmt {
-    pub condition: Expr,
-    pub then_stmt: Stmt,
-    pub else_stmt: Stmt
-}
-
-#[derive(Clone, Debug)]
-pub struct IfStmt {
-    pub condition: Expr,
-    pub then_stmt: Stmt
-}
-
-#[derive(Clone, Debug)]
-pub struct WhileStmt {
-    pub condition: Expr,
-    pub body: Stmt
-}
-
-#[derive(Clone, Debug)]
-pub struct FunctionDeclaration
-{
-    pub identifier: Identifier,
-    pub parameters: Vec<IdentifierSymbol>,
-    pub positions: Vec<Position>,
-    //Attenzione! non puo' essere uno Stmt altrimenti i parametri della funzione verrebbero definiti in uno scope esterno rispetto al body e l'utente potrebbe ridefinirli nel body!
-    pub body: Vec<Stmt>,
-    pub is_initializer: bool
-}
-
-impl FunctionDeclaration
-{
-    pub fn new(identifier: Identifier, parameters: Vec<Identifier>, body: Vec<Stmt>, is_initializer: bool) -> Self
-    {
-        Self
-        {
-            identifier,
-            parameters: parameters.iter().map(|p| p.name).collect(),
-            positions: parameters.iter().map(|p| p.position).collect(),
-            body,
-            is_initializer
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct ClassDeclaration
-{
-    pub identifier: Identifier,
-    pub methods: FxHashMap<IdentifierSymbol, Rc<FunctionDeclaration>>,
-    pub superclass_expr: Option<Expr>
-}
-
-impl ClassDeclaration
-{
-    fn new(identifier: Identifier, superclass_expr: Option<Expr>) -> Self
-    {
-        Self {
-            identifier,
-            methods: FxHashMap::default(),
-            superclass_expr
-        }
-    }
-}
+use super::lexer::Lexer;
+use super::tokens::{Token, TokenKind, TokenSource};
+use super::types::{AssignExpr, BinaryExpr, BinaryOperatorKind, CallExpr, ClassDeclaration, Expr, ExprKind, FunctionDeclaration, GetExpr, Identifier, IfElseStmt, IfStmt, Literal, LogicalExpr, LogicalOperatorKind, Operator, SetExpr, Stmt, UnaryExpr, UnaryOperatorKind, WhileStmt};
 
 pub struct Parser
 {
@@ -447,11 +284,11 @@ impl Parser
             };
 
         //parse condition
-        let opt_condition =
+        let condition_expr =
             if !check(token_source, TokenKind::Semicolon) {
-                Some(self.expression(token_source)?)
+                self.expression(token_source)?
             } else {
-                None
+                Expr::new(ExprKind::Literal(Literal::True(token_source.peek().unwrap().position)))
             };
         consume(token_source, TokenKind::Semicolon, "Expect ';' after loop condition.")?;
 
@@ -473,14 +310,6 @@ impl Parser
                 Stmt::Block(vec![body, Stmt::Expr(opt_increment.unwrap())])
             } else {
                 body
-            };
-
-        let condition_expr =
-            match opt_condition {
-                Some(condition_expr) => condition_expr,
-                None => {
-                    Expr::new(ExprKind::Literal(crate::values::Value::Bool(true)))
-                },
             };
 
         let while_stmt = Stmt::While(Box::new(WhileStmt {condition: condition_expr, body: body_plus_increment })) ;
@@ -543,7 +372,7 @@ impl Parser
         Ok(Stmt::Expr(expr))
     }
 
-    pub fn expression(&mut self, token_source: &mut TokenSource) -> Result<Expr,LoxError>
+    fn expression(&mut self, token_source: &mut TokenSource) -> Result<Expr,LoxError>
     {
         self.assignment(token_source)
     }
@@ -732,7 +561,7 @@ impl Parser
                 },
                 TokenKind::Dot => {
                     token_source.consume();
-                    let identifier: crate::tokens::Identifier = consume_identifier(token_source, "Expect property name after '.'.")?;
+                    let identifier: Identifier = consume_identifier(token_source, "Expect property name after '.'.")?;
                     expr = Expr::new(ExprKind::Get(Box::new(GetExpr { expr, identifier })));
                 },
                 _ => {
@@ -753,13 +582,22 @@ impl Parser
 
         match &token.kind {
             TokenKind::Nil => {
-                Ok(Expr::new(ExprKind::Literal(Value::from_token(token))))
+                Ok(Expr::new(ExprKind::Literal(Literal::Nil(token.position))))
             }
-            TokenKind::False(_) | TokenKind::True(_) | TokenKind::Number(_) | TokenKind::String(_) => {
-                Ok(Expr::new(ExprKind::Literal(Value::from_token(token))))
+            TokenKind::False  => {
+                Ok(Expr::new(ExprKind::Literal(Literal::False(token.position))))
             },
+            TokenKind::True  => {
+                Ok(Expr::new(ExprKind::Literal(Literal::True(token.position))))
+            },
+            TokenKind::Number(number)  => {
+                Ok(Expr::new(ExprKind::Literal(Literal::Number(*number, token.position))))
+            }
+            TokenKind::String(string) => {
+                Ok(Expr::new(ExprKind::Literal(Literal::String(Rc::clone(string), token.position))))
+            }
             TokenKind::Identifier(identifier) => {
-                Ok(Expr::new(ExprKind::Variable(identifier.clone())))
+                Ok(Expr::new(ExprKind::Variable(Identifier {name: *identifier, position: token.position})))
             },
             TokenKind::LeftParen => {
                 let expr: Expr = self.expression(token_source)?;
@@ -821,11 +659,12 @@ fn consume_identifier(token_source: &mut TokenSource, message: &str) -> Result<I
 
     if is_identifier
     {
-        match token_source.next().unwrap().kind
+        let token = token_source.next().unwrap();
+        match &token.kind
         {
             TokenKind::Identifier(identifier) =>
             {
-                return Ok(identifier);
+                return Ok(Identifier {name: *identifier, position: token.position});
             },
             _ => {
                 return Err(LoxError::internal_error(InternalErrorKind::ExpectToken));
@@ -839,12 +678,11 @@ fn consume_identifier(token_source: &mut TokenSource, message: &str) -> Result<I
 
 #[inline]
 fn check(token_source: &mut TokenSource, token_kind: TokenKind) -> bool {
-    check_token(token_source.peek().unwrap(), token_kind)
-}
-
-#[inline]
-fn check_token(token: &Token, token_kind: TokenKind) -> bool {
-    std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind)
+    if let Some(peek) = token_source.peek() {
+        std::mem::discriminant(&peek.kind,) == std::mem::discriminant(&token_kind)
+    } else {
+        false
+    }
 }
 
 #[inline]

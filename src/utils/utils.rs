@@ -292,7 +292,9 @@ impl <T> Stack<T>
 
 #[cfg(test)]
 mod tests {
-    use crate::common::{CircularBuffer, NthPeekable};
+
+
+    use crate::utils::utils::{CircularBuffer, NthPeekable};
 
     use super::{Peekable, Scanner, Stack};
 

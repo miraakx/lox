@@ -1,7 +1,9 @@
 use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 use rustc_hash::FxHashMap;
 use string_interner::{StringInterner, Symbol};
-use crate::{alias::IdentifierSymbol, values::Value};
+use crate::alias::IdentifierSymbol;
+
+use super::types::Value;
 
 #[derive(Clone, Debug)]
 pub struct Environment
@@ -97,7 +99,7 @@ mod tests {
 
     use string_interner::StringInterner;
 
-    use crate::values::Value;
+    use crate::interpreter::types::Value;
 
     use super::Environment;
 
