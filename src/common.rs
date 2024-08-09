@@ -174,7 +174,7 @@ impl <'a> Scanner<'a>
     {
         Scanner
         {
-            iter:   NthPeekable::new(str.chars(), peek_dept),
+            iter: NthPeekable::new(str.chars(), peek_dept),
         }
     }
 
@@ -188,14 +188,14 @@ impl <'a> Scanner<'a>
         self.iter.peek().cloned()
     }
 
-    pub fn peek_nth(&mut self, index: usize) -> Option<char>
-    {
-        self.iter.peek_nth(index).cloned()
-    }
-
     pub fn peek_next(&mut self) -> Option<char>
     {
         self.iter.peek_nth(1).cloned()
+    }
+
+    pub fn peek_nth(&mut self, index: usize) -> Option<char>
+    {
+        self.iter.peek_nth(index).cloned()
     }
 
     pub fn is_peek(&mut self, ch: char) -> bool
@@ -294,6 +294,69 @@ impl <T> Stack<T>
 mod tests {
     use crate::common::{CircularBuffer, NthPeekable};
 
+    use super::{Peekable, Scanner, Stack};
+
+    #[test]
+    fn test_scanner() {
+        let mut scanner = Scanner::from_str("test123", 3);
+        assert_eq!(scanner.is_peek('t'), true);
+        assert_eq!(scanner.is_peek_next('e'), true);
+        assert_eq!(scanner.peek(), Some('t'));
+        assert_eq!(scanner.peek_next(), Some('e'));
+        assert_eq!(scanner.peek_nth(0), Some('t'));
+        assert_eq!(scanner.peek_nth(1), Some('e'));
+        assert_eq!(scanner.peek_nth(2), Some('s'));
+
+        assert_eq!(scanner.next(), Some('t'));
+        assert_eq!(scanner.is_peek('e'), true);
+        assert_eq!(scanner.is_peek_next('s'), true);
+        assert_eq!(scanner.is_peek_ascii_digit(), false);
+        assert_eq!(scanner.is_peek_next_ascii_digit(), false);
+        assert_eq!(scanner.is_peek_identifier_char(), true);
+
+        scanner.consume();
+        scanner.consume();
+        scanner.consume();
+        assert_eq!(scanner.peek(), Some('1'));
+        assert_eq!(scanner.is_peek_ascii_digit(), true);
+        assert_eq!(scanner.is_peek_next_ascii_digit(), true);
+        assert_eq!(scanner.is_peek_identifier_char(), true);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_scanner_panic() {
+        let mut scanner = Scanner::from_str("test", 2);
+        assert_eq!(scanner.peek_nth(2), Some('e'));
+    }
+
+    #[test]
+    fn test_stack() {
+        let mut stack = Stack::<i32>::new();
+        assert_eq!(stack.is_empty(), true);
+        assert_eq!(stack.len(), 0);
+        assert_eq!(stack.peek(), None);
+        assert_eq!(stack.peek_mut(), None);
+        assert_eq!(stack.pop(), None);
+        assert_eq!(stack.len(), 0);
+
+
+        stack.push(1);
+        assert_eq!(stack.peek().cloned(), Some(1));
+        assert_eq!(stack.peek_mut().cloned(), Some(1));
+        assert_eq!(stack.is_empty(), false);
+        assert_eq!(stack.len(), 1);
+        assert_eq!(stack.pop(), Some(1));
+        assert_eq!(stack.is_empty(), true);
+        assert_eq!(stack.len(), 0);
+
+        stack.push(1);
+        stack.push(2);
+        stack.push(3);
+        assert_eq!(stack.is_empty(), false);
+        assert_eq!(stack.len(), 3);
+    }
+
     #[test]
     fn test_circular_buffer()
     {
@@ -347,7 +410,26 @@ mod tests {
     }
 
     #[test]
-    fn test_peekable_iter()
+    fn test_peekable()
+    {
+        let text = "test";
+        let mut buffer = Peekable::new(text.chars());
+        assert_eq!(buffer.peek().cloned(), Some('t'));
+        assert_eq!(buffer.peek().cloned(), Some('t'));
+        assert_eq!(buffer.next(), Some('t'));
+        assert_eq!(buffer.peek().cloned(), Some('e'));
+        assert_eq!(buffer.peek().cloned(), Some('e'));
+        assert_eq!(buffer.peek().cloned(), Some('e'));
+        assert_eq!(buffer.next(), Some('e'));
+        assert_eq!(buffer.next(), Some('s'));
+        assert_eq!(buffer.peek().cloned(), Some('t'));
+        assert_eq!(buffer.next(), Some('t'));
+        assert_eq!(buffer.peek(), None);
+        assert_eq!(buffer.next(), None);
+    }
+
+    #[test]
+    fn test_nth_peekable_1()
     {
         let text = "testo di prova";
         let mut buffer = NthPeekable::new(text.chars(), 5);
@@ -380,7 +462,7 @@ mod tests {
     }
 
     #[test]
-    fn test_peekable_nth()
+    fn test_nth_peekable_2()
     {
         let text = "testo di prova";
         let mut buffer = NthPeekable::new(text.chars(), 5);
