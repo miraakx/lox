@@ -81,7 +81,6 @@ impl<'a> Iterator for Lexer<'a>
                 SPACE | TAB => {
                     if !is_token_started {
                         token_start_column += 1;
-                        is_token_started = true;
                     }
                     self.advance_column();
                 },
@@ -91,7 +90,6 @@ impl<'a> Iterator for Lexer<'a>
                     if !is_token_started {
                         token_start_line   += 1;
                         token_start_column = 1;
-                        is_token_started = true;
                     }
                     self.new_line();
                     //handle Windows new line '\r\n'
@@ -103,63 +101,73 @@ impl<'a> Iterator for Lexer<'a>
                     if !is_token_started {
                         token_start_line   += 1;
                         token_start_column = 1;
-                        is_token_started = true;
                     }
                     self.new_line();
                 },
 
                 LEFT_PAREN =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     opt_token_kind = Some(TokenKind::LeftParen);
                 },
                 RIGHT_PAREN =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     opt_token_kind = Some(TokenKind::RightParen);
                 },
                 LEFT_BRACE =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     opt_token_kind = Some(TokenKind::LeftBrace);
                 },
                 RIGHT_BRACE =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     opt_token_kind = Some(TokenKind::RightBrace);
                 },
                 COMMA =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     opt_token_kind = Some(TokenKind::Comma);
                 },
                 DOT =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     opt_token_kind = Some(TokenKind::Dot);
                 },
                 SEMICOLON =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     opt_token_kind = Some(TokenKind::Semicolon);
                 },
                 MINUS =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     opt_token_kind = Some(TokenKind::Minus);
                 },
                 PLUS =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     opt_token_kind = Some(TokenKind::Plus);
                 },
                 STAR =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     opt_token_kind = Some(TokenKind::Star);
                 },
                 EQUAL =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
@@ -171,6 +179,7 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 BANG =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
@@ -182,6 +191,7 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 GREATER =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
@@ -193,6 +203,7 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 LESS =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     if self.scanner.is_peek(EQUAL) {
                         self.scanner.next();
@@ -206,6 +217,7 @@ impl<'a> Iterator for Lexer<'a>
                 {
                     self.advance_column();
                     if !self.scanner.is_peek(SLASH) {
+                        is_token_started = true;
                         opt_token_kind = Some(TokenKind::Slash);
                     } else {
                         //consume the second slash character
@@ -235,6 +247,7 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 QUOTE =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     let mut string = String::new();
                     loop {
@@ -297,6 +310,7 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 ch if ch.is_ascii_digit() =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     let mut number_string = String::from(ch);
                     let mut flag_decimal_point = false;
@@ -323,6 +337,7 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 ch if is_identifier(ch) =>
                 {
+                    is_token_started = true;
                     self.advance_column();
                     let mut identifier = String::from(ch);
 
