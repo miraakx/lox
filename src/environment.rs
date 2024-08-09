@@ -17,7 +17,6 @@ impl Environment {
     }
 
     pub fn new (enclosing: &Rc<RefCell<Self>>) -> Rc<RefCell<Self>> {
-        //println!("new enclosing environment count = {}", count_enclosing(&enclosing.borrow())+1);
         Rc::new(RefCell::new(Self { scope: FxHashMap::default(), opt_enclosing: Some(Rc::clone(enclosing)) }))
       }
 
@@ -57,7 +56,6 @@ impl Environment {
 
     pub fn define_variable(&mut self, name: IdentifierSymbol, value: Value)
     {
-        //println!("enclosing count = {}", count_enclosing(self));
         self.scope.insert(name, value);
     }
 
@@ -91,6 +89,66 @@ impl Environment {
         return self.ancestor(distance).borrow_mut().assign(name, value);
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use string_interner::StringInterner;
+
+    use crate::values::Value;
+
+    use super::Environment;
+
+
+    #[test]
+    fn test_environment() {
+        let mut string_interner = StringInterner::default();
+
+        let foo = string_interner.get_or_intern("foo");
+
+        let rc_environment = Environment::default();
+        {
+            let mut environment = rc_environment.borrow_mut();
+            environment.define_variable(foo, Value::Nil);
+            //verify get and assign
+            assert_eq!(environment.get(&foo), Some(Value::Nil));
+            assert_eq!(environment.assign(foo, &Value::Number(1.0)), Result::Ok(()));
+
+            ////verify get_at and assign_at
+            assert_eq!(environment.get_at(0, &foo), Some(Value::Number(1.0)));
+            assert_eq!(environment.assign_at( 0, foo, &Value::Number(1.0)), Result::Ok(()));
+        }
+
+        let rc_environment_2 = Environment::new(&rc_environment);
+        {
+            let mut environment_2 = rc_environment_2.borrow_mut();
+
+            //verify get_at and assign_at
+            assert_eq!(environment_2.get_at(1, &foo), Some(Value::Number(1.0)));
+            assert_eq!(environment_2.assign_at(1, foo, &Value::Number(2.0)), Result::Ok(()));
+            assert_eq!(environment_2.get_at(1, &foo), Some(Value::Number(2.0)));
+
+            //verify ancestor equality
+            assert!(Rc::ptr_eq(&environment_2.ancestor(1), &rc_environment));
+        }
+
+        let rc_environment_3 = Environment::new(&rc_environment_2);
+        {
+            let mut environment_3 = rc_environment_3.borrow_mut();
+
+            //verify get_at and assign_at
+            assert_eq!(environment_3.get_at(2, &foo), Some(Value::Number(2.0)));
+            assert_eq!(environment_3.assign_at(2, foo, &Value::Number(3.0)), Result::Ok(()));
+            assert_eq!(environment_3.get_at(2, &foo), Some(Value::Number(3.0)));
+
+            //verify ancestor equality
+            assert!(Rc::ptr_eq(&environment_3.ancestor(2), &rc_environment));
+            assert!(Rc::ptr_eq(&environment_3.ancestor(1), &rc_environment_2));
+        }
+
+    }
 }
 
 pub fn _count_enclosing(env: &Environment) -> usize {
