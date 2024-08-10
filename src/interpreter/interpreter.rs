@@ -22,8 +22,8 @@ impl <'a, 'b> Interpreter<'a, 'b>
 {
     pub fn new_with_writer(string_interner: &'a mut StringInterner, side_table: SideTable, writer: &'b mut dyn Write) -> Self
     {
-        let this_symbol = string_interner.get("this").unwrap();
-        let init_symbol = string_interner.get("init").unwrap();
+        let this_symbol  = string_interner.get("this").unwrap();
+        let init_symbol  = string_interner.get("init").unwrap();
         let super_symbol = string_interner.get("super").unwrap();
         Interpreter {
             string_interner,
@@ -37,9 +37,9 @@ impl <'a, 'b> Interpreter<'a, 'b>
     }
 
     fn define_native_functions(&mut self) {
-        let clock_symbol  = self.string_interner.get_or_intern_static("clock");
-        let assert_eq_symbol  = self.string_interner.get_or_intern_static("assertEq");
-        let str_symbol  = self.string_interner.get_or_intern_static("str");
+        let clock_symbol     = self.string_interner.get_or_intern_static("clock");
+        let assert_eq_symbol = self.string_interner.get_or_intern_static("assertEq");
+        let str_symbol       = self.string_interner.get_or_intern_static("str");
         define_variable(&self.global_scope, clock_symbol, Value::Callable(Callable::Clock));
         define_variable(&self.global_scope, assert_eq_symbol, Value::Callable(Callable::AssertEq));
         define_variable(&self.global_scope, str_symbol, Value::Callable(Callable::Str));
@@ -123,7 +123,6 @@ impl <'a, 'b> Interpreter<'a, 'b>
             {
 
                 let new_env = Environment::new(environment);
-                //println!("new environment in Block:");
                 for stmt in statements
                 {
                     let state = self.execute_stmt(stmt, &new_env)?;
@@ -222,7 +221,6 @@ impl <'a, 'b> Interpreter<'a, 'b>
 
                 let class_env;
                 if let Some(superclass) = &opt_superclass {
-                    //println!("new environment in Stmt::ClassDeclaration (superclass):");
                     let env = Environment::new(environment);
                     define_variable(&env, self.super_symbol, Value::Callable(Callable::Class(Rc::clone(superclass))));
                     class_env = env;
@@ -563,14 +561,11 @@ impl <'a, 'b> Interpreter<'a, 'b>
     #[inline]
     fn lookup_variable(&self, environment: &Rc<RefCell<Environment>>, name: IdentifierSymbol, expr_id: ExprId) -> Option<Value>
     {
-        //print_env(environment, self.string_interner);
         match self.side_table.get(&expr_id) {
             Some(distance) => {
-                //println!("lookup_variable {} at distance {}", self.string_interner.resolve(name).unwrap(), distance);
                 environment.borrow().get_at(*distance, &name)
             },
             None => {
-                //println!("lookup_variable {} in globals", self.string_interner.resolve(name).unwrap());
                 self.global_scope.borrow().get(&name)
             },
         }
@@ -581,7 +576,6 @@ impl <'a, 'b> Interpreter<'a, 'b>
     {
         match self.side_table.get(&expr_id) {
             Some(distance) => {
-                //println!("assign_variable {} at distance {}", self.string_interner.resolve(name).unwrap(), distance);
                 environment.borrow_mut().assign_at(*distance, name, var_value)
             },
             None => {
@@ -596,10 +590,8 @@ impl <'a, 'b> Interpreter<'a, 'b>
 #[inline]
 fn define_variable(environment: &Rc<RefCell<Environment>>, name: IdentifierSymbol, var_value: Value)
 {
-    //println!("define_variable {}", string_interner.resolve(name).unwrap());
     environment.borrow_mut().define_variable(name, var_value);
 }
-
 
 fn bind(method: &LoxFunction, value: Value, symbol: IdentifierSymbol) -> Callable {
     let this_binding_closure = Environment::new(&method.closure);
@@ -607,7 +599,6 @@ fn bind(method: &LoxFunction, value: Value, symbol: IdentifierSymbol) -> Callabl
     define_variable(&this_binding_closure, symbol, value);
     Callable::Function(Rc::new(RefCell::new(new_method)))
 }
-
 
 enum State
 {
@@ -768,8 +759,6 @@ pub fn to_string(value: Value, string_interner: &StringInterner) -> String {
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
