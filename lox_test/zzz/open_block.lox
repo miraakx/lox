@@ -1,3 +1,0 @@
-fun prova() {
-    print "ciao";
-// Error at [line 3] Parser error: Expect '}' after block.

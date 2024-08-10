@@ -1,7 +1,0 @@
-{
-  var i = "before";
-  {
-    var i = 0;
-    print i; // expect: 0
-  }
-}
