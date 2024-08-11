@@ -3,9 +3,9 @@ use std::{fmt, rc::Rc};
 
 use string_interner::Symbol;
 
-use crate::{alias::IdentifierSymbol, utils::utils::Peekable};
+use crate::{alias::IdentifierSymbol, error::{InternalErrorKind, LoxError, ParserErrorKind}, utils::utils::Peekable};
 
-use super::position::Position;
+use super::{position::Position, types::Identifier};
 
 #[derive(Clone, Debug)]
 pub struct Token
@@ -101,4 +101,97 @@ impl<'a> TokenSource<'a>
     {
         self.next();
     }
+
+    /// Expect and consume the following token only if it matches the supplied `TokenKind`.
+    ///
+    /// Return the given error message if not found as expected.
+    pub fn consume_or_error(&mut self, token_kind: TokenKind, message: &str) -> Result<Token,LoxError>
+    {
+        let token = self.peek().unwrap();
+        let is_token_kind =
+        if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
+            true
+        } else {
+            return Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position));
+        };
+        if is_token_kind {
+            let token = self.next().unwrap();
+            return Ok(token);
+        }
+
+        Err(LoxError::parser_error(ParserErrorKind::ExpectedToken(message.to_string()), token.position))
+
+    }
+
+    /// Expect and consume an identifier `TokenKind::Identifier`.
+    ///
+    /// If an dentifier is not found as expected returns an error of type `ParserErrorKind::ExpectedIdentifier` with the supplied error message.
+    pub fn consume_identifier(&mut self, message: &str) -> Result<Identifier, LoxError>
+    {
+        let mut is_identifier = false;
+        let position;
+
+        match self.peek()
+        {
+            Some(token) => {
+                position = token.position;
+                if let TokenKind::Identifier(_) = &token.kind {
+                    is_identifier = true
+                }
+            },
+            None => {
+                return Err(LoxError::internal_error(InternalErrorKind::ExpectToken));
+            },
+        }
+
+        if is_identifier
+        {
+            let token = self.next().unwrap();
+            match &token.kind
+            {
+                TokenKind::Identifier(identifier) =>
+                {
+                    return Ok(Identifier {name: *identifier, position: token.position});
+                },
+                _ => {
+                    return Err(LoxError::internal_error(InternalErrorKind::ExpectToken));
+                }
+            }
+        }
+
+        Err(LoxError::parser_error(ParserErrorKind::ExpectedIdentifier(message.to_string()), position))
+
+    }
+
+    /// Peek the next token and check if it matches with the supplied `TokenKind`.
+    ///
+    /// Returns true or false.
+    #[inline]
+    pub fn check(&mut self, token_kind: TokenKind) -> bool {
+        if let Some(peek) = self.peek() {
+            std::mem::discriminant(&peek.kind,) == std::mem::discriminant(&token_kind)
+        } else {
+            false
+        }
+    }
+
+    /// Check if the next token is a `TokenKind::Eof` (end of file token).
+    ///
+    /// Returns true or false.
+    #[inline]
+    pub fn is_at_end(&mut self) -> bool {
+        self.check(TokenKind::Eof)
+    }
+
+    /// If the next token matches the supplied `TokenKind` consumes it and returns true. Otherwise returns false and leave the token unconsumed.
+    pub fn consume_if(&mut self, token_kind: TokenKind) -> bool {
+        let token = self.peek().unwrap();
+        if std::mem::discriminant(&token.kind) == std::mem::discriminant(&token_kind) {
+            self.consume();
+            true
+        } else {
+            false
+        }
+    }
+
 }

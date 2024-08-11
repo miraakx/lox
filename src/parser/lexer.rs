@@ -35,38 +35,46 @@ impl<'a> Lexer<'a>
 impl <'a> Lexer<'a>
 {
     #[inline]
-    fn new_line(&mut self) {
+    fn new_line(&mut self)
+    {
         self.line   += 1;
         self.column = 1;
     }
 
     #[inline]
-    fn advance_column(&mut self) {
+    fn advance_column(&mut self)
+    {
         self.column += 1;
     }
 
     #[inline]
-    fn get_position(&self) -> Position {
+    fn get_position(&self) -> Position
+    {
         Position { line: self.line, column: self.column }
     }
-
 }
 
 impl<'a> Iterator for Lexer<'a>
 {
     type Item = Token;
 
+    /// Avanza nel codice, consumando un carattere UTF-8 dopo l'altro, fino a quando è in grado di restituire un nuovo `Token`.
+    ///
+    /// Quando il file termina ritorna `TokenKind::Eof`, successivamente ritorna `None`.
     fn next(&mut self) -> Option<Token>
     {
         let mut opt_token_kind     : Option<TokenKind>;
+
+        //memorize where the new token starts excluding spaces, tabs and new lines
         let mut token_start_column : u32 = self.column;
         let mut token_start_line   : u32 = self.line;
         let mut is_token_started   : bool = false;
 
-        loop {
-
+        loop
+        {
             let opt_ch: Option<char> = self.scanner.next();
-            if opt_ch.is_none() {
+            if opt_ch.is_none()
+            {
                 if self.end_of_file {
                     return None;
                 } else {
@@ -79,8 +87,10 @@ impl<'a> Iterator for Lexer<'a>
 
             opt_token_kind = None;
 
-            match ch {
-                SPACE | TAB => {
+            match ch
+            {
+                SPACE | TAB =>
+                {
                     if !is_token_started {
                         token_start_column += 1;
                     }
@@ -94,6 +104,7 @@ impl<'a> Iterator for Lexer<'a>
                         token_start_column = 1;
                     }
                     self.new_line();
+
                     //handle Windows new line '\r\n'
                     self.scanner.consume_if_peek_is(LINE_FEED);
                 },
@@ -106,7 +117,6 @@ impl<'a> Iterator for Lexer<'a>
                     }
                     self.new_line();
                 },
-
                 LEFT_PAREN =>
                 {
                     is_token_started = true;
@@ -222,21 +232,19 @@ impl<'a> Iterator for Lexer<'a>
                         is_token_started = true;
                         opt_token_kind = Some(TokenKind::Slash);
                     } else {
+                        //found two successive '/' characters. Handle comment.
                         //consume the second slash character
                         self.scanner.next();
                         self.advance_column();
 
-                        loop {
-                            let opt_next_ch = self.scanner.peek();
-
-                            if opt_next_ch.is_none() {
-                                break;
-                            }
-
-                            let next_ch = opt_next_ch.unwrap();
-
-                            match next_ch {
-                                LINE_FEED | CARRIAGE_RETURN => {
+                        loop
+                        {
+                            match self.scanner.peek()
+                            {
+                                None => {
+                                    break;
+                                }
+                                Some(LINE_FEED | CARRIAGE_RETURN) => {
                                     //advance line on next iteration
                                     break;
                                 },
@@ -252,11 +260,16 @@ impl<'a> Iterator for Lexer<'a>
                     is_token_started = true;
                     self.advance_column();
                     let mut string = String::new();
-                    loop {
-                        match self.scanner.next() {
-                            Some(BACK_SLASH) => {
+                    loop
+                    {
+                        match self.scanner.next()
+                        {
+                            Some(BACK_SLASH) =>
+                            {
+                                //handle the escape character '\'
                                 self.advance_column();
-                                match self.scanner.peek() {
+                                match self.scanner.peek()
+                                {
                                     Some('n') => {
                                         self.scanner.next();
                                         self.advance_column();
@@ -293,17 +306,23 @@ impl<'a> Iterator for Lexer<'a>
                                     }
                                 }
                             },
-                            Some('"') => {
+                            Some('"') =>
+                            {
+                                //string's end quote
                                 self.advance_column();
                                 opt_token_kind = Some(TokenKind::String(Rc::new(string)));
                                 break;
                             },
-                            None => {
+                            None =>
+                            {
+                                //unterminated string
                                 self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnterminatedString, self.get_position()));
                                 opt_token_kind = Some(TokenKind::String(Rc::new(string)));
                                 break;
                             },
-                            Some(ch) => {
+                            Some(ch) =>
+                            {
+                                //string character. goes on looping.
                                 self.advance_column();
                                 string.push(ch);
                             }
@@ -318,6 +337,7 @@ impl<'a> Iterator for Lexer<'a>
                     let mut flag_decimal_point = false;
 
                     //read the number and stores the chars into 'number_string'
+                    //handle carefully the decimal separator. '.' must be followed by another digit to be part of the number, otherwise it's excluded.
                     while self.scanner.is_peek_ascii_digit() || self.scanner.is_peek('.') && self.scanner.is_peek_next_ascii_digit() && !flag_decimal_point
                     {
                         self.advance_column();
@@ -326,7 +346,9 @@ impl<'a> Iterator for Lexer<'a>
                         }
                         number_string.push(self.scanner.unwrap_next());
                     }
-                    match number_string.parse::<f64>() {
+                    //parse the number
+                    match number_string.parse::<f64>()
+                    {
                         Ok(number) => {
                             opt_token_kind = Some(TokenKind::Number(number));
                         }
@@ -349,11 +371,15 @@ impl<'a> Iterator for Lexer<'a>
                         identifier.push(self.scanner.unwrap_next());
                     }
 
-                    if let Some(keyword_token) = find_keyword(identifier.as_str()) {
-                        opt_token_kind = Some(keyword_token);
-                    } else {
-                        let symbol = self.string_interner.get_or_intern(identifier);
-                        opt_token_kind  = Some(TokenKind::Identifier(symbol));
+                    match find_keyword(identifier.as_str())
+                    {
+                        Some(keyword_token) => {
+                            opt_token_kind = Some(keyword_token);
+                        },
+                        None => {
+                            let symbol = self.string_interner.get_or_intern(identifier);
+                            opt_token_kind  = Some(TokenKind::Identifier(symbol));
+                        },
                     }
                 },
                 _ =>
@@ -362,7 +388,8 @@ impl<'a> Iterator for Lexer<'a>
                     opt_token_kind = Some(TokenKind::UnexpectedToken);
                 }
             }
-            if let Some(token_kind) = opt_token_kind {
+            if let Some(token_kind) = opt_token_kind
+            {
                 return Some(
                     Token{
                         kind: token_kind,
@@ -383,7 +410,10 @@ const fn is_identifier(ch: char) -> bool
     ch.is_ascii_alphabetic() || ch == '_'
 }
 
-pub fn find_keyword(str: &str) -> Option<TokenKind>
+/// Search the input string for a language keyword.
+///
+/// Use a 'trie' search to find if a keyword match for the given string.
+fn find_keyword(str: &str) -> Option<TokenKind>
 {
     const TOKEN_FALSE: TokenKind = TokenKind::False;
     const TOKEN_TRUE:  TokenKind = TokenKind::True;

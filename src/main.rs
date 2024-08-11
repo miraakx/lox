@@ -28,10 +28,9 @@ fn main()
                   }
             }
          }
-
       }
       _ => {
-         println!("\nUsage: `rlox [path/to/script]`. Type `lox --help` for further info.");
+         println!("\nUsage: `lox [path/to/script]`. Type `lox --help` for further info.");
          std::process::exit(64);
       }
    };
