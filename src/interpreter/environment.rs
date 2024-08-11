@@ -90,7 +90,6 @@ impl Environment {
         }
         return self.ancestor(distance).borrow_mut().assign(name, value);
     }
-
 }
 
 #[cfg(test)]

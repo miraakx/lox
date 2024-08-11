@@ -2,7 +2,6 @@ use std::{env, io};
 
 use lox::run;
 
-
 fn main()
 {
    const VERSION: &str = env!("CARGO_PKG_VERSION");

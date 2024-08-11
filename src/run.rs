@@ -4,6 +4,7 @@ use string_interner::StringInterner;
 
 use crate::{alias::IdentifierSymbol, benches::{BINARY_TREES_LOX, EQUALITY_LOX, FIB_LOX, INSTANTIATION_LOX, INVOCATION_LOX, METHOD_CALL_LOX, PROPERTIES_LOX, STRING_EQUALITY_LOX, TREES_LOX, ZOO_BATCH_LOX, ZOO_LOX}, error::{ConsoleErrorLogger, ExecutionResult}, interpreter::interpreter::Interpreter, parser::{parser::Parser, resolver::Resolver, types::Stmt}};
 
+/// Executes a file.
 pub fn run_file(filepath: &str, writer: &mut dyn Write) -> Result<(), ExecutionResult>
 {
    let r_code = fs::read_to_string(filepath);
@@ -18,6 +19,7 @@ pub fn run_file(filepath: &str, writer: &mut dyn Write) -> Result<(), ExecutionR
    }
 }
 
+/// Executes the supplied code.
 pub fn run(code: &str, writer: &mut dyn Write) -> Result<(), ExecutionResult>
 {
    let stmts: Vec<Stmt>;
@@ -38,6 +40,7 @@ pub fn run(code: &str, writer: &mut dyn Write) -> Result<(), ExecutionResult>
    interpreter.execute(&stmts)
 }
 
+/// Runs the benchmarks designed by the autor of the language and prints out the result.
 pub fn bench() {
    let benches = [BINARY_TREES_LOX, EQUALITY_LOX, FIB_LOX, INSTANTIATION_LOX, INVOCATION_LOX, METHOD_CALL_LOX, PROPERTIES_LOX, STRING_EQUALITY_LOX, TREES_LOX, ZOO_BATCH_LOX, ZOO_LOX];
    println!("+-----------------+-----------+");

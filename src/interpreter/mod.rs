@@ -1,4 +1,4 @@
 mod types;
-mod native;
+mod native_functions;
 mod environment;
 pub mod interpreter;

@@ -1,6 +1,7 @@
 use std::{rc::Rc, cell::RefCell};
 
 use rustc_hash::FxHashMap;
+use string_interner::StringInterner;
 
 use crate::{alias::IdentifierSymbol, parser::types::{FunctionDeclaration, Identifier}};
 
@@ -11,6 +12,16 @@ pub struct LoxFunction
 {
     pub declaration: Rc<FunctionDeclaration>,
     pub closure: Rc<RefCell<Environment>>
+}
+
+impl LoxFunction
+{
+    pub fn bind(&self, value: Value, symbol: IdentifierSymbol) -> Callable {
+        let this_binding_closure = Environment::new(&self.closure);
+        let new_method = LoxFunction {declaration: Rc::clone(&self.declaration),  closure: Rc::clone(&this_binding_closure) };
+        this_binding_closure.borrow_mut().define_variable(symbol, value);
+        Callable::Function(Rc::new(RefCell::new(new_method)))
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -110,6 +121,27 @@ impl Value
             Value::Nil              => false,
             Value::Callable(_)      => true,
             Value::ClassInstance(_) => true,
+        }
+    }
+
+    pub fn to_string(&self, string_interner: &StringInterner) -> String {
+        match self {
+            Value::String(string)       => format!("{}", string),
+            Value::Number(number)       => format!("{}", number),
+            Value::Bool(boolean)        => format!("{}", boolean),
+            Value::Nil                  => "nil".to_string(),
+            Value::Callable(callable)   => {
+                match callable {
+                    Callable::Function(fun_decl)    => format!("<fn {}>", string_interner.resolve(fun_decl.borrow().declaration.identifier.name).unwrap()),
+                    Callable::Class(class_decl)     => string_interner.resolve(class_decl.identifier.name).unwrap().to_string(),
+                    Callable::Clock                 => "<native fn>".to_string(),
+                    Callable::AssertEq              => "<native fn>".to_string(),
+                    Callable::Str                   => "<native fn>".to_string(),
+                }
+            },
+            Value::ClassInstance(class_instance) => {
+                format!("{} instance", string_interner.resolve(class_instance.declaration.identifier.name).unwrap())
+            }
         }
     }
 }

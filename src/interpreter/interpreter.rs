@@ -5,7 +5,7 @@ use string_interner::StringInterner;
 
 use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, error::{ExecutionResult, InterpreterErrorKind, LoxError}, parser::{position::Position, types::{BinaryOperatorKind, Expr, ExprKind, Literal, LogicalOperatorKind, Stmt, UnaryOperatorKind}}};
 
-use super::{environment::Environment, native::{assert_eq, clock}, types::{LoxClass, LoxFunction, LoxInstance, Value}};
+use super::{environment::Environment, native_functions::{assert_eq, clock}, types::{LoxClass, LoxFunction, LoxInstance, Value}};
 
 pub struct Interpreter<'a, 'b>
 {
@@ -40,11 +40,15 @@ impl <'a, 'b> Interpreter<'a, 'b>
         let clock_symbol     = self.string_interner.get_or_intern_static("clock");
         let assert_eq_symbol = self.string_interner.get_or_intern_static("assertEq");
         let str_symbol       = self.string_interner.get_or_intern_static("str");
-        define_variable(&self.global_scope, clock_symbol, Value::Callable(Callable::Clock));
-        define_variable(&self.global_scope, assert_eq_symbol, Value::Callable(Callable::AssertEq));
-        define_variable(&self.global_scope, str_symbol, Value::Callable(Callable::Str));
+        self.global_scope.borrow_mut().define_variable(clock_symbol, Value::Callable(Callable::Clock));
+        self.global_scope.borrow_mut().define_variable(assert_eq_symbol, Value::Callable(Callable::AssertEq));
+        self.global_scope.borrow_mut().define_variable(str_symbol, Value::Callable(Callable::Str));
     }
 
+    /// Interpreter's entry point for running a program.
+    ///
+    /// Defines native functions and delegates the execution of all the statements to `execute_stmts`.
+    ///
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ExecutionResult>
     {
         self.define_native_functions();
@@ -62,6 +66,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
         Ok(())
     }
 
+    /// Loops though all the statements and executes them one by one.
     fn execute_stmts(&mut self, stmts: &[Stmt], environment: &Rc<RefCell<Environment>>) -> Result<State, LoxError>
     {
         for stmt in stmts
@@ -88,6 +93,8 @@ impl <'a, 'b> Interpreter<'a, 'b>
         let _ = writeln!(self.writer, "{}", message);
     }
 
+    /// Executes a single statement.
+    ///
     fn execute_stmt(&mut self, stmt: &Stmt, environment: &Rc<RefCell<Environment>>) -> Result<State, LoxError>
     {
         match stmt
@@ -95,7 +102,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
             Stmt::Print(expr) =>
             {
                 let val = self.evaluate(expr, environment)?;
-                self.write_line(&to_string(val, self.string_interner));
+                self.write_line(&val.to_string(self.string_interner));
                 Ok(State::Normal)
             },
             Stmt::Expr(expr) =>
@@ -110,11 +117,11 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     Some(expr) =>
                     {
                         let value = self.evaluate(expr, environment)?;
-                        define_variable(environment, identifier.name, value);
+                        environment.borrow_mut().define_variable(identifier.name, value);
                     },
                     None =>
                     {
-                        define_variable(environment, identifier.name, Value::Nil);
+                        environment.borrow_mut().define_variable(identifier.name, Value::Nil);
                     },
                 }
                 Ok(State::Normal)
@@ -190,10 +197,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
             {
                 let lox_function = LoxFunction { declaration: Rc::clone(function_declaration), closure: Rc::clone(environment) };
                 let function = Callable::Function(Rc::new(RefCell::new(lox_function)));
-                define_variable(environment,
-                        function_declaration.identifier.name,
-                        Value::Callable(function)
-                    );
+                environment.borrow_mut().define_variable(function_declaration.identifier.name, Value::Callable(function));
                 Ok(State::Normal)
             },
             Stmt::ClassDeclaration(class_stmt) =>
@@ -222,7 +226,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                 let class_env;
                 if let Some(superclass) = &opt_superclass {
                     let env = Environment::new(environment);
-                    define_variable(&env, self.super_symbol, Value::Callable(Callable::Class(Rc::clone(superclass))));
+                    env.borrow_mut().define_variable(self.super_symbol, Value::Callable(Callable::Class(Rc::clone(superclass))));
                     class_env = env;
                 } else {
                     class_env = Rc::clone(environment);
@@ -236,9 +240,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                 let lox_class = LoxClass::new(class_stmt.identifier.clone(), methods_map, opt_superclass);
                 let callable = Callable::Class(Rc::new(lox_class));
 
-                define_variable(
-                    environment, class_stmt.identifier.name, Value::Callable(callable)
-                );
+                environment.borrow_mut().define_variable(class_stmt.identifier.name, Value::Callable(callable));
                 Ok(State::Normal)
             },
             Stmt::Return(opt_expr, _) =>
@@ -253,6 +255,10 @@ impl <'a, 'b> Interpreter<'a, 'b>
         }
     }
 
+    /// Evaluates an expression.
+    ///
+    /// Recursivly evaluates an expression.
+    ///
     fn evaluate(&mut self, expr: &Expr, environment: &Rc<RefCell<Environment>>) -> Result<Value, LoxError>
     {
         match &expr.kind {
@@ -493,7 +499,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         //Verifica se sia stato richiamato un metodo
                         if let Some(method) = class_instance.declaration.find_method(&get_expr.identifier.name)
                         {
-                            let callable = bind(method, Value::ClassInstance(Rc::clone(class_instance)), self.this_symbol);
+                            let callable = method.bind(Value::ClassInstance(Rc::clone(class_instance)), self.this_symbol);
                             return Ok(Value::Callable(callable));
                         }
 
@@ -544,7 +550,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
 
                         //Verifica se sia stato richiamato un metodo
                         if let Some(method) = opt_method {
-                            let callable = bind(method, object, self.this_symbol);
+                            let callable = method.bind(object, self.this_symbol);
                             Ok(Value::Callable(callable))
                         } else {
                             Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
@@ -583,21 +589,6 @@ impl <'a, 'b> Interpreter<'a, 'b>
             },
         }
     }
-
-
-}
-
-#[inline]
-fn define_variable(environment: &Rc<RefCell<Environment>>, name: IdentifierSymbol, var_value: Value)
-{
-    environment.borrow_mut().define_variable(name, var_value);
-}
-
-fn bind(method: &LoxFunction, value: Value, symbol: IdentifierSymbol) -> Callable {
-    let this_binding_closure = Environment::new(&method.closure);
-    let new_method = LoxFunction {declaration: Rc::clone(&method.declaration),  closure: Rc::clone(&this_binding_closure) };
-    define_variable(&this_binding_closure, symbol, value);
-    Callable::Function(Rc::new(RefCell::new(new_method)))
 }
 
 enum State
@@ -650,12 +641,32 @@ impl Callable
         {
             Self::Function(function) =>
             {
-                let state: State = function_call(interpreter, interpreter_environment, function, args_expr)?;
+                let state: State = {
+                    let enclosing: &Rc<RefCell<Environment>> = &function.borrow().closure;
+
+                    let rc_scope = Environment::new(enclosing);
+
+                    for (name, arg_expr) in function.borrow().declaration.parameters.iter().zip(args_expr.iter())
+                    {
+                        //do not inline value
+                        let value = interpreter.evaluate(arg_expr, interpreter_environment)?;
+                        rc_scope.borrow_mut().define_variable(*name, value);
+                    }
+
+                    let state = interpreter.execute_stmts(
+                        &function.borrow().declaration.body,
+                        &rc_scope
+                    )?;
+                    state
+                };
+
                 //non spostare da qui! (init ritorna 'this' anche se non presente un return al suo interno)
-                if function.borrow().declaration.is_initializer {
+                if function.borrow().declaration.is_initializer
+                {
                     return Ok(function.borrow().closure.borrow().get(&interpreter.this_symbol).unwrap());
                 }
-                match state {
+                match state
+                {
                     State::Return(value) => {
                         Ok(value)
                     },
@@ -680,14 +691,15 @@ impl Callable
                 //Call the init method (if it exists)
                 if let Some(init) = lox_class.find_method(&interpreter.init_symbol)
                 {
-                    let mut callable = bind(init, instance.clone(), interpreter.this_symbol);
+                    let mut callable = init.bind(instance.clone(), interpreter.this_symbol);
                     let _ = callable.call(interpreter, interpreter_environment, args_expr, &lox_class.identifier.position)?;
                 }
                 Ok(instance)
             },
             Self::Clock =>
             {
-                match clock() {
+                match clock()
+                {
                     Ok(value) => Ok(value),
                     Err(error) => Err(LoxError::interpreter_error(error, *position))
                 }
@@ -696,7 +708,8 @@ impl Callable
             {
                 let actual   = interpreter.evaluate(&args_expr[0], interpreter_environment)?;
                 let expected = interpreter.evaluate(&args_expr[1], interpreter_environment)?;
-                match assert_eq(actual, expected) {
+                match assert_eq(actual, expected)
+                {
                     Ok(_) => {
                         Ok(Value::Nil)
                     },
@@ -706,56 +719,8 @@ impl Callable
             Self::Str =>
             {
                 let value   = interpreter.evaluate(&args_expr[0], interpreter_environment)?;
-                Ok(Value::String(Rc::new(to_string(value, interpreter.string_interner))))
+                Ok(Value::String(Rc::new(value.to_string(interpreter.string_interner))))
             },
-        }
-    }
-}
-
-#[inline]
-fn function_call(
-    interpreter:             &mut Interpreter<'_, '_>,
-    interpreter_environment: &Rc<RefCell<Environment>>,
-    function:                &mut Rc<RefCell<LoxFunction>>,
-    args_expr:               &[Expr]
-) -> Result<State, LoxError>
-{
-    let enclosing: &Rc<RefCell<Environment>> = &function.borrow().closure;
-
-    let rc_scope = Environment::new(enclosing);
-
-    for (name, arg_expr) in function.borrow().declaration.parameters.iter().zip(args_expr.iter())
-    {
-        //do not inline value
-        let value = interpreter.evaluate(arg_expr, interpreter_environment)?;
-        define_variable(&rc_scope, *name, value);
-    }
-
-    let state = interpreter.execute_stmts(
-        &function.borrow().declaration.body,
-        &rc_scope
-    )?;
-
-    Ok(state)
-}
-
-pub fn to_string(value: Value, string_interner: &StringInterner) -> String {
-    match value {
-        Value::String(string)       => format!("{}", string),
-        Value::Number(number)       => format!("{}", number),
-        Value::Bool(boolean)        => format!("{}", boolean),
-        Value::Nil                  => "nil".to_string(),
-        Value::Callable(callable)   => {
-            match callable {
-                Callable::Function(fun_decl)    => format!("<fn {}>", string_interner.resolve(fun_decl.borrow().declaration.identifier.name).unwrap()),
-                Callable::Class(class_decl)     => string_interner.resolve(class_decl.identifier.name).unwrap().to_string(),
-                Callable::Clock                 => "<native fn>".to_string(),
-                Callable::AssertEq              => "<native fn>".to_string(),
-                Callable::Str                   => "<native fn>".to_string(),
-            }
-        },
-        Value::ClassInstance(class_instance) => {
-            format!("{} instance", string_interner.resolve(class_instance.declaration.identifier.name).unwrap())
         }
     }
 }
