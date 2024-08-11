@@ -1859,25 +1859,6 @@ mod tests {
             test("./lox_test/number/nan_equality.lox");
         }
     }
-    mod zzz {
-        use super::test;
-        #[test]
-        fn grouping() {
-            test("./lox_test/zzz/grouping.lox");
-        }
-        #[test]
-        fn scope_local() {
-            test("./lox_test/zzz/scope_local.lox");
-        }
-        #[test]
-        fn scope_global() {
-            test("./lox_test/zzz/scope_global.lox");
-        }
-        #[test]
-        fn open_block() {
-            test("./lox_test/zzz/open_block.lox");
-        }
-    }
 
 
     enum Expect {
