@@ -25,7 +25,7 @@
     SOFTWARE.
 
 
-* All files under `./benches` and `./lox_test` are subject
+* All files under `./benches` and `./lox_test` and the language grammar are subject
   to the following copyright notice and license.
 
 

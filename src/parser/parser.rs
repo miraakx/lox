@@ -24,7 +24,11 @@ impl Parser
         Self { in_loop: 0, error_logger: Box::new(error_logger), init_symbol }
     }
 
-    /// If a syntactical error is found this method skip ahead and discard the subsequent tokens until the start of a new statement is found.
+    /// Handles syntactical errors when the parser meets one.
+    ///
+    /// If a syntactical error is detected, this method skip ahead and discard all the subsequent tokens
+    /// until the start of a new statement is found.
+    ///
     fn synchronize(&mut self, token_source: &mut TokenSource)
     {
         while !token_source.check(TokenKind::Eof)
@@ -50,9 +54,13 @@ impl Parser
         }
     }
 
-    /// Parse the source code using a "recursive descent" parsing alghoritm.
+    /// Parses the source code using a "recursive descent" parsing alghoritm.
     ///
-    /// Returns a `Vec` with all the `Stmt`. There are various kind of `Stmt` variants (for example: `Var`, `Block`, `If`, `Expr` etc.).
+    /// Returns a `Vec` of `Stmt`. There are various kind of `Stmt` variants (eg. `Var`, `Block`, `If`, `Expr` etc.).
+    ///
+    /// Grammar:
+    /// program     -> declaration* EOF ;
+    ///
     pub fn parse(&mut self, code: &str, interner: &mut StringInterner) -> Result<Vec<Stmt>, ExecutionResult>
     {
         let mut statements: Vec<Stmt> = vec![];
@@ -90,7 +98,13 @@ impl Parser
     // The following methods are used to parse statements.
     // ---------------------------------------------------
 
-    /// Search for declarations (keywords `var`, `fun` and `class`). If not found it looks for other kind of statements eg. 'print', 'blocks', 'if' etc. See the `fn statement` for further details.
+    /// Searches for tokens matching the grammar rule "declaration" (keywords `var`, `fun` and `class`).
+    ///
+    /// If a declaration is not found the function looks for other kind of statements eg. 'print', blocks, 'if' etc.
+    ///
+    /// Grammar:
+    /// declaration -> classDecl | funDecl | varDecl | statement ;
+    ///
     fn declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
     {
         if token_source.consume_if(TokenKind::Var)
@@ -111,6 +125,14 @@ impl Parser
         }
     }
 
+    /// Parses a class declaration.
+    ///
+    /// Grammar:
+    /// classDecl   -> "class" IDENTIFIER ( "<" IDENTIFIER )? "{" function* "}" ;
+    ///
+    /// function    -> IDENTIFIER "(" parameters? ")" block ;
+    /// parameters  -> IDENTIFIER ( "," IDENTIFIER )* ;
+    ///
     fn class_declaration(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let class_name = token_source.consume_identifier("Expect class name.")?;
@@ -142,11 +164,23 @@ impl Parser
         Ok(Stmt::ClassDeclaration(Rc::new(class_stmt)))
     }
 
+    /// Parses a function declaration (eg.fun foo(param1, param2, ...) { ... }).
+    ///
+    /// Grammar:
+    /// funDecl     -> "fun" function ;
+    ///
+    /// (same as above)
+    /// function    -> IDENTIFIER "(" parameters? ")" block ;
+    /// parameters  -> IDENTIFIER ( "," IDENTIFIER )* ;
+    ///
     fn fun_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
     {
         Ok(Stmt::FunctionDeclaration(Rc::new(self.create_fun_declaration(token_source, false)?)))
     }
 
+    /// Common method used to parse both a function declaration or a class method. Used in `fun_declaration` and in `class_declaration`.
+    ///
+    /// Returns a `FunctionDeclaration` struct.
     fn create_fun_declaration(&mut self, token_source: &mut TokenSource, is_method: bool)  -> Result<FunctionDeclaration, LoxError>
     {
         let kind: &str = if is_method { "method" } else { "function" };
@@ -186,6 +220,13 @@ impl Parser
         Ok(declaration)
     }
 
+    /// Parses a variable declaration (eg.var foo = something;).
+    ///
+    /// Returns: Stmt::Var
+    ///
+    /// Grammar:
+    /// varDecl     -> "var" IDENTIFIER ( "=" expression )? ";" ;
+    ///
     fn var_declaration(&mut self, token_source: &mut TokenSource)  -> Result<Stmt, LoxError>
     {
         let identifier = token_source.consume_identifier("Expect variable name.")?;
@@ -199,6 +240,11 @@ impl Parser
         }
     }
 
+    /// Parses a statement.
+    ///
+    /// Grammar:
+    /// statement   -> exprStmt | forStmt | ifStmt | printStmt | returnStmt | whileStmt | block ;
+    ///
     fn statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let token = token_source.peek().unwrap();
@@ -252,6 +298,11 @@ impl Parser
         }
     }
 
+    /// Parses a return statement.
+    ///
+    /// Grammar:
+    /// returnStmt  -> "return" expression? ";" ;
+    ///
     fn return_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let return_token = token_source.consume_or_error(TokenKind::Return, "Internal error: Expect return statement." )?;
@@ -264,19 +315,38 @@ impl Parser
         Ok(Stmt::Return(expr, return_token.position))
     }
 
+    /// Parses a continue statement.
+    ///
+    /// WARNING: NOT IN THE ORIGINAL GRAMMAR
+    ///
+    /// Grammar:
+    /// continueStmt  -> "continue" ";" ;
+    ///
     fn continue_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         token_source.consume_or_error(TokenKind::Semicolon, "Expect ';' after 'continue'.")?;
         Ok(Stmt::Continue)
     }
 
+    /// Parses a break statement.
+    ///
+    /// WARNING: NOT IN THE ORIGINAL GRAMMAR
+    ///
+    /// Grammar:
+    /// continueStmt  -> "break" ";" ;
+    ///
     fn break_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         token_source.consume_or_error(TokenKind::Semicolon, "Expect ';' after 'break'.")?;
         Ok(Stmt::Break)
     }
 
-    /// Desugar a C style for loop statement into a while loop with an initializer (optional), a condition (optional), a body (mandatory) and an increment (optional).
+    /// Parses a `for` statement.
+    /// This method desugars a C style for loop statement into a while loop with an initializer (optional), a condition (optional), a body (mandatory) and an increment (optional).
+    ///
+    /// Grammar:
+    /// forStmt     -> "for" "(" ( varDecl | exprStmt | ";" ) expression? ";" expression? ")" statement ;
+    ///
     fn for_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         //consume left paren first
@@ -337,6 +407,11 @@ impl Parser
 
     }
 
+    /// Parses a `while` statement.
+    ///
+    /// Grammar:
+    /// whileStmt   -> "while" "(" expression ")" statement ;
+    ///
     fn while_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         token_source.consume_or_error(TokenKind::LeftParen, "Expect '(' after 'while'.")?;
@@ -346,6 +421,11 @@ impl Parser
         Ok(Stmt::While(Box::new(WhileStmt { condition: expr, body: stmt })))
     }
 
+    /// Parses an `if` statement.
+    ///
+    /// Grammar:
+    /// ifStmt  -> "if" "(" expression ")" statement ( "else" statement )? ;
+    ///
     fn if_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         token_source.consume_or_error(TokenKind::LeftParen, "Expect '(' after 'if'.")?;
@@ -360,6 +440,11 @@ impl Parser
         }
     }
 
+    /// Parses a `block` statement.
+    ///
+    /// Grammar:
+    /// block   -> "{" declaration* "}" ;
+    ///
     fn block_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let mut statements: Vec<Stmt> = vec![];
@@ -370,6 +455,11 @@ impl Parser
         Ok(Stmt::Block(statements))
     }
 
+    /// Parses a `print` statement.
+    ///
+    /// Grammar:
+    /// printStmt   -> "print" expression ";" ;
+    ///
     fn print_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let expr = self.expression(token_source)?;
@@ -377,6 +467,11 @@ impl Parser
         Ok(Stmt::Print(expr))
     }
 
+    /// Parses an expression statement statement (an expression used in a place where a statement is expected).
+    ///
+    /// Grammar:
+    /// exprStmt    -> expression ";" ;
+    ///
     fn expression_statement(&mut self, token_source: &mut TokenSource) -> Result<Stmt, LoxError>
     {
         let expr = self.expression(token_source)?;
@@ -388,11 +483,21 @@ impl Parser
     // The following methods are used to parse expressions.
     // ----------------------------------------------------
 
+    /// Parses an expression. This is the root method for parsing expressions.
+    ///
+    /// Grammar:
+    /// expression  -> assignment ;
+    ///
     fn expression(&mut self, token_source: &mut TokenSource) -> Result<Expr,LoxError>
     {
         self.assignment(token_source)
     }
 
+    /// Parses an assignment expression. Either an assignment to a variable or an attribute.
+    ///
+    /// Grammar:
+    /// assignment  -> ( call "." )? IDENTIFIER "=" assignment | logic_or ;
+    ///
     fn assignment(&mut self, token_source: &mut TokenSource) -> Result<Expr,LoxError>
     {
         let expr = self.or(token_source)?;
@@ -425,6 +530,11 @@ impl Parser
         }
     }
 
+    /// Parses an `or` expression.
+    ///
+    /// Grammar:
+    /// logic_or    -> logic_and ( "or" logic_and )* ;
+    ///
     fn or(&mut self, token_source: &mut TokenSource) -> Result<Expr,LoxError>
     {
         let mut expr = self.and(token_source)?;
@@ -443,6 +553,11 @@ impl Parser
         }
     }
 
+    /// Parses an `and` expression.
+    ///
+    /// Grammar:
+    /// logic_and   -> equality ( "and" equality )* ;
+    ///
     fn and(&mut self, token_source: &mut TokenSource) -> Result<Expr,LoxError>
     {
         let mut expr = self.equality(token_source)?;
@@ -461,6 +576,11 @@ impl Parser
         }
     }
 
+    /// Parses an `==` expression.
+    ///
+    /// Grammar:
+    /// equality    -> comparison ( ( "!=" | "==" ) comparison )* ;
+    ///
     fn equality(&mut self, token_source: &mut TokenSource) -> Result<Expr,LoxError>
     {
         let mut expr = self.comparison(token_source)?;
@@ -479,6 +599,11 @@ impl Parser
         }
     }
 
+    /// Parses a `>`, `<`, `<=`, `>=` expression.
+    ///
+    /// Grammar:
+    /// comparison  -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+    ///
     fn comparison(&mut self, token_source: &mut TokenSource) -> Result<Expr,LoxError>
     {
         let mut expr = self.term(token_source)?;
@@ -497,6 +622,11 @@ impl Parser
         }
     }
 
+    /// Parses a term expression (`+`, `-`).
+    ///
+    /// Grammar:
+    /// term    -> factor ( ( "-" | "+" ) factor )* ;
+    ///
     fn term(&mut self, token_source: &mut TokenSource) -> Result<Expr,LoxError>
     {
         let mut expr: Expr = self.factor(token_source)?;
@@ -515,6 +645,11 @@ impl Parser
         }
     }
 
+    /// Parses a factor expression (`/`, `*`).
+    ///
+    /// Grammar:
+    /// factor  -> unary ( ( "/" | "*" ) unary )* ;
+    ///
     fn factor(&mut self, token_source: &mut TokenSource) -> Result<Expr, LoxError>
     {
         let mut expr = self.unary(token_source)?;
@@ -533,6 +668,11 @@ impl Parser
         }
     }
 
+    /// Parses a unary expression (`!`, `-`).
+    ///
+    /// Grammar:
+    /// unary   -> ( "!" | "-" ) unary | call ;
+    ///
     fn unary(&mut self, token_source: &mut TokenSource) -> Result<Expr, LoxError>
     {
         let peek_token = token_source.peek().unwrap();
@@ -548,6 +688,12 @@ impl Parser
         }
     }
 
+    /// Parses a call expression `(`.
+    ///
+    /// Grammar:
+    /// call        -> primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
+    /// arguments   -> expression ( "," expression )* ;
+    ///
     fn call(&mut self, token_source: &mut TokenSource) -> Result<Expr, LoxError>
     {
         let mut expr = self.primary(token_source)?;
@@ -587,6 +733,11 @@ impl Parser
         }
     }
 
+    /// Parses a primary expression `(`.
+    ///
+    /// Grammar:
+    /// primary -> "true" | "false" | "nil" | "this" | NUMBER | STRING | IDENTIFIER | "(" expression ")" | "super" "." IDENTIFIER ;
+    ///
     fn primary(&mut self, token_source: &mut TokenSource) -> Result<Expr, LoxError>
     {
         if token_source.is_at_end() {

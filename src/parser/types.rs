@@ -68,7 +68,6 @@ impl Operator<BinaryOperatorKind>
     }
 }
 
-
 #[derive(Clone, Debug)]
 pub enum UnaryOperatorKind
 {

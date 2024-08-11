@@ -58,14 +58,21 @@ impl<'a> Iterator for Lexer<'a>
 {
     type Item = Token;
 
-    /// Avanza nel codice, consumando un carattere UTF-8 dopo l'altro, fino a quando è in grado di restituire un nuovo `Token`.
+    /// Advances through the code, consuming one character at a time, until it can return a new token.
+    /// When the file ends, it returns `TokenKind::Eof`, subsequent calls will return `None`.
     ///
-    /// Quando il file termina ritorna `TokenKind::Eof`, successivamente ritorna `None`.
+    /// Grammar:
+    /// NUMBER      -> DIGIT+ ( "." DIGIT+ )? ;
+    /// STRING      -> "\"" <any char except "\"">* "\"" ;
+    /// IDENTIFIER  -> ALPHA ( ALPHA | DIGIT )* ;
+    /// ALPHA       -> "a" ... "z" | "A" ... "Z" | "_" ;
+    /// DIGIT       -> "0" ... "9" ;
+    ///
     fn next(&mut self) -> Option<Token>
     {
         let mut opt_token_kind     : Option<TokenKind>;
 
-        //memorize where the new token starts excluding spaces, tabs and new lines
+        //store the starting point for the new token
         let mut token_start_column : u32 = self.column;
         let mut token_start_line   : u32 = self.line;
         let mut is_token_started   : bool = false;
@@ -96,7 +103,7 @@ impl<'a> Iterator for Lexer<'a>
                     }
                     self.advance_column();
                 },
-                //handle '\r'
+                //handles '\r'
                 CARRIAGE_RETURN =>
                 {
                     if !is_token_started {
@@ -108,7 +115,7 @@ impl<'a> Iterator for Lexer<'a>
                     //handle Windows new line '\r\n'
                     self.scanner.consume_if_peek_is(LINE_FEED);
                 },
-                //handle '\n'
+                //handles '\n'
                 LINE_FEED =>
                 {
                     if !is_token_started {
@@ -336,7 +343,7 @@ impl<'a> Iterator for Lexer<'a>
                     let mut number_string = String::from(ch);
                     let mut flag_decimal_point = false;
 
-                    //read the number and stores the chars into 'number_string'
+                    //parse the number and stores the chars into 'number_string'
                     //handle carefully the decimal separator. '.' must be followed by another digit to be part of the number, otherwise it's excluded.
                     while self.scanner.is_peek_ascii_digit() || self.scanner.is_peek('.') && self.scanner.is_peek_next_ascii_digit() && !flag_decimal_point
                     {
@@ -412,7 +419,8 @@ const fn is_identifier(ch: char) -> bool
 
 /// Search the input string for a language keyword.
 ///
-/// Use a 'trie' search to find if a keyword match for the given string.
+/// This function uses a 'trie' search algorithm.
+///
 fn find_keyword(str: &str) -> Option<TokenKind>
 {
     const TOKEN_FALSE: TokenKind = TokenKind::False;

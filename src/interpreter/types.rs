@@ -52,14 +52,16 @@ impl LoxClass
 }
 
 #[derive(Clone, Debug)]
-pub struct LoxInstance {
+pub struct LoxInstance
+{
     pub declaration: Rc<LoxClass>,
     pub attributes: Rc<RefCell<FxHashMap<IdentifierSymbol, Value>>>
 }
 
 
 #[derive(Clone, Debug)]
-pub enum Value {
+pub enum Value
+{
     String(Rc<String>),
     Number(f64),
     Bool(bool),
