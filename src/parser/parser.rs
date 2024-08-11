@@ -5,7 +5,7 @@ use string_interner::StringInterner;
 
 use crate::alias::IdentifierSymbol;
 use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, InternalErrorKind, LoxError, ParserErrorKind};
-use crate::utils::utils::Peekable;
+use crate::utils::peekable_iterator::Peekable;
 
 use super::lexer::Lexer;
 use super::tokens::{Token, TokenKind, TokenSource};

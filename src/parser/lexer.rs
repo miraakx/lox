@@ -2,9 +2,9 @@ use std::rc::Rc;
 
 use string_interner::StringInterner;
 
-use crate::{error::*, utils::utils::Scanner};
+use crate::error::*;
 
-use super::{position::Position, tokens::{Token, TokenKind}, keywords::*};
+use super::{keywords::*, position::Position, scanner::Scanner, tokens::{Token, TokenKind}};
 
 pub struct Lexer<'a>
 {

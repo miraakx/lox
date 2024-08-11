@@ -3,7 +3,7 @@ use std::{fmt, rc::Rc};
 
 use string_interner::Symbol;
 
-use crate::{alias::IdentifierSymbol, error::{InternalErrorKind, LoxError, ParserErrorKind}, utils::utils::Peekable};
+use crate::{alias::IdentifierSymbol, error::{InternalErrorKind, LoxError, ParserErrorKind}, utils::peekable_iterator::Peekable};
 
 use super::{position::Position, types::Identifier};
 
