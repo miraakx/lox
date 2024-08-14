@@ -1824,7 +1824,37 @@ mod tests {
             test("./lox_test/number/nan_equality.lox");
         }
     }
+    mod continue_keyword {
+        use super::test;
+        #[test]
+        fn at_top_level() {
+            test("./lox_test_mine/continue/at_top_level.lox");
+        }
+        #[test]
+        fn in_loop() {
+            test("./lox_test_mine/continue/in_loop.lox");
+        }
+        #[test]
+        fn outside_loop() {
+            test("./lox_test_mine/continue/outside_loop.lox");
+        }
+    }
 
+    mod break_keyword {
+        use super::test;
+        #[test]
+        fn at_top_level() {
+            test("./lox_test_mine/break/at_top_level.lox");
+        }
+        #[test]
+        fn in_loop() {
+            test("./lox_test_mine/break/in_loop.lox");
+        }
+        #[test]
+        fn outside_loop() {
+            test("./lox_test_mine/break/outside_loop.lox");
+        }
+    }
 
     enum Expect {
         Output(Vec<String>), RuntimeError(Vec<String>), ErrorAt, Nothing

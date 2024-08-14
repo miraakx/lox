@@ -1,0 +1,4 @@
+var a = 0;
+{
+    continue; // Error at [line 3] Parser error: Can't use 'continue' outside of a loop.
+}

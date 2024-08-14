@@ -1,0 +1,1 @@
+continue;  // Error at [line 1] Parser error: Can't use 'continue' outside of a loop.

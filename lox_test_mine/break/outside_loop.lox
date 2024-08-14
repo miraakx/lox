@@ -1,0 +1,4 @@
+var a = 0;
+{
+    break; // Error at [line 3] Parser error: Can't use 'break' outside of a loop.
+}
