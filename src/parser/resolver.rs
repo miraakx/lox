@@ -72,10 +72,10 @@ impl <'a> Resolver<'a>
     {
         let enclosing_function = self.current_function;
         let enclosing_class = self.current_class;
-        //> set-current-function
+        // set current function
         self.current_function = function_type;
         self.current_class = class_type;
-        //< set-current-function
+        // set current function
         match stmt
         {
             Stmt::Print(print_expr) =>
@@ -203,10 +203,10 @@ impl <'a> Resolver<'a>
                 }
             },
         }
-        //> restore-current-function
+        // restore current function
         self.current_function = enclosing_function;
         self.current_class = enclosing_class;
-        //< restore-current-function
+        // restore current function
     }
 
     fn resolve_function(&mut self, func_decl: &Rc<FunctionDeclaration>, function_type: FunctionType, class_type: ClassType, side_table: &mut SideTable)
@@ -219,9 +219,9 @@ impl <'a> Resolver<'a>
             }
             self.define(*param);
         }
-        //>Inside a function stmt set current function to FunctionType::Function
+        // Inside a function stmt set current function to FunctionType::Function
         self.resolve_stmts(&func_decl.body, function_type, class_type, side_table);
-        //<Inside a function stmt set current function to FunctionType::Function
+        // Inside a function stmt set current function to FunctionType::Function
         self.end_scope();
     }
 
@@ -309,7 +309,6 @@ impl <'a> Resolver<'a>
                         self.error(crate::error::ResolverErrorKind::CantUseSuperWithoutSuperClass, &identifier.position);
                     }
                 }
-                //println!("resolving super method='{}'", self.string_interner.resolve(identifier.name).unwrap());
                 self.resolve_local(expr, self.super_symbol, side_table);
             },
         }
@@ -333,7 +332,6 @@ impl <'a> Resolver<'a>
             {
                 return Err(ResolverErrorKind::VariableAlreadyExists(self.string_interner.resolve(identifier).unwrap().to_owned()));
             }
-            //println!("declaring identifier: {}", self.string_interner.resolve(identifier).unwrap());
             scope.insert(identifier, false);
         }
         Ok(())
@@ -343,7 +341,6 @@ impl <'a> Resolver<'a>
     {
         if let Some(last) = self.stack.peek_mut()
         {
-            //println!("defining identifier: {}", self.string_interner.resolve(identifier).unwrap());
             last.insert(identifier, true);
         }
     }
@@ -356,7 +353,6 @@ impl <'a> Resolver<'a>
         {
             if scope.contains_key(&identifier)
             {
-                //println!("resolve_local identifier: {} at distance {} from expr_id={}",self.string_interner.resolve(identifier).unwrap(), stack_size - index - 1, expr.id);
                 side_table.insert(expr.id, stack_size - index - 1);
                 return;
             }

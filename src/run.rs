@@ -40,7 +40,7 @@ pub fn run(code: &str, writer: &mut dyn Write) -> Result<(), ExecutionResult>
    interpreter.execute(&stmts)
 }
 
-/// Runs the benchmarks designed by the autor of the language and prints out the result.
+/// Runs the benchmarks designed by the autor of the language and prints out the results.
 pub fn bench() {
    let benches = [BINARY_TREES_LOX, EQUALITY_LOX, FIB_LOX, INSTANTIATION_LOX, INVOCATION_LOX, METHOD_CALL_LOX, PROPERTIES_LOX, STRING_EQUALITY_LOX, TREES_LOX, ZOO_BATCH_LOX, ZOO_LOX];
    println!("+-----------------+-----------+");

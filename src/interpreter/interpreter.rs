@@ -48,7 +48,6 @@ impl <'a, 'b> Interpreter<'a, 'b>
     /// Interpreter's entry point for running a program.
     ///
     /// Defines native functions and delegates the execution of all the statements to `execute_stmts`.
-    ///
     pub fn execute(&mut self, stmts: &[Stmt]) -> Result<(), ExecutionResult>
     {
         self.define_native_functions();
@@ -612,6 +611,7 @@ pub enum Callable
 impl Callable
 {
     #[inline]
+    /// Returns the number of parameters of the callable
     fn arity(&self, init_symbol: IdentifierSymbol) -> usize
     {
         match self {
@@ -635,6 +635,7 @@ impl Callable
     }
 
     #[inline]
+    /// Executes a callable instance and returns its Value or an error.
     fn call(&mut self, interpreter: &mut Interpreter, interpreter_environment: &Rc<RefCell<Environment>>, args_expr: &[Expr], position: &Position) -> Result<Value, LoxError>
     {
         match self
@@ -660,7 +661,7 @@ impl Callable
                     state
                 };
 
-                //non spostare da qui! (init ritorna 'this' anche se non presente un return al suo interno)
+                // non spostare da qui! (init ritorna 'this' anche se non presente un return al suo interno)
                 if function.borrow().declaration.is_initializer
                 {
                     return Ok(function.borrow().closure.borrow().get(&interpreter.this_symbol).unwrap());
@@ -675,7 +676,7 @@ impl Callable
                     }
                 }
             },
-            /* Construct a new class instance. Calls on class identifier construct a new instance of the given class (there is no 'new' keyword in Lox) */
+            // Construct a new class instance. Calls on class identifier construct a new instance of the given class (there is no 'new' keyword in Lox)
             Self::Class(lox_class) =>
             {
                 //Create the new instance Value
@@ -688,7 +689,7 @@ impl Callable
                     )
                 );
 
-                //Call the init method (if it exists)
+                // Call the init method (if it exists)
                 if let Some(init) = lox_class.find_method(&interpreter.init_symbol)
                 {
                     let mut callable = init.bind(instance.clone(), interpreter.this_symbol);
@@ -718,7 +719,7 @@ impl Callable
             },
             Self::Str =>
             {
-                let value   = interpreter.evaluate(&args_expr[0], interpreter_environment)?;
+                let value = interpreter.evaluate(&args_expr[0], interpreter_environment)?;
                 Ok(Value::String(Rc::new(value.to_string(interpreter.string_interner))))
             },
         }

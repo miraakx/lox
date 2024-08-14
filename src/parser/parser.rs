@@ -26,7 +26,7 @@ impl Parser
 
     /// Handles syntactical errors when the parser meets one.
     ///
-    /// If a syntactical error is detected, this method skip ahead and discard all the subsequent tokens
+    /// If a syntactical error is detected, this method skips ahead and discard all the subsequent tokens
     /// until the start of a new statement is found.
     ///
     fn synchronize(&mut self, token_source: &mut TokenSource)
