@@ -18,17 +18,17 @@ Performs parsing by applying the grammatical rules of the language. It uses a re
 
 * resolver.rs
 
-Traverses the syntax tree and resolves all variables by associating them with the scope in which they are defined. The information is stored in a dictionary that links the expression ID associated with the variable usage to the distance in "scope" from the respective declaration.
+Traverses the syntax tree and resolves all variables by associating them with the scope in which they are defined. The information is stored in a dictionary that links the expression ID associated with the variable usage to the distance in "scopes" from the respective declaration.
 
 * interpreter.rs
 
-Executes statements sequentially, evaluating any expressions contained within them recursively.
+Executes all the statements sequentially recursively evaluating any expression.
 
 Other files:
 
-* native_functions.rs contains native functions provided by the language. In particular, the clock() function is needed for benchmarks.
+* native_functions.rs contains native functions provided by the language. In particular, the `clock()` function is needed for benchmarks.
 
-* environment.rs is a dictionary that associates variable names with their corresponding values.
+* environment.rs defines a structure to store all the program variables and their respective values.
 
 ### Notes
 
@@ -38,13 +38,13 @@ The implementation has some minor differences from what is described in the book
 * It supports UTF-8 strings.
 * It includes two extra native functions: `fun assert_eq(actual, expected);` and `fun str(value); `
 
-### Test
+### Tests
 
 End-to-end tests are contained in the `./lox_test` folder and were developed by the book's author.
 
 ### Benchmarks
 
-You can run benchmarks with:
+You can benchmark the interpreter with the following command:
 ```
 lox --benches
 ```
