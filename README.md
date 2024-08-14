@@ -1,6 +1,6 @@
 # Lox Tree-Walk Interpreter Written in Rust
 
-Rust port (from Java) of the tree-walk interpreter for the Lox language described in the amazing book Crafting Interpreters, written by [@munificent](https://github.com/munificent).
+Rust port from Java of the tree-walk interpreter for the Lox language described in the amazing book Crafting Interpreters, written by [@munificent](https://github.com/munificent).
 
 ## Code
 
@@ -36,7 +36,7 @@ The implementation has some minor differences from what is described in the book
 
 * Unlike the book, it supports `break` and `continue` statements.
 * It supports UTF-8 strings.
-* It includes an extra native function: `fun assert_eq(actual, expected);`
+* It includes two extra native functions: `fun assert_eq(actual, expected);` and `fun str(value); `
 
 ### Test
 
@@ -44,7 +44,7 @@ End-to-end tests are contained in the `./lox_test` folder and were developed by 
 
 ### Dependencies
 
-To build the project install Rust on your operating system: https://www.rust-lang.org/tools/install
+Install Rust on your operating system: https://www.rust-lang.org/tools/install
 
 ### Usage
 
@@ -73,7 +73,7 @@ lox <file>
 ## License
 
 * This project is licensed under the MIT License - see the LICENSE.md file for details.
-* The copyright for all files located in ./benches, ./lox_test, and the language grammar belongs to the author of the book. For more details - see the LICENSE.md file for details.
+* Copyright for all files located in ./benches, ./lox_test, and the language grammar belongs to the author of the book - see the LICENSE.md file for details.
 
 ## Acknowledgments
 
