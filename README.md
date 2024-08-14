@@ -44,7 +44,7 @@ End-to-end tests are contained in the `./lox_test` folder and were developed by 
 
 ### Benchmarks
 
-Run benchmarks with:
+You can run benchmarks with:
 ```
 lox --benches
 ```
