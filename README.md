@@ -42,6 +42,29 @@ The implementation has some minor differences from what is described in the book
 
 End-to-end tests are contained in the `./lox_test` folder and were developed by the book's author.
 
+### Benchmarks
+
+Run benchmarks with:
+```
+lox --benches
+```
+
+Results:
+
+Benchmark        | Rust lox (average) | Java lox (average)  | Winner
+---------------- | ------------------ | --------------------|--------
+BINARY_TREES     |  9,038 +/- 0,071   |  8,318 +/- 0,135    | Java
+EQUALITY         |  9,376 +/- 0,025   |  4,596 +/- 0,172    | Java
+FIB              |  6,389 +/- 0,024   |  4,268 +/- 0,126    | Java
+INSTANTIATION    |  3,162 +/- 0,002   |  1,486 +/- 0,051    | Java
+INVOCATION       |  2,531 +/- 0,022   |  1,431 +/- 0,068    | Java
+METHOD_CALL      |  1,429 +/- 0,003   |  2,133 +/- 0,325    | Rust
+PROPERTIES       |  3,462 +/- 0,003   |  4,578 +/- 0,018    | Rust
+STRING_EQUALITY  |  0,333 +/- 0,002   |  0,989 +/- 0,527    | Rust
+TREES            | 17,959 +/- 0,035   | 28,744 +/- 0,713    | Rust
+ZOO_BATCH        | 10,006 +/- 0,005   | 10,017 +/- 0,004    | Rust
+ZOO              |  2,522 +/- 0,004   |  5,002 +/- 0,072    | Rust
+
 ### Dependencies
 
 Install Rust on your operating system: https://www.rust-lang.org/tools/install
