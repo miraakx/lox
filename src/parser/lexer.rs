@@ -1,8 +1,6 @@
-use std::rc::Rc;
-
 use string_interner::StringInterner;
 
-use crate::error::*;
+use crate::{error::*, utils::rc_cache::RcStringCache};
 
 use super::{keywords::*, position::Position, scanner::Scanner, tokens::{Token, TokenKind}};
 
@@ -10,6 +8,7 @@ pub struct Lexer<'a>
 {
     scanner        : Scanner<'a>,
     string_interner: &'a mut StringInterner,
+    string_rc_cache: RcStringCache,
     error_logger   : Box<dyn ErrorLogger>,
     end_of_file    : bool,
     line           : u32,
@@ -27,7 +26,8 @@ impl<'a> Lexer<'a>
            end_of_file:   false,
            string_interner,
            line: 1,
-           column: 1
+           column: 1,
+           string_rc_cache: RcStringCache::default()
         }
     }
 }
@@ -317,14 +317,16 @@ impl<'a> Iterator for Lexer<'a>
                             {
                                 //string's end quote
                                 self.advance_column();
-                                opt_token_kind = Some(TokenKind::String(Rc::new(string)));
+                                let rc_string = self.string_rc_cache.get(string);
+                                opt_token_kind = Some(TokenKind::String(rc_string));
                                 break;
                             },
                             None =>
                             {
                                 //unterminated string
                                 self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnterminatedString, self.get_position()));
-                                opt_token_kind = Some(TokenKind::String(Rc::new(string)));
+                                let rc_string = self.string_rc_cache.get(string);
+                                opt_token_kind = Some(TokenKind::String(rc_string));
                                 break;
                             },
                             Some(ch) =>
