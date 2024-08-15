@@ -46,7 +46,7 @@ End-to-end tests are contained in the `./lox_test` folder and were developed by 
 
 You can benchmark the interpreter with the following command:
 ```
-lox --benches
+lox --bench
 ```
 
 Results:
