@@ -201,35 +201,45 @@ impl <'a, 'b> Interpreter<'a, 'b>
             },
             Stmt::ClassDeclaration(class_stmt) =>
             {
-                let opt_superclass: Option<Rc<LoxClass>>;
-                if let Some(superclass_var) = &class_stmt.superclass_expr
-                {
-                    //Evaluate super class expression
-                    let superclass_value = self.evaluate(superclass_var, environment)?;
-
-                    //Check if super class expression refers to a class
-                    match &superclass_value
+                let opt_superclass: Option<Rc<LoxClass>> =
+                    match &class_stmt.superclass_expr
                     {
-                        Value::Callable(Callable::Class(rc_lox_class)) =>
+                        Some(superclass_var) =>
                         {
-                            opt_superclass = Some(Rc::clone(rc_lox_class));
-                        },
-                        _ => {
-                            return Err(LoxError::interpreter_error(InterpreterErrorKind::SuperclassMustBeAClass, class_stmt.identifier.position));
-                        }
-                    }
-                } else {
-                    opt_superclass = None;
-                }
+                            //Evaluate super class expression
+                            let superclass_value = self.evaluate(superclass_var, environment)?;
 
-                let class_env;
-                if let Some(superclass) = &opt_superclass {
-                    let env = Environment::new(environment);
-                    env.borrow_mut().define_variable(self.super_symbol, Value::Callable(Callable::Class(Rc::clone(superclass))));
-                    class_env = env;
-                } else {
-                    class_env = Rc::clone(environment);
-                };
+                            //Check if super class expression refers to a class
+                            match &superclass_value
+                            {
+                                Value::Callable(Callable::Class(rc_lox_class)) =>
+                                {
+                                    Some(Rc::clone(rc_lox_class))
+                                },
+                                _ => {
+                                    return Err(LoxError::interpreter_error(InterpreterErrorKind::SuperclassMustBeAClass, class_stmt.identifier.position));
+                                }
+                            }
+                        },
+                        None => {
+                            None
+                        },
+                    };
+
+                let class_env: Rc<RefCell<Environment>> =
+                    match &opt_superclass
+                    {
+                        Some(superclass) =>
+                        {
+                            let env = Environment::new(environment);
+                            env.borrow_mut().define_variable(self.super_symbol, Value::Callable(Callable::Class(Rc::clone(superclass))));
+                            env
+                        }
+                        None =>
+                        {
+                            Rc::clone(environment)
+                        },
+                    };
 
                 let mut methods_map: FxHashMap<IdentifierSymbol, LoxFunction> = FxHashMap::default();
                 for (id, fun_stmt) in class_stmt.methods.iter() {
@@ -244,11 +254,11 @@ impl <'a, 'b> Interpreter<'a, 'b>
             },
             Stmt::Return(opt_expr, _) =>
             {
-                let value = if let Some(expr) = opt_expr {
-                    self.evaluate(expr, environment)?
-                } else {
-                    Value::Nil
-                };
+                let value =
+                    match opt_expr {
+                        Some(expr) => { self.evaluate(expr, environment)? },
+                        None => Value::Nil,
+                    };
                 Ok(State::Return(value))
             },
         }
@@ -461,7 +471,8 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     }
                 }
             },
-            ExprKind::Call(call_expr) => {
+            ExprKind::Call(call_expr) =>
+            {
                 match self.evaluate(&call_expr.callee, environment)?
                 {
                     Value::Callable(mut function) =>
@@ -525,7 +536,8 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     }
                 }
             },
-            ExprKind::This(position) => {
+            ExprKind::This(position) =>
+            {
                 match self.lookup_variable(environment, self.this_symbol, expr.id)
                 {
                     Some(variable) => {
@@ -536,7 +548,8 @@ impl <'a, 'b> Interpreter<'a, 'b>
                     },
                 }
             },
-            ExprKind::Super(identifier) => {
+            ExprKind::Super(identifier) =>
+            {
                 let index: usize = *self.side_table.get(&expr.id).unwrap();
                 let superclass  : Value = environment.borrow().get_at(index,     &self.super_symbol).unwrap();
                 let object      : Value = environment.borrow().get_at(index - 1, &self.this_symbol).unwrap();
@@ -548,11 +561,17 @@ impl <'a, 'b> Interpreter<'a, 'b>
                         let opt_method = lox_superclass.find_method(&identifier.name);
 
                         //Verifica se sia stato richiamato un metodo
-                        if let Some(method) = opt_method {
-                            let callable = method.bind(object, self.this_symbol);
-                            Ok(Value::Callable(callable))
-                        } else {
-                            Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
+                        match opt_method
+                        {
+                            Some(method) =>
+                            {
+                                let callable = method.bind(object, self.this_symbol);
+                                Ok(Value::Callable(callable))
+                            },
+                            None =>
+                            {
+                                Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
+                            },
                         }
                     },
                     _ => {
@@ -622,10 +641,9 @@ impl Callable
             Self::Class(class) =>
             {
                 //If class has an initializer determine the number of parameters of the initializer to be passed to the class contructor
-                if let Some(init) = class.find_method(&init_symbol) {
-                    init.declaration.parameters.len()
-                } else {
-                    0
+                match class.find_method(&init_symbol) {
+                    Some(init) => { init.declaration.parameters.len() },
+                    None => 0,
                 }
             },
             Self::Clock => { 0 }
@@ -654,11 +672,10 @@ impl Callable
                         rc_scope.borrow_mut().define_variable(*name, value);
                     }
 
-                    let state = interpreter.execute_stmts(
+                    interpreter.execute_stmts(
                         &function.borrow().declaration.body,
                         &rc_scope
-                    )?;
-                    state
+                    )?
                 };
 
                 // non spostare da qui! (init ritorna 'this' anche se non presente un return al suo interno)
