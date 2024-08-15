@@ -6,7 +6,7 @@ Rust port from Java of the tree-walk interpreter for the Lox language described 
 
 * scanner.rs
 
-Allows scanning the source code one character at a time, while also providing the capability to perform N "read ahead" (the lexer actually requires two read aheads to recognize decimal numbers). The read ahead functionality is provded by the struct `NthPeekable`, which uses a circular buffer to stores transient characters.
+Allows scanning the source code one character at a time, while also providing the capability to perform N "read ahead" (the lexer actually requires two read aheads to recognize decimal numbers). The read ahead functionality is provded by the struct `NthPeekable`, which uses a circular buffer to store transient characters.
 
 * lexer.rs
 
@@ -14,7 +14,7 @@ Converts the characters provided by the scanner into tokens, recognizing strings
 
 * parser.rs
 
-Performs parsing by applying the grammatical rules of the language. It uses a recursive descent algorithm starting with the lowest precedence grammatical rules. It does not perform backtracking and only admits a single lookahead.
+Performs parsing by applying the grammatical rules of the language. It uses a recursive descent algorithm starting with the lowest precedence grammatical rules. It does not perform backtracking and only admits a single lookahead. The single look ahead functionality is provided by the struct `Peekable`.
 
 * resolver.rs
 
@@ -22,7 +22,7 @@ Traverses the syntax tree and resolves all variables by associating them with th
 
 * interpreter.rs
 
-Executes all the statements sequentially recursively evaluating any expression.
+Executes all the statements sequentially, recursively evaluating any expression.
 
 Other files:
 
