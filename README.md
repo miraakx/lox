@@ -88,10 +88,6 @@ lox <file>
 
 [@miraakx](https://github.com/miraakx)
 
-## Version History
-
-* 0.1
-    * Initial Release
 
 ## License
 
