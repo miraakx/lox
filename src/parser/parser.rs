@@ -1,27 +1,29 @@
+use std::cell::RefCell;
+use std::io::Write;
 use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
 use crate::alias::IdentifierSymbol;
-use crate::error::{ConsoleErrorLogger, ErrorLogger, ExecutionResult, InternalErrorKind, LoxError, ParserErrorKind};
+use crate::error::{ExecutionResult, InternalErrorKind, LoxError, ParserErrorKind};
 use crate::utils::peekable_iterator::Peekable;
 
 use super::lexer::Lexer;
 use super::tokens::{Token, TokenKind, TokenSource};
 use super::types::{AssignExpr, BinaryExpr, BinaryOperatorKind, CallExpr, ClassDeclaration, Expr, ExprKind, FunctionDeclaration, GetExpr, Identifier, IfElseStmt, IfStmt, Literal, LogicalExpr, LogicalOperatorKind, Operator, SetExpr, Stmt, UnaryExpr, UnaryOperatorKind, WhileStmt};
 
-pub struct Parser
+pub struct Parser<T: Write>
 {
     in_loop: u32,
-    error_logger: Box<dyn ErrorLogger>,
+    error_logger: Rc<RefCell<T>>,
     init_symbol: IdentifierSymbol
 }
 
-impl Parser
+impl <T: Write> Parser<T>
 {
-    pub fn new(error_logger: impl ErrorLogger + 'static, init_symbol: IdentifierSymbol) -> Self {
-        Self { in_loop: 0, error_logger: Box::new(error_logger), init_symbol }
+    pub fn new(error_logger: Rc<RefCell<T>>, init_symbol: IdentifierSymbol) -> Self {
+        Self { in_loop: 0, error_logger, init_symbol }
     }
 
     /// Handles syntactical errors when the parser meets one.
@@ -67,7 +69,7 @@ impl Parser
 
         let mut is_error  : bool      = false;
 
-        let mut lexer       : Lexer<'_>      = Lexer::new(code, interner, ConsoleErrorLogger{});
+        let mut lexer       : Lexer<'_, T>      = Lexer::new(code, interner, self.error_logger.clone());
         let mut token_source: TokenSource    = Peekable::new(&mut lexer);
 
         loop {
@@ -85,7 +87,7 @@ impl Parser
                 }
                 Err(err) => {
                     is_error = true;
-                    self.error_logger.log(err);
+                    let _ = writeln!(self.error_logger.borrow_mut(), "{}", err);
 
                     // In case of a syntactical error call `synchronize` to skip to the next statement to avoids spitting out gibberish error messages.
                     self.synchronize(&mut token_source);

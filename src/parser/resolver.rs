@@ -1,13 +1,13 @@
-use std::rc::Rc;
+use std::{cell::RefCell, io::Write, rc::Rc};
 
 use rustc_hash::FxHashMap;
 use string_interner::StringInterner;
 
-use crate::{alias::{IdentifierSymbol, SideTable}, error::{ErrorLogger, ExecutionResult, LoxError, ResolverErrorKind}, utils::stack::Stack};
+use crate::{alias::{IdentifierSymbol, SideTable}, error::{ExecutionResult, LoxError, ResolverErrorKind}, utils::stack::Stack};
 
 use super::{types::{Expr, ExprKind, FunctionDeclaration, Stmt}, position::Position};
 
-pub struct Resolver<'a>
+pub struct Resolver<'a, T:Write>
 {
     stack:            Stack<FxHashMap<IdentifierSymbol, bool>>,
     string_interner:  &'a StringInterner,
@@ -17,12 +17,12 @@ pub struct Resolver<'a>
     this_symbol:      IdentifierSymbol,
     init_symbol:      IdentifierSymbol,
     super_symbol:     IdentifierSymbol,
-    error_logger:     Box<dyn ErrorLogger>,
+    error_logger:     Rc<RefCell<T>>,
 }
 
-impl <'a> Resolver<'a>
+impl <'a, T:Write> Resolver<'a,T>
 {
-    pub fn new(error_logger: impl ErrorLogger + 'static, string_interner: &'a mut StringInterner) -> Self
+    pub fn new(error_logger: Rc<RefCell<T>>, string_interner: &'a mut StringInterner) -> Self
     {
         let this_symbol = string_interner.get("this").unwrap();
         let init_symbol = string_interner.get("init").unwrap();
@@ -37,13 +37,13 @@ impl <'a> Resolver<'a>
             this_symbol,
             init_symbol,
             super_symbol,
-            error_logger: Box::new(error_logger),
+            error_logger,
         }
     }
 
     fn error(&mut self, err_kind: ResolverErrorKind, position: &Position)
     {
-        self.error_logger.log(LoxError::resolver_error(err_kind, *position));
+        let _ = writeln!(self.error_logger.borrow_mut(), "{}", LoxError::resolver_error(err_kind, *position));
         self.has_error = true;
     }
 

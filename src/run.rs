@@ -1,8 +1,8 @@
-use std::{fs, io::Write};
+use std::{cell::RefCell, fs, io::Write, rc::Rc};
 
 use string_interner::StringInterner;
 
-use crate::{alias::IdentifierSymbol, benches::{BINARY_TREES_LOX, EQUALITY_LOX, FIB_LOX, INSTANTIATION_LOX, INVOCATION_LOX, METHOD_CALL_LOX, PROPERTIES_LOX, STRING_EQUALITY_LOX, TREES_LOX, ZOO_BATCH_LOX, ZOO_LOX}, error::{ConsoleErrorLogger, ExecutionResult}, interpreter::interpreter::Interpreter, parser::{parser::Parser, resolver::Resolver, types::Stmt}};
+use crate::{alias::IdentifierSymbol, benches::{BINARY_TREES_LOX, EQUALITY_LOX, FIB_LOX, INSTANTIATION_LOX, INVOCATION_LOX, METHOD_CALL_LOX, PROPERTIES_LOX, STRING_EQUALITY_LOX, TREES_LOX, ZOO_BATCH_LOX, ZOO_LOX}, error::ExecutionResult, interpreter::interpreter::Interpreter, parser::{parser::Parser, resolver::Resolver, types::Stmt}};
 
 /// Executes a file.
 pub fn run_file(filepath: &str, writer: &mut dyn Write) -> Result<(), ExecutionResult>
@@ -20,22 +20,23 @@ pub fn run_file(filepath: &str, writer: &mut dyn Write) -> Result<(), ExecutionR
 }
 
 /// Executes the supplied code.
-pub fn run(code: &str, writer: &mut dyn Write) -> Result<(), ExecutionResult>
+pub fn run<T:Write>(code: &str, writer: T) -> Result<(), ExecutionResult>
 {
    let stmts: Vec<Stmt>;
    let mut interner: StringInterner = StringInterner::default();
    let _ = interner.get_or_intern_static("this");
    let _ = interner.get_or_intern_static("super");
    let init_symbol: IdentifierSymbol = interner.get_or_intern_static("init");
+   let writer = Rc::new(RefCell::new(writer));
    {
-      let mut parser: Parser = Parser::new(ConsoleErrorLogger{}, init_symbol);
+      let mut parser: Parser<T> = Parser::new(Rc::clone(&writer), init_symbol);
       stmts = parser.parse(code, &mut interner)?;
    }
    let mut interpreter;
    {
-      let mut resolver: Resolver = Resolver::new(ConsoleErrorLogger{}, &mut interner);
+      let mut resolver: Resolver<T> = Resolver::new(Rc::clone(&writer), &mut interner);
       let side_table = resolver.resolve(&stmts)?;
-      interpreter = Interpreter::new_with_writer(&mut interner, side_table, writer);
+      interpreter = Interpreter::new_with_writer(&mut interner, side_table, Rc::clone(&writer));
    }
    interpreter.execute(&stmts)
 }

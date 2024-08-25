@@ -211,17 +211,3 @@ impl fmt::Display for ParserErrorKind
 pub enum ExecutionResult {
     ParserError, ResolverError, RuntimeError, CannotReadFile
  }
-
-pub trait ErrorLogger
-{
-    fn log(&mut self, error: LoxError);
-}
-
-pub struct ConsoleErrorLogger;
-
-impl ErrorLogger for ConsoleErrorLogger
-{
-    fn log(&mut self, error: LoxError) {
-        println!("{}", error);
-    }
-}

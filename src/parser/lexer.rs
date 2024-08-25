@@ -1,28 +1,30 @@
+use std::{cell::RefCell, io::Write, rc::Rc};
+
 use string_interner::StringInterner;
 
 use crate::{error::*, utils::rc_cache::RcStringCache};
 
 use super::{keywords::*, position::Position, scanner::Scanner, tokens::{Token, TokenKind}};
 
-pub struct Lexer<'a>
+pub struct Lexer<'a, T: Write>
 {
     scanner        : Scanner<'a>,
     string_interner: &'a mut StringInterner,
     string_rc_cache: RcStringCache,
-    error_logger   : Box<dyn ErrorLogger>,
+    error_logger   : Rc<RefCell<T>>,
     end_of_file    : bool,
     line           : u32,
     column         : u32
 }
 
-impl<'a> Lexer<'a>
+impl<'a, T: Write> Lexer<'a, T>
 {
-    pub fn new(code: &'a str, string_interner: &'a mut StringInterner, error_logger: impl ErrorLogger + 'static) -> Self
+    pub fn new(code: &'a str, string_interner: &'a mut StringInterner, error_logger: Rc<RefCell<T>>) -> Self
     {
         Lexer
         {
            scanner:       Scanner::from_str(code, 2),
-           error_logger:  Box::new(error_logger),
+           error_logger:  error_logger,
            end_of_file:   false,
            string_interner,
            line: 1,
@@ -32,7 +34,7 @@ impl<'a> Lexer<'a>
     }
 }
 
-impl <'a> Lexer<'a>
+impl <'a, T: Write> Lexer<'a,T>
 {
     #[inline]
     fn new_line(&mut self)
@@ -54,7 +56,7 @@ impl <'a> Lexer<'a>
     }
 }
 
-impl<'a> Iterator for Lexer<'a>
+impl<'a, T: Write> Iterator for Lexer<'a, T>
 {
     type Item = Token;
 
@@ -309,7 +311,7 @@ impl<'a> Iterator for Lexer<'a>
                                     },
                                     _=> {
                                         string.push(ch);
-                                        self.error_logger.log(LoxError::parser_error(ParserErrorKind::InvalidEscapeCharacter, self.get_position()));
+                                        let _ = writeln!(self.error_logger.borrow_mut(), "{}", LoxError::parser_error(ParserErrorKind::InvalidEscapeCharacter, self.get_position()));
                                     }
                                 }
                             },
@@ -324,7 +326,7 @@ impl<'a> Iterator for Lexer<'a>
                             None =>
                             {
                                 //unterminated string
-                                self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnterminatedString, self.get_position()));
+                                let _ = writeln!(self.error_logger.borrow_mut(), "{}", LoxError::parser_error(ParserErrorKind::UnterminatedString, self.get_position()));
                                 let rc_string = self.string_rc_cache.get(string);
                                 opt_token_kind = Some(TokenKind::String(rc_string));
                                 break;
@@ -362,7 +364,7 @@ impl<'a> Iterator for Lexer<'a>
                             opt_token_kind = Some(TokenKind::Number(number));
                         }
                         Err(_) => {
-                            self.error_logger.log(LoxError::parser_error(ParserErrorKind::ParseFloatError(number_string), self.get_position()));
+                            let _ = writeln!(self.error_logger.borrow_mut(), "{}", LoxError::parser_error(ParserErrorKind::ParseFloatError(number_string), self.get_position()));
                             opt_token_kind = Some(TokenKind::Number(f64::NAN));
                         }
                     }
@@ -393,7 +395,7 @@ impl<'a> Iterator for Lexer<'a>
                 },
                 _ =>
                 {
-                    self.error_logger.log(LoxError::parser_error(ParserErrorKind::UnexpectedToken(ch), self.get_position()));
+                    let _ = writeln!(self.error_logger.borrow_mut(), "{}", LoxError::parser_error(ParserErrorKind::UnexpectedToken(ch), self.get_position()));
                     opt_token_kind = Some(TokenKind::UnexpectedToken);
                 }
             }
@@ -487,24 +489,24 @@ fn compare(str: &str, keyword: &str, token_kind: TokenKind) -> Option<TokenKind>
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, rc::Rc};
+    use std::{cell::RefCell, fs, io::stdout, rc::Rc};
 
     use string_interner::StringInterner;
 
-    use crate::{error::ConsoleErrorLogger,  parser::tokens::{Token, TokenKind}};
+    use crate::parser::tokens::{Token, TokenKind};
 
     use super::{Lexer, Position};
 
     fn tokenize(code: &str) -> Vec<Token>
     {
         let mut interner = StringInterner::default();
-        let lexer = Lexer::new(code, &mut interner, ConsoleErrorLogger{});
+        let lexer = Lexer::new(code, &mut interner, Rc::new(RefCell::new(stdout())));
         lexer.collect()
     }
 
     fn tokenize_with_interner(code: &str, string_interner: &mut StringInterner) -> Vec<Token>
     {
-        let lexer = Lexer::new(code, string_interner, ConsoleErrorLogger{});
+        let lexer = Lexer::new(code, string_interner, Rc::new(RefCell::new(stdout())));
         lexer.collect()
     }
 

@@ -7,7 +7,7 @@ use crate::{alias::{ExprId, IdentifierSymbol, SideTable}, error::{ExecutionResul
 
 use super::{environment::Environment, native_functions::{assert_eq, clock}, types::{LoxClass, LoxFunction, LoxInstance, Value}};
 
-pub struct Interpreter<'a, 'b>
+pub struct Interpreter<'a, T:Write>
 {
     string_interner:   &'a mut StringInterner,
     side_table:        SideTable,
@@ -15,12 +15,12 @@ pub struct Interpreter<'a, 'b>
     this_symbol:       IdentifierSymbol,
     init_symbol:       IdentifierSymbol,
     super_symbol:      IdentifierSymbol,
-    writer:            &'b mut dyn Write
+    writer:            Rc<RefCell<T>>
 }
 
-impl <'a, 'b> Interpreter<'a, 'b>
+impl <'a, T:Write> Interpreter<'a, T>
 {
-    pub fn new_with_writer(string_interner: &'a mut StringInterner, side_table: SideTable, writer: &'b mut dyn Write) -> Self
+    pub fn new_with_writer(string_interner: &'a mut StringInterner, side_table: SideTable, writer: Rc<RefCell<T>>) -> Self
     {
         let this_symbol  = string_interner.get("this").unwrap();
         let init_symbol  = string_interner.get("init").unwrap();
@@ -89,7 +89,7 @@ impl <'a, 'b> Interpreter<'a, 'b>
 
     #[inline]
     fn write_line(&mut self, message: &str) {
-        let _ = writeln!(self.writer, "{}", message);
+        let _ = writeln!(self.writer.borrow_mut(), "{}", message);
     }
 
     /// Executes a single statement.
@@ -654,7 +654,7 @@ impl Callable
 
     #[inline]
     /// Executes a callable instance and returns its Value or an error.
-    fn call(&mut self, interpreter: &mut Interpreter, interpreter_environment: &Rc<RefCell<Environment>>, args_expr: &[Expr], position: &Position) -> Result<Value, LoxError>
+    fn call<T:Write>(&mut self, interpreter: &mut Interpreter<T>, interpreter_environment: &Rc<RefCell<Environment>>, args_expr: &[Expr], position: &Position) -> Result<Value, LoxError>
     {
         match self
         {
