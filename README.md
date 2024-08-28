@@ -46,7 +46,7 @@ End-to-end tests are contained in the `./lox_test` folder and were developed by 
 
 You can benchmark the interpreter with the following command:
 ```
-lox --bench
+rlox --bench
 ```
 
 Results:
@@ -81,7 +81,7 @@ The executable can be found under ./target/release
 Run the executable from cmd or bash:
 ```
 cd <exe/folder/path>
-lox <file>
+rlox <file>
 ```
 
 ## Authors
