@@ -49,7 +49,7 @@ COPYRIGHT
          }
       }
       _ => {
-         println!("\nUsage: `lox [path/to/script]`. Type `rlox --help` for further info.");
+         println!("\nUsage: `rlox [path/to/script]`. Type `rlox --help` for further info.");
          std::process::exit(64);
       }
    };
