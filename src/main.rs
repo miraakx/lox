@@ -1,6 +1,6 @@
 use std::{env, io};
 
-use lox::run;
+use rlox::run;
 
 fn main()
 {
@@ -17,7 +17,27 @@ fn main()
                println!("rlox {}", VERSION);
             },
             "--help" => {
-               println!("Work in progress...");
+               let help =
+"NAME
+      rlox - Lox language tree-walk interpreter writtern in Rust.
+
+SYNOPSIS
+      rlox [OPTION] [FILE]
+
+OPTIONS
+      --bench     benchmark the interpreter on a standard set of tests written by the author of the Lox language and display the outcome.
+
+      --version   output version information and exit
+
+      --help      output help information and exit
+
+AUTHOR
+      Written by miraakx (https://github.com/miraakx)
+
+COPYRIGHT
+      Copyrights 2024 miraakx (https://github.com/miraakx) - MIT Licence (https://github.com/miraakx/lox?tab=License-1-ov-file#readme)
+
+";             println!("{}", help);
             }
             _ => {
                let result = run::run_file(&args[1], &mut io::stdout().lock());

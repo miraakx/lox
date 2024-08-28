@@ -77,17 +77,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a08173bc88b7955d1b3145aa561539096c421ac8debde8cbc3612ec635fee29b"
 
 [[package]]
-name = "lox"
-version = "0.1.0"
-dependencies = [
- "once_cell",
- "regex",
- "rustc-hash",
- "string-interner",
- "unique_id",
-]
-
-[[package]]
 name = "memchr"
 version = "2.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -145,6 +134,17 @@ name = "regex-syntax"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
+
+[[package]]
+name = "rlox"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "regex",
+ "rustc-hash",
+ "string-interner",
+ "unique_id",
+]
 
 [[package]]
 name = "rustc-hash"

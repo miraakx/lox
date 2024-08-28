@@ -44,9 +44,7 @@ pub fn run<T:Write>(code: &str, writer: T) -> Result<(), ExecutionResult>
 /// Runs the benchmarks designed by the autor of the language and prints out the results.
 pub fn bench() {
    let benches = [BINARY_TREES_LOX, EQUALITY_LOX, FIB_LOX, INSTANTIATION_LOX, INVOCATION_LOX, METHOD_CALL_LOX, PROPERTIES_LOX, STRING_EQUALITY_LOX, TREES_LOX, ZOO_BATCH_LOX, ZOO_LOX];
-   println!("+-----------------+-----------+");
-   println!("| {:<16}| {:<10}|", "TEST TYPE", "ELAPSED");
-   println!("+-----------------+-----------+");
+   println!("{:<16} ;{:<10}", "TEST TYPE", "ELAPSED");
    for (test_index, bench) in benches.iter().enumerate() {
       let mut buf_output = Vec::<u8>::new();
       let _ = run(bench, &mut buf_output);
@@ -82,7 +80,6 @@ pub fn bench() {
             }
          }
       }
-      println!("| {:<16}| {:>9} |", text, format!("{:.3}", result))
+      println!("{:<16} ;{:>9}", text, format!("{:.3}", result))
    }
-   println!("+-----------------+-----------+");
 }
