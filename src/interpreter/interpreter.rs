@@ -57,8 +57,7 @@ impl <'a, T:Write> Interpreter<'a, T>
         match self.execute_stmts(stmts, &environment)
         {
             Ok(_) => {}
-            Err(err) => {
-                println!("{}", err);
+            Err(_) => {
                 return Err(ExecutionResult::RuntimeError);
             },
         }
@@ -66,7 +65,7 @@ impl <'a, T:Write> Interpreter<'a, T>
     }
 
     /// Loops though all the statements and executes them one by one.
-    fn execute_stmts(&mut self, stmts: &[Stmt], environment: &Rc<RefCell<Environment>>) -> Result<State, LoxError>
+    fn execute_stmts(&mut self, stmts: &[Stmt], environment: &Rc<RefCell<Environment>>) -> Result<State, ()>
     {
         for stmt in stmts
         {
@@ -94,7 +93,7 @@ impl <'a, T:Write> Interpreter<'a, T>
 
     /// Executes a single statement.
     ///
-    fn execute_stmt(&mut self, stmt: &Stmt, environment: &Rc<RefCell<Environment>>) -> Result<State, LoxError>
+    fn execute_stmt(&mut self, stmt: &Stmt, environment: &Rc<RefCell<Environment>>) -> Result<State, ()>
     {
         match stmt
         {
@@ -217,7 +216,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                                     Some(Rc::clone(rc_lox_class))
                                 },
                                 _ => {
-                                    return Err(LoxError::interpreter_error(InterpreterErrorKind::SuperclassMustBeAClass, class_stmt.identifier.position));
+                                    let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::SuperclassMustBeAClass, class_stmt.identifier.position));
+                                    return Err(());
                                 }
                             }
                         },
@@ -268,7 +268,7 @@ impl <'a, T:Write> Interpreter<'a, T>
     ///
     /// Recursivly evaluates an expression.
     ///
-    fn evaluate(&mut self, expr: &Expr, environment: &Rc<RefCell<Environment>>) -> Result<Value, LoxError>
+    fn evaluate(&mut self, expr: &Expr, environment: &Rc<RefCell<Environment>>) -> Result<Value, ()>
     {
         match &expr.kind {
             ExprKind::Literal(literal) =>
@@ -306,7 +306,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                                 Ok(Value::Number(-num))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperand, unary_expr.operator.position))
+                                let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperand, unary_expr.operator.position));
+                                Err(())
                             }
                         }
                     },
@@ -333,7 +334,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                                 Ok(Value::Number(num_left - num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
+                                let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position));
+                                Err(())
                             }
                         }
                     },
@@ -347,7 +349,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                                 Ok(Value::String(Rc::new(format!("{}{}", str_left, str_right))))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::InvalidPlusOperands, binary_expr.operator.position))
+                                let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::InvalidPlusOperands, binary_expr.operator.position));
+                                Err(())
                             }
                         }
                     },
@@ -358,7 +361,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                                 Ok(Value::Number(num_left / num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
+                                let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position));
+                                Err(())
                             }
                         }
                     },
@@ -369,7 +373,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                                 Ok(Value::Number(num_left * num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
+                                let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position));
+                                Err(())
                             }
                         }
                     },
@@ -380,7 +385,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                                 Ok(Value::Bool(num_left > num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
+                                let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position));
+                                Err(())
                             }
                         }
                     },
@@ -391,7 +397,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                                 Ok(Value::Bool(num_left >= num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
+                                let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position));
+                                Err(())
                             }
                         }
                     },
@@ -401,7 +408,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                                 Ok(Value::Bool(num_left < num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
+                                let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position));
+                                Err(())
                             }
                         }
                     },
@@ -412,7 +420,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                                 Ok(Value::Bool(num_left <= num_right))
                             },
                             _ => {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position))
+                                let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::CheckNumberOperands, binary_expr.operator.position));
+                                Err(())
                             }
                         }
                     },
@@ -433,7 +442,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                         Ok(variable)
                     },
                     None => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::UndefinedVariable(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
+                        let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::UndefinedVariable(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position));
+                        Err(())
                     },
                 }
             },
@@ -446,7 +456,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                         Ok(value)
                     },
                     Err(_) => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::UndefinedVariable(self.string_interner.resolve(assign_expr.identifier.name).unwrap().to_owned()), assign_expr.identifier.position))
+                        let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::UndefinedVariable(self.string_interner.resolve(assign_expr.identifier.name).unwrap().to_owned()), assign_expr.identifier.position));
+                        Err(())
                     },
                 }
             },
@@ -483,11 +494,13 @@ impl <'a, T:Write> Interpreter<'a, T>
                         }
                         else
                         {
-                            Err(LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(self.init_symbol), call_expr.arguments.len()), call_expr.position))
+                            let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::WrongArity(function.arity(self.init_symbol), call_expr.arguments.len()), call_expr.position));
+                            Err(())
                         }
                     },
                     _ => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::NotCallable, call_expr.position))
+                        let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::NotCallable, call_expr.position));
+                        Err(())
                     }
                 }
             },
@@ -513,11 +526,13 @@ impl <'a, T:Write> Interpreter<'a, T>
                             return Ok(Value::Callable(callable));
                         }
 
-                        return Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(get_expr.identifier.name).unwrap().to_owned()), get_expr.identifier.position));
+                        let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(get_expr.identifier.name).unwrap().to_owned()), get_expr.identifier.position));
+                        return Err(());
                     },
                     _ =>
                     {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::OnlyInstancesHaveProperties, get_expr.identifier.position))
+                        let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::OnlyInstancesHaveProperties, get_expr.identifier.position));
+                        return Err(());
                     }
                 }
             },
@@ -532,7 +547,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                         Ok(value)
                     },
                     _ => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::OnlyInstancesHaveFields, set_expr.identifier.position))
+                        let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::OnlyInstancesHaveFields, set_expr.identifier.position));
+                        Err(())
                     }
                 }
             },
@@ -544,7 +560,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                         Ok(variable)
                     },
                     None => {
-                        Err(LoxError::interpreter_error(InterpreterErrorKind::UndefinedVariable(self.string_interner.resolve(self.this_symbol).unwrap().to_owned()), *position))
+                        let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::UndefinedVariable(self.string_interner.resolve(self.this_symbol).unwrap().to_owned()), *position));
+                        Err(())
                     },
                 }
             },
@@ -570,7 +587,8 @@ impl <'a, T:Write> Interpreter<'a, T>
                             },
                             None =>
                             {
-                                Err(LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position))
+                                let _ = writeln!(self.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::UdefinedProperty(self.string_interner.resolve(identifier.name).unwrap().to_owned()), identifier.position));
+                                Err(())
                             },
                         }
                     },
@@ -654,7 +672,13 @@ impl Callable
 
     #[inline]
     /// Executes a callable instance and returns its Value or an error.
-    fn call<T:Write>(&mut self, interpreter: &mut Interpreter<T>, interpreter_environment: &Rc<RefCell<Environment>>, args_expr: &[Expr], position: &Position) -> Result<Value, LoxError>
+    fn call<T:Write>(
+        &mut self,
+        interpreter:                &mut Interpreter<T>,
+        interpreter_environment:    &Rc<RefCell<Environment>>,
+        args_expr:                  &[Expr],
+        position:                   &Position
+    ) -> Result<Value, ()>
     {
         match self
         {
@@ -719,7 +743,10 @@ impl Callable
                 match clock()
                 {
                     Ok(value) => Ok(value),
-                    Err(error) => Err(LoxError::interpreter_error(error, *position))
+                    Err(_) => {
+                        let _ = writeln!(interpreter.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::NativeClockSysTimeError, *position));
+                        return Err(());
+                    }
                 }
             },
             Self::AssertEq =>
@@ -731,7 +758,10 @@ impl Callable
                     Ok(_) => {
                         Ok(Value::Nil)
                     },
-                    Err(error) => Err(LoxError::interpreter_error(error, *position)),
+                    Err(_) => {
+                        let _ = writeln!(interpreter.writer.borrow_mut(), "{}", LoxError::interpreter_error(InterpreterErrorKind::AssertionFailure, *position));
+                        return Err(());
+                    }
                 }
             },
             Self::Str =>
